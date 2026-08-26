@@ -42,6 +42,12 @@ const config: ExpoConfig = {
   slug: env.appSlug,
   version: "1.0.0",
   orientation: "portrait",
+  updates: {
+    url: "https://u.expo.dev/55c67265-81c0-4d30-8a4c-62322f5ca429",
+  },
+  runtimeVersion: {
+    policy: "appVersion",
+  },
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
