@@ -28,7 +28,7 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Saving Jar",
+  appName: "jarly",
   appSlug: "saving-jar",
   // Generated Saving Jar logo used by the project management surface.
   logoUrl: "/manus-storage/saving-jar-icon_cfab209d.png",
