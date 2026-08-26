@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
 /**
- * Tiered haptic vocabulary (see Saving_Jar_DESIGN.md motion rules):
+ * Tiered haptic vocabulary:
  * - tap:       light, for keypad presses and chip selection
  * - medium:    calm confirmation (e.g. withdrawal committed)
  * - success:   deposit committed

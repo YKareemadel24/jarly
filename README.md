@@ -51,7 +51,8 @@ The primary loop is intentionally short:
 
 - **Goal jars** — one-time goals with a target, optional deadline, emoji, and semantic accent color.
 - **Habit jars** — repeatable savings with calendar-day streaks.
-- **Deposits & withdrawals** — record contributions and take money back out (withdrawals never undo milestones or streaks).
+- **Deposits & withdrawals** — record contributions and take money back out (withdrawals never undo milestones or streaks). The deposit sheet previews the balance → new-balance transition and resulting percentage before confirming.
+- **Quick deposit** — every jar card on Home exposes a `+ Add` chip that opens its deposit sheet directly (long-press also works).
 - **Recurring saving** — schedule automatic deposits on a daily, weekly, biweekly, or monthly cadence, with deterministic catch-up of missed occurrences.
 - **Milestones** — progress is tracked at 25/50/75/100%, with a celebratory overlay when a level is crossed.
 - **Insights dashboard** — total saved, active/completed jars, best streak, deposit count, and closest-to-goal view.
@@ -155,6 +156,7 @@ jarly/
 ├── tests/                      # Vitest unit tests
 ├── assets/                     # App icons, splash, and images
 ├── app.config.ts               # Expo app configuration
+├── eas.json                    # EAS Build profiles (development / preview / production)
 ├── drizzle.config.ts           # Drizzle Kit configuration
 ├── tailwind.config.js          # Tailwind/NativeWind theme mapping
 ├── theme.config.js             # Design tokens (light/dark color swatches)
@@ -261,6 +263,7 @@ The app loads variables with **system environment taking priority over `.env`** 
 | `pnpm test` | Run the Vitest suite. |
 | `pnpm db:push` | Generate and apply Drizzle migrations (`drizzle-kit generate && migrate`). |
 | `pnpm qr` | Generate a QR code for the dev server. |
+| `eas build` | Build with [EAS](https://docs.expo.dev/build/introduction/) using the profiles in `eas.json` (`development`, `preview` → Android APK, `production` with auto-increment). |
 
 ---
 
@@ -370,8 +373,7 @@ Test coverage (`tests/`):
 ## Design documentation
 
 - [`design.md`](design.md) — mobile interface design plan: screen list, user flows, layout rules, visual components.
-- [`Saving_Jar_DESIGN.md`](Saving_Jar_DESIGN.md) — full product/domain design reference.
-- [`reference-notes.md`](reference-notes.md) — note on the requested modern (white-first) UI direction.
+- [`reference-notes.md`](reference-notes.md) — the requested modern (white-first) UI direction.
 - [`todo.md`](todo.md) — current project task list.
 
 ---

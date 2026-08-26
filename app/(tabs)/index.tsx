@@ -44,7 +44,7 @@ function GoalCard({ jar, styles, colors, accents }: { jar: Jar; styles: ReturnTy
   return (
     <Pressable
       accessibilityLabel={`${jar.name}. ${progress}% complete. ${money(jar.balance)} saved of ${money(jar.target)}.`}
-      accessibilityHint="Double-tap to open. Long press to add money quickly."
+      accessibilityHint="Double-tap to open. Use Add for a quick deposit."
       onPress={() => router.push(`/jar/${jar.id}` as never)}
       onLongPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
       delayLongPress={320}
@@ -60,7 +60,14 @@ function GoalCard({ jar, styles, colors, accents }: { jar: Jar; styles: ReturnTy
           <Text style={[styles.goalMetaText, urgent && { color: colors.warning, fontWeight: "700" }]}>{meta}</Text>
         </View>
       </View>
-      <MaterialIcons name="chevron-right" size={22} color={colors.muted} />
+      <Pressable
+        accessibilityLabel={`Add money to ${jar.name}`}
+        accessibilityHint="Opens the deposit sheet."
+        onPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
+        style={({ pressed }) => [styles.quickAddChip, { backgroundColor: `${accent}1F` }, pressed && styles.pressed]}
+      >
+        <Text style={[styles.quickAddChipText, { color: accent }]}>+ Add</Text>
+      </Pressable>
     </Pressable>
   );
 }
@@ -141,5 +148,5 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   sectionHeader: { marginTop: 28, marginBottom: 13, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }, sectionTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22 }, sectionSub: { color: c.muted, fontSize: 12, marginTop: 4 }, newGoal: { width: 37, height: 37, borderRadius: 13, backgroundColor: c.primary, alignItems: "center", justifyContent: "center" },
   goalCard: { minHeight: 114, backgroundColor: c.surface, borderRadius: 22, borderColor: c.border, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }, goalVisual: { width: 77, alignItems: "center", justifyContent: "center" }, goalCopy: { flex: 1, alignSelf: "stretch", justifyContent: "center" }, goalHeading: { flexDirection: "row", alignItems: "center", gap: 7 }, goalName: { color: c.foreground, flex: 1, fontSize: 15, fontWeight: "800" }, pill: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4 }, pillText: { fontSize: 10, fontWeight: "800" }, goalAmount: { color: c.foreground, fontSize: 14, marginTop: 5, fontWeight: "700", fontVariant: ["tabular-nums"] }, goalTarget: { color: c.muted, fontWeight: "500" }, track: { height: 5, borderRadius: 999, backgroundColor: c.border, overflow: "hidden", marginTop: 10 }, trackFill: { height: "100%", borderRadius: 999 }, goalMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8 }, goalMetaText: { color: c.muted, fontSize: 11 },
   completedBlock: { marginTop: 26 }, completedHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }, completedTitle: { color: c.muted, fontSize: 11, fontWeight: "800", letterSpacing: .9 }, completedCount: { color: c.muted, fontSize: 11, fontWeight: "800", backgroundColor: c.border, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1, overflow: "hidden" },
-  empty: { backgroundColor: c.surface, borderRadius: 26, padding: 26, alignItems: "center", borderWidth: 1, borderColor: c.border }, emptyTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 24, marginTop: 14 }, emptyCopy: { color: c.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8, maxWidth: 275 }, primary: { backgroundColor: c.primary, minHeight: 52, borderRadius: 16, marginTop: 21, alignSelf: "stretch", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }, primaryText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, quickAdd: { position: "absolute", bottom: 14, alignSelf: "center", backgroundColor: "#3B2D24", minHeight: 51, paddingHorizontal: 19, borderRadius: 17, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, shadowColor: "#3B2D24", shadowOffset: { width: 0, height: 7 }, shadowOpacity: .24, shadowRadius: 12, elevation: 5 }, quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, pressed: { opacity: .86, transform: [{ scale: .98 }] },
+  empty: { backgroundColor: c.surface, borderRadius: 26, padding: 26, alignItems: "center", borderWidth: 1, borderColor: c.border }, emptyTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 24, marginTop: 14 }, emptyCopy: { color: c.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8, maxWidth: 275 }, primary: { backgroundColor: c.primary, minHeight: 52, borderRadius: 16, marginTop: 21, alignSelf: "stretch", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }, primaryText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, quickAdd: { position: "absolute", bottom: 14, alignSelf: "center", backgroundColor: "#3B2D24", minHeight: 51, paddingHorizontal: 19, borderRadius: 17, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, shadowColor: "#3B2D24", shadowOffset: { width: 0, height: 7 }, shadowOpacity: .24, shadowRadius: 12, elevation: 5 }, quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, quickAddChip: { borderRadius: 11, paddingHorizontal: 11, paddingVertical: 7, alignSelf: "center" }, quickAddChipText: { fontSize: 12, fontWeight: "800" }, pressed: { opacity: .86, transform: [{ scale: .98 }] },
 });

@@ -10,8 +10,8 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 | Screen | Primary content | Core actions |
 |---|---|---|
-| Home | Total saved summary, active jar hero, jar collection, quick-add entry point | Open a jar, add money, create a jar, inspect the overview |
-| Jar detail | Large visual jar, saved/target figures, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity |
+| Home | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point | Open a jar, add money, create a jar, inspect the overview |
+| Jar detail | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity |
 | Create jar sheet | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview | Create a goal jar |
 | Deposit sheet | Selected jar, amount entry, balance impact, confirmation | Add a manual contribution and trigger progress feedback |
 | Activity view | Recent contributions and withdrawals grouped by jar | Review transaction history |
@@ -22,7 +22,7 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 ### Add money to a goal
 
-The user opens the home screen, taps the primary **Add money** action or a jar card, selects or confirms the goal jar, enters an amount, and confirms the deposit. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
+The user opens the home screen, taps the primary **Add money** action, taps a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
 
 ### Create a goal jar
 
@@ -34,9 +34,11 @@ The user opens a jar card to see its physical jar visualization paired with save
 
 ## Layout and interaction rules
 
-The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The active goal receives the visual emphasis as a large rounded card. Secondary jars appear as compact but touch-friendly rows or cards lower in the screen. The floating/add action remains reachable with one hand and never obscures tab navigation.
+The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The active goal receives the visual emphasis as a large rounded card. Secondary jars appear as compact but touch-friendly rows or cards lower in the screen, each ending in a small accent-tinted `+ Add` chip so a quick deposit is always one tap away without opening the jar. The floating/add action remains reachable with one hand and never obscures tab navigation.
 
-Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
+Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Deposits show a live preview row (current balance → new balance, with the resulting percentage) while withdrawals preview the remaining balance, so both directions are unambiguous before committing. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
+
+Below the jar-detail hero sit two compact stat cards — **Remaining** (amount to goal) and **Deposits** (contribution count) — giving at-a-glance momentum without opening the activity log.
 
 ## Color choices
 

@@ -14,7 +14,7 @@ const accents: Accent[] = ["coral", "amber", "mint", "ocean", "berry", "clay"];
 const icons = ["flight", "favorite", "laptop-mac", "home", "restaurant", "celebration"];
 
 /**
- * Guided first-jar creation (Saving_Jar_DESIGN.md section 10): a moment,
+ * Guided first-jar creation: a moment,
  * not a form. Recurring deposits are introduced after the jar exists.
  */
 export default function NewJar() {

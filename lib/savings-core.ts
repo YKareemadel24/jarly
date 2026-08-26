@@ -1,7 +1,7 @@
 /**
  * Pure Saving Jar domain layer.
  *
- * Rules enforced here (see Saving_Jar_DESIGN.md sections 22, 24, 29):
+ * Rules enforced here:
  * - Money is ALWAYS an integer number of minor units (cents). Never floats.
  * - Milestone levels are 25/50/75/100 and every crossed level is recorded.
  * - Habit streaks are calendar-day based, not deposit-count based.
