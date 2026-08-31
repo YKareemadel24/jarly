@@ -65,13 +65,17 @@ export function fromMinor(minor: number): number {
   return minor / 100;
 }
 
-export function money(minor: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(fromMinor(minor));
+export function money(minor: number, currency: string = "USD"): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(fromMinor(minor));
+  } catch {
+    return `${currency} ${fromMinor(minor).toFixed(2)}`;
+  }
 }
 
 export function percent(jar: Pick<Jar, "balance" | "target">): number {

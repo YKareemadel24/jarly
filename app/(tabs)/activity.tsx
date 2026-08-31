@@ -6,7 +6,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
-import { money, type Entry, type Jar, useSavings } from "@/lib/savings-store";
+import { type Entry, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
 type Row = { entry: Entry; jar: Jar };
 type Group = { label: string; rows: Row[] };
@@ -21,11 +21,11 @@ function dayLabel(iso: string, now: Date): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: date.getFullYear() === now.getFullYear() ? undefined : "numeric" });
 }
 
-function ActivityRow({ row, styles, colors, accents }: { row: Row; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette; accents: Record<string, string> }) {
+function ActivityRow({ row, styles, colors, accents, format }: { row: Row; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette; accents: Record<string, string>; format: (minor: number) => string }) {
   const accent = accents[row.jar.accent];
   const isDeposit = row.entry.direction === "deposit";
   const title = isDeposit ? (row.entry.source === "recurring" ? "Scheduled deposit" : "Money added") : "Money withdrawn";
-  const amountLabel = `${isDeposit ? "+" : "−"}${money(row.entry.amount)}`;
+  const amountLabel = `${isDeposit ? "+" : "−"}${format(row.entry.amount)}`;
   return (
     <View style={styles.row} accessibilityLabel={`${title} into ${row.jar.name}. ${amountLabel}.`}>
       <View style={[styles.rowIcon, { backgroundColor: isDeposit ? `${accent}1D` : `${colors.error}17` }]}>
@@ -45,6 +45,7 @@ export default function ActivityScreen() {
   const accents = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { jars } = useSavings();
+  const format = useMoney();
 
   const groups = useMemo<Group[]>(() => {
     const now = new Date();
@@ -80,7 +81,7 @@ export default function ActivityScreen() {
               <View style={styles.groupCard}>
                 {group.rows.map((row, index) => (
                   <View key={row.entry.id}>
-                    <ActivityRow row={row} styles={styles} colors={colors} accents={accents} />
+                    <ActivityRow row={row} styles={styles} colors={colors} accents={accents} format={format} />
                     {index < group.rows.length - 1 ? <View style={styles.divider} /> : null}
                   </View>
                 ))}

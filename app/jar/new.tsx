@@ -8,7 +8,7 @@ import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
 import { useJarAccents } from "@/hooks/use-jar-accents";
-import { jarAccent, money, type Accent, type JarKind, sanitizeAmountInput, toMinor, useSavings } from "@/lib/savings-store";
+import { jarAccent, money, type Accent, type JarKind, sanitizeAmountInput, toMinor, useMoney, useSavings } from "@/lib/savings-store";
 
 const accents: Accent[] = ["coral", "amber", "mint", "ocean", "berry", "clay"];
 const icons = ["flight", "favorite", "laptop-mac", "home", "restaurant", "celebration"];
@@ -22,6 +22,7 @@ export default function NewJar() {
   const accentsForScheme = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { addJar } = useSavings();
+  const format = useMoney();
   const [step, setStep] = useState(1);
   const [name, setName] = useState(""); const [target, setTarget] = useState(""); const [accent, setAccent] = useState<Accent>("ocean"); const [icon, setIcon] = useState("flight"); const [kind, setKind] = useState<JarKind>("goal"); const [deadline, setDeadline] = useState("");
   // Money is stored as integer minor units; inputs are sanitized as typed.
@@ -62,7 +63,7 @@ export default function NewJar() {
             <Text style={styles.previewLabel}>YOUR NEW JAR</Text>
             <Text style={styles.previewName}>{previewName}</Text>
             <Text style={styles.previewTarget}>
-              {targetValue && targetValue > 0 ? `Target ${money(targetValue)}` : kind === "goal" ? "Give it somewhere to grow." : "Build a saving rhythm."}
+              {targetValue && targetValue > 0 ? `Target ${format(targetValue)}` : kind === "goal" ? "Give it somewhere to grow." : "Build a saving rhythm."}
             </Text>
           </View>
         </View>

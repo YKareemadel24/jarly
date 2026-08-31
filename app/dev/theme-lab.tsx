@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SchemeColors, type ColorScheme } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useThemeContext } from "@/lib/theme-provider";
@@ -191,7 +191,7 @@ export default function ThemeLabScreen() {
               </Text>
               <View className="mt-3 gap-2">
                 <View className="flex-row items-center gap-2">
-                  <IconSymbol name="house.fill" color={colors.tint} size={20} />
+                  <MaterialIcons name="home" color={colors.tint} size={20} />
                   <Text className="text-sm text-foreground">
                     Press count: {pressCount}
                   </Text>

@@ -9,6 +9,8 @@ import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
 import { SavingsProvider } from "@/lib/savings-store";
+import { SettingsProvider } from "@/lib/settings-store";
+import { LockScreen } from "@/components/lock-screen";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -96,6 +98,7 @@ export default function RootLayout() {
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <SavingJarStatusBar />
+          <LockScreen />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>
@@ -109,7 +112,9 @@ export default function RootLayout() {
         <SafeAreaProvider initialMetrics={providerInitialMetrics}>
           <SafeAreaFrameContext.Provider value={frame}>
             <SafeAreaInsetsContext.Provider value={insets}>
-              <SavingsProvider>{content}</SavingsProvider>
+              <SavingsProvider>
+                <SettingsProvider>{content}</SettingsProvider>
+              </SavingsProvider>
             </SafeAreaInsetsContext.Provider>
           </SafeAreaFrameContext.Provider>
         </SafeAreaProvider>
@@ -119,7 +124,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider initialMetrics={providerInitialMetrics}><SavingsProvider>{content}</SavingsProvider></SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={providerInitialMetrics}><SavingsProvider><SettingsProvider>{content}</SettingsProvider></SavingsProvider></SafeAreaProvider>
     </ThemeProvider>
   );
 }

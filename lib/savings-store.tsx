@@ -23,6 +23,14 @@ import {
 export type { Accent, Cadence, Entry, Jar, JarKind };
 export { CADENCES, deadlineCountdown, jarAccent, jarAccentDark, money, percent, sanitizeAmountInput, toMinor };
 
+import { useSettings } from "@/lib/settings-store";
+
+/** Returns a money(minor) formatter bound to the user's active currency. */
+export function useMoney(): (minor: number) => string {
+  const { currency } = useSettings();
+  return (minor: number) => money(minor, currency);
+}
+
 const KEY = "saving-jar:v3";
 const BACKUP_KEY = "saving-jar:v3:backup";
 
