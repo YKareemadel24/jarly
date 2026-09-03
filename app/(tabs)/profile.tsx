@@ -1,14 +1,14 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 import { useThemeContext } from "@/lib/theme-provider";
 
-function Preference({ icon, title, detail, value, onChange, styles, colors }: { icon: string; title: string; detail: string; value: boolean; onChange: (next: boolean) => void; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
-  return <View style={styles.preference}><View style={styles.prefIcon}><MaterialIcons name={icon as never} size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={styles.prefTitle}>{title}</Text><Text style={styles.prefDetail}>{detail}</Text></View><Switch value={value} onValueChange={onChange} trackColor={{ false: colors.border, true: `${colors.primary}8C` }} thumbColor={value ? colors.primary : "#FFFDF9"} /></View>;
+function Preference({ icon, title, detail, value, onChange, disabled, styles, colors }: { icon: string; title: string; detail: string; value: boolean; onChange: (next: boolean) => void; disabled?: boolean; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
+  return <View style={styles.preference}><View style={styles.prefIcon}><MaterialIcons name={icon as never} size={19} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={styles.prefTitle}>{title}</Text><Text style={styles.prefDetail}>{detail}</Text></View><Switch value={value} onValueChange={onChange} disabled={disabled} trackColor={{ false: colors.border, true: `${colors.primary}8C` }} thumbColor={value ? colors.primary : "#FFFDF9"} /></View>;
 }
 
 type PinPromptMode = "setup" | "change";
@@ -70,19 +70,24 @@ export default function ProfileScreen() {
         <Text style={styles.sectionLabel}>GENTLE SUPPORT</Text>
         <View style={styles.group}>
           <Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={setRemindersEnabled} styles={styles} colors={colors} />
-          {biometricAvailable ? (
-            <>
-              <View style={styles.line} />
-              <Preference icon="fingerprint" title="Biometric lock" detail="Require fingerprint or face to open your jar" value={biometricLockEnabled} onChange={setBiometricLockEnabled} styles={styles} colors={colors} />
-            </>
-          ) : null}
+          <View style={styles.line} />
+          <Preference
+            icon="fingerprint"
+            title="Fingerprint unlock"
+            detail={biometricAvailable ? "Require your fingerprint or face to open your jar" : "Set up fingerprint or face unlock on this device to use this"}
+            value={biometricLockEnabled && biometricAvailable}
+            onChange={setBiometricLockEnabled}
+            disabled={!biometricAvailable}
+            styles={styles}
+            colors={colors}
+          />
           <View style={styles.line} />
           <Preference icon="lock-outline" title="PIN lock" detail="Use a 4-digit code if you'd rather not use biometrics" value={pinLockEnabled} onChange={onPinLockChange} styles={styles} colors={colors} />
           <View style={styles.line} />
-          <Pressable style={({ pressed }) => [styles.prefAction, pressed && styles.pressed]} onPress={() => hasPin ? openPinPrompt("change") : openPinPrompt("setup")}>
+          <Pressable disabled={!pinLockEnabled} style={({ pressed }) => [styles.prefAction, !pinLockEnabled && styles.prefActionDisabled, pressed && pinLockEnabled && styles.pressed]} onPress={() => pinLockEnabled ? (hasPin ? openPinPrompt("change") : openPinPrompt("setup")) : undefined}>
             <View style={styles.prefIcon}><MaterialIcons name="key" size={19} color={colors.primary} /></View>
-            <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{(hasPin ? "Change" : "Set") + " " + "PIN"}</Text><Text style={styles.prefDetail}>{hasPin ? "Update the code that unlocks your jar." : "Choose a code so only you can open it."}</Text></View>
-            <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+            <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{(hasPin ? "Change" : "Set") + " " + "PIN"}</Text><Text style={styles.prefDetail}>{!pinLockEnabled ? "Turn on PIN lock first." : hasPin ? "Update the code that unlocks your jar." : "Choose a code so only you can open it."}</Text></View>
+            {pinLockEnabled ? <MaterialIcons name="chevron-right" size={20} color={colors.muted} /> : null}
           </Pressable>
         </View>
 
@@ -165,6 +170,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   themeTextActive: { color: "#FFFDF9" },
   preference: { minHeight: 57, flexDirection: "row", alignItems: "center", gap: 11 },
   prefAction: { minHeight: 57, flexDirection: "row", alignItems: "center", gap: 11 },
+  prefActionDisabled: { opacity: 0.45 },
   prefIcon: { width: 37, height: 37, borderRadius: 13, backgroundColor: `${c.primary}12`, alignItems: "center", justifyContent: "center" },
   prefTitle: { color: c.foreground, fontSize: 13, fontWeight: "800" },
   prefDetail: { color: c.muted, fontSize: 11, marginTop: 3 },

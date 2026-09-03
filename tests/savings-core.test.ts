@@ -6,6 +6,7 @@ import {
   deadlineCountdown,
   type Jar,
   money,
+  monthlyDeposits,
   runDueRecurring,
   sanitizeAmountInput,
   toMinor,
@@ -187,5 +188,32 @@ describe("deadlineCountdown", () => {
     expect(deadlineCountdown("2026-01-01", now)).toBe("Past deadline");
     expect(deadlineCountdown("someday maybe", now)).toBe("someday maybe");
     expect(deadlineCountdown(undefined, now)).toBeUndefined();
+  });
+});
+
+describe("monthlyDeposits", () => {
+  const now = new Date(2026, 7, 15); // Aug 15, 2026
+  const dep = (amount: number, date: Date) => ({ id: `e-${amount}-${date.getTime()}`, amount, direction: "deposit" as const, source: "manual" as const, at: date.toISOString() });
+
+  it("buckets deposits into the last 6 months, oldest first, ignoring withdrawals and older entries", () => {
+    const j = jar({ entries: [
+      dep(1000, new Date(2026, 7, 2)),
+      { id: "w1", amount: 500, direction: "withdrawal" as const, source: "manual" as const, at: new Date(2026, 7, 3).toISOString() },
+      dep(2000, new Date(2026, 5, 20)),
+      dep(9999, new Date(2026, 1, 28)),
+    ]});
+    const months = monthlyDeposits([j], now);
+    expect(months).toHaveLength(6);
+    expect(months[5]).toEqual({ label: "Aug", total: 1000 });
+    expect(months[3]).toEqual({ label: "Jun", total: 2000 });
+    expect(months.every((m) => m.label.length === 3)).toBe(true);
+    // Feb deposit is outside the 6-month window.
+    expect(months.reduce((s, m) => s + m.total, 0)).toBe(3000);
+  });
+
+  it("aggregates deposits across multiple jars", () => {
+    const a = jar({ entries: [dep(100, new Date(2026, 7, 1))] });
+    const b = jar({ entries: [dep(250, new Date(2026, 7, 10))] });
+    expect(monthlyDeposits([a, b], now).at(-1)).toEqual({ label: "Aug", total: 350 });
   });
 });

@@ -83,6 +83,27 @@ export function percent(jar: Pick<Jar, "balance" | "target">): number {
   return Math.min(100, Math.round((jar.balance / jar.target) * 100));
 }
 
+export type MonthTotal = { label: string; total: number };
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Deposit totals per calendar month for the last `count` months, oldest first. */
+export function monthlyDeposits(jars: Pick<Jar, "entries">[], now: Date = new Date(), count = 6): MonthTotal[] {
+  const buckets: MonthTotal[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    buckets.push({ label: MONTH_LABELS[new Date(now.getFullYear(), now.getMonth() - i, 1).getMonth()], total: 0 });
+  }
+  for (const jar of jars) {
+    for (const entry of jar.entries) {
+      if (entry.direction !== "deposit") continue;
+      const at = new Date(entry.at);
+      const ago = (now.getFullYear() - at.getFullYear()) * 12 + (now.getMonth() - at.getMonth());
+      if (ago >= 0 && ago < buckets.length) buckets[buckets.length - 1 - ago].total += entry.amount;
+    }
+  }
+  return buckets;
+}
+
 /** All milestone levels newly crossed when balance moves to `nextBalance`. */
 export function crossedMilestones(jar: Pick<Jar, "target" | "milestonesHit">, nextBalance: number): number[] {
   if (jar.target <= 0) return [];
