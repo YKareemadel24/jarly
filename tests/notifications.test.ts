@@ -72,4 +72,32 @@ describe("dueNotifications", () => {
     const [ping] = dueNotifications([jar({ deadline: "2026-06-15" })], new Date(at));
     expect(ping.title).toContain("due today");
   });
+
+  it("skips zero-amount schedules, unparseable deadlines, and funded jars", () => {
+    const jars = [
+      jar({ id: "z", recurring: { amount: 0, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" } }),
+      jar({ id: "u", deadline: "someday maybe" }),
+      jar({ id: "f", balance: 10000, recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" } }),
+    ];
+    expect(dueNotifications(jars, new Date(at))).toEqual([]);
+  });
+
+  it("schedules tomorrow-morning for a deposit due tomorrow", () => {
+    const scheduled = jar({
+      recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-16T09:00:00.000Z" },
+    });
+    const [ping] = dueNotifications([scheduled], new Date(at));
+    expect(new Date(ping.fireDate).getDate()).toBe(16);
+    expect(ping.detail).toContain("due today");
+  });
+
+  it("falls back to one minute out when the morning slot passed", () => {
+    const scheduled = jar({
+      recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" },
+    });
+    const [ping] = dueNotifications([scheduled], new Date(at));
+    const delta = new Date(ping.fireDate).getTime() - new Date(at).getTime();
+    expect(delta).toBeGreaterThan(0);
+    expect(delta).toBeLessThanOrEqual(5 * 60_000);
+  });
 });

@@ -16,8 +16,10 @@ function morningFire(due: Date, now: Date): string {
 }
 
 /**
- * Pure derivation of schedulable nudges. Mirrors nextReminder() guards so the
- * Home card and the OS ping can never disagree. Max one ping per jar.
+ * Pure derivation of schedulable nudges. Mirrors nextReminder() guards so
+ * every scheduled ping has a matching Home card, while cards may appear
+ * without a ping (deadline pings are due-day-only; the card window is 3 days).
+ * Max one ping per jar.
  */
 export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: string = "USD"): DueNotification[] {
   const pings: DueNotification[] = [];
@@ -55,14 +57,16 @@ export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: 
   return pings;
 }
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== "android") return;
@@ -88,7 +92,11 @@ export async function resyncNotifications(
   for (const ping of dueNotifications(jars, now, opts.currency)) {
     await Notifications.scheduleNotificationAsync({
       content: { title: ping.title, body: ping.detail },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(ping.fireDate) },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(ping.fireDate),
+        ...(Platform.OS === "android" ? { channelId: "reminders" } : null),
+      },
     });
   }
 }
