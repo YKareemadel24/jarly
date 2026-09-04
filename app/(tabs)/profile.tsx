@@ -1,10 +1,12 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
+import { requestPermissionAndEnable } from "@/lib/notifications";
+import { useMoney, useSavings } from "@/lib/savings-store";
 import { useThemeContext } from "@/lib/theme-provider";
 
 function Preference({ icon, title, detail, value, onChange, disabled, styles, colors }: { icon: string; title: string; detail: string; value: boolean; onChange: (next: boolean) => void; disabled?: boolean; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
@@ -14,8 +16,11 @@ function Preference({ icon, title, detail, value, onChange, disabled, styles, co
 type PinPromptMode = "setup" | "change";
 
 export default function ProfileScreen() {
-  const colors = useColors(); const styles = useMemo(() => makeStyles(colors), [colors]); const { appearanceMode, setAppearanceMode } = useThemeContext();
+  const colors = useColors(); const styles = useMemo(() => makeStyles(colors), [colors]);   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { remindersEnabled, setRemindersEnabled, biometricAvailable, biometricLockEnabled, setBiometricLockEnabled, pinLockEnabled, hasPin, setPin, enablePinLock, disablePinLock, currency, setCurrency } = useSettings();
+  const { jars, restoreJar, deleteJarPermanently } = useSavings();
+  const format = useMoney();
+  const archived = useMemo(() => jars.filter((jar) => jar.archived), [jars]);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [pinMode, setPinMode] = useState<PinPromptMode | null>(null);
   const [pinInput, setPinInput] = useState("");
@@ -40,6 +45,23 @@ export default function ProfileScreen() {
     } else {
       void disablePinLock();
     }
+  };
+
+  const onRemindersChange = (next: boolean) => {
+    if (!next) {
+      setRemindersEnabled(false);
+      return;
+    }
+    void requestPermissionAndEnable().then((granted) => {
+      if (granted) {
+        setRemindersEnabled(true);
+      } else {
+        Alert.alert(
+          "Notifications off",
+          "Saving reminders stays off until you allow notifications in system Settings.",
+        );
+      }
+    });
   };
 
   return (
@@ -69,7 +91,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>GENTLE SUPPORT</Text>
         <View style={styles.group}>
-          <Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={setRemindersEnabled} styles={styles} colors={colors} />
+          <Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={onRemindersChange} styles={styles} colors={colors} />
           <View style={styles.line} />
           <Preference
             icon="fingerprint"
@@ -101,6 +123,36 @@ export default function ProfileScreen() {
           <View style={styles.currencyChip}><Text style={styles.currencyChipText}>{activeCurrency.code}</Text></View>
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
+
+        <Text style={styles.sectionLabel}>ARCHIVED</Text>
+        <View style={styles.group}>
+          {archived.length === 0 ? (
+            <Text style={styles.groupCopy}>Nothing archived. Archiving removes a jar from your active goals while keeping its history.</Text>
+          ) : archived.map((jar, index) => (
+            <View key={jar.id}>
+              {index > 0 ? <View style={styles.line} /> : null}
+              <View style={styles.preference}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.prefTitle} numberOfLines={1}>{jar.name}</Text>
+                  <Text style={styles.prefDetail}>{format(jar.balance)} saved</Text>
+                </View>
+                <Pressable accessibilityLabel={`Restore ${jar.name}`} onPress={() => restoreJar(jar.id)} style={({ pressed }) => [styles.currencyChip, pressed && styles.pressed]}>
+                  <Text style={styles.currencyChipText}>Restore</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Delete ${jar.name} permanently`}
+                  onPress={() => Alert.alert("Delete forever?", `${jar.name} and its history will be permanently removed.`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: () => deleteJarPermanently(jar.id) },
+                  ])}
+                  hitSlop={8}
+                >
+                  <MaterialIcons name="delete-outline" size={20} color={colors.muted} />
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
       </ScrollView>
 
       {currencyPickerOpen ? (
