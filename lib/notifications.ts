@@ -1,4 +1,7 @@
 import { type Jar, money, parseDeadline } from "@/lib/savings-core";
+import { useEffect } from "react";
+import { AppState, Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 
 export type DueNotification = { jarId: string; fireDate: string; title: string; detail: string };
 
@@ -50,4 +53,67 @@ export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: 
     }
   }
   return pings;
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync("reminders", {
+    name: "Saving reminders",
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
+
+/**
+ * Rebuild the OS schedule from current jars. Cancel-all-then-schedule keeps
+ * edits, deposits, and recurring catch-ups self-healing. Web is a no-op.
+ */
+export async function resyncNotifications(
+  jars: Jar[],
+  opts: { enabled: boolean; currency?: string; now?: Date },
+): Promise<void> {
+  if (Platform.OS === "web") return;
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  if (!opts.enabled) return;
+  await ensureAndroidChannel();
+  const now = opts.now ?? new Date();
+  for (const ping of dueNotifications(jars, now, opts.currency)) {
+    await Notifications.scheduleNotificationAsync({
+      content: { title: ping.title, body: ping.detail },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(ping.fireDate) },
+    });
+  }
+}
+
+/** Ask the OS for permission once. Returns true only when alerts can fire. */
+export async function requestPermissionAndEnable(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  const current = await Notifications.getPermissionsAsync();
+  if (current.granted) return true;
+  const next = await Notifications.requestPermissionsAsync();
+  return next.granted;
+}
+
+/** Re-runs the OS schedule on foreground and whenever inputs change. */
+export function useNotificationResync(
+  jars: Jar[],
+  opts: { enabled: boolean; currency?: string },
+): void {
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    void resyncNotifications(jars, opts);
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void resyncNotifications(jars, opts);
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jars, opts.enabled, opts.currency]);
 }
