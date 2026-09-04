@@ -1,4 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("expo-notifications", () => ({
+  setNotificationHandler: vi.fn(),
+  setNotificationChannelAsync: vi.fn(),
+  cancelAllScheduledNotificationsAsync: vi.fn(),
+  scheduleNotificationAsync: vi.fn(),
+  getPermissionsAsync: vi.fn(),
+  requestPermissionsAsync: vi.fn(),
+  SchedulableTriggerInputTypes: { DATE: "date" },
+  AndroidImportance: { DEFAULT: 3 },
+}));
+
+vi.mock("react-native", () => ({
+  Platform: { OS: "test" },
+  AppState: { addEventListener: vi.fn() },
+}));
 
 import { dueNotifications } from "../lib/notifications";
 import { type Jar } from "../lib/savings-core";
