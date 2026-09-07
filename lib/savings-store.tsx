@@ -6,6 +6,7 @@ import {
   type Accent,
   type Cadence,
   deadlineCountdown,
+  depositDayKeys,
   type Entry,
   jarAccent,
   jarAccentDark,
@@ -14,14 +15,17 @@ import {
   applyEntry,
   money,
   normaliseJar,
+  type PaceProjection,
+  type PaceStatus,
+  paceProjection,
   percent,
   runDueRecurring,
   sanitizeAmountInput,
   toMinor,
 } from "@/lib/savings-core";
 
-export type { Accent, Cadence, Entry, Jar, JarKind };
-export { CADENCES, deadlineCountdown, jarAccent, jarAccentDark, money, percent, sanitizeAmountInput, toMinor };
+export type { Accent, Cadence, Entry, Jar, JarKind, PaceProjection, PaceStatus };
+export { CADENCES, deadlineCountdown, depositDayKeys, jarAccent, jarAccentDark, money, paceProjection, percent, sanitizeAmountInput, toMinor };
 
 import { useSettings } from "@/lib/settings-store";
 
@@ -46,6 +50,8 @@ type Store = {
   addJar: (input: JarInput) => string;
   editJar: (id: string, input: Partial<Pick<Jar, "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak" | "recurring">>) => void;
   archiveJar: (id: string) => void;
+  restoreJar: (id: string) => void;
+  deleteJarPermanently: (id: string) => void;
   /** Returns the highest milestone newly reached, or undefined when rejected. */
   addEntry: (id: string, amountMinor: number, direction: Entry["direction"], note?: string, source?: Entry["source"]) => number | undefined;
   total: number;
@@ -149,6 +155,12 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
     },
     archiveJar: (id) => {
       commit(jarsRef.current.map((jar) => (jar.id === id ? { ...jar, archived: true } : jar)));
+    },
+    restoreJar: (id) => {
+      commit(jarsRef.current.map((jar) => (jar.id === id ? { ...jar, archived: false } : jar)));
+    },
+    deleteJarPermanently: (id) => {
+      commit(jarsRef.current.filter((jar) => jar.id !== id));
     },
     addEntry: (id, amountMinor, direction, note, source = "manual") => {
       const jar = jarsRef.current.find((candidate) => candidate.id === id);

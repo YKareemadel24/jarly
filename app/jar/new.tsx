@@ -8,10 +8,25 @@ import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
 import { useJarAccents } from "@/hooks/use-jar-accents";
+import { savingRate } from "@/lib/savings-core";
 import { jarAccent, money, type Accent, type JarKind, sanitizeAmountInput, toMinor, useMoney, useSavings } from "@/lib/savings-store";
 
 const accents: Accent[] = ["coral", "amber", "mint", "ocean", "berry", "clay"];
 const icons = ["flight", "favorite", "laptop-mac", "home", "restaurant", "celebration"];
+const templates: { name: string; icon: string; accent: Accent; target: number; months: number; kind: JarKind }[] = [
+  { name: "Emergency fund", icon: "home", accent: "ocean", target: 300_000, months: 12, kind: "goal" },
+  { name: "Trip abroad", icon: "flight", accent: "coral", target: 250_000, months: 8, kind: "goal" },
+  { name: "New laptop", icon: "laptop-mac", accent: "berry", target: 180_000, months: 6, kind: "goal" },
+  { name: "No-spend days", icon: "repeat", accent: "mint", target: 20_000, months: 2, kind: "habit" },
+  { name: "Gift fund", icon: "celebration", accent: "amber", target: 40_000, months: 4, kind: "goal" },
+  { name: "Something else", icon: "star", accent: "clay", target: 100_000, months: 6, kind: "goal" },
+];
+
+function deadlineAfterMonths(months: number): string {
+  const deadline = new Date();
+  deadline.setMonth(deadline.getMonth() + months);
+  return deadline.toISOString().slice(0, 10);
+}
 
 /**
  * Guided first-jar creation: a moment,
@@ -24,11 +39,16 @@ export default function NewJar() {
   const { addJar } = useSavings();
   const format = useMoney();
   const [step, setStep] = useState(1);
-  const [name, setName] = useState(""); const [target, setTarget] = useState(""); const [accent, setAccent] = useState<Accent>("ocean"); const [icon, setIcon] = useState("flight"); const [kind, setKind] = useState<JarKind>("goal"); const [deadline, setDeadline] = useState("");
+  const [name, setName] = useState(""); const [target, setTarget] = useState(""); const [accent, setAccent] = useState<Accent>("ocean"); const [icon, setIcon] = useState("flight"); const [kind, setKind] = useState<JarKind>("goal"); const [deadline, setDeadline] = useState(""); const [months, setMonths] = useState(6);
   // Money is stored as integer minor units; inputs are sanitized as typed.
   const targetValue = toMinor(target);
   const accentHex = accentsForScheme[accent];
-  const stepValid = step === 1 ? Boolean(name.trim()) : true;
+  const stepValid = step === 1 ? Boolean(name.trim()) : step === 3 ? Boolean(targetValue && targetValue > 0) : true;
+  const rate = targetValue && targetValue > 0 ? savingRate(targetValue, months) : null;
+  const chooseTemplate = (template: typeof templates[number]) => {
+    feedback.tap();
+    setName(template.name); setIcon(template.icon); setAccent(template.accent); setTarget(String(template.target / 100)); setKind(template.kind); setMonths(template.months); setDeadline(deadlineAfterMonths(template.months));
+  };
 
   const goBack = () => {
     if (step === 1) return router.back();
@@ -65,13 +85,18 @@ export default function NewJar() {
             <Text style={styles.previewTarget}>
               {targetValue && targetValue > 0 ? `Target ${format(targetValue)}` : kind === "goal" ? "Give it somewhere to grow." : "Build a saving rhythm."}
             </Text>
+            {rate ? <Text style={[styles.rate, { color: accentHex }]}>≈ {format(rate.perWeekMinor)}/week · {format(rate.perDayMinor)}/day</Text> : null}
           </View>
         </View>
 
         {step === 1 ? (
           <>
             <Text style={styles.title}>What are you{"\n"}saving for?</Text>
-            <Text style={styles.sub}>Start with the goal itself. You can shape everything else after.</Text>
+            <Text style={styles.sub}>Start from a template or make it your own.</Text>
+            <Text style={styles.label}>START WITH A TEMPLATE</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateRow} style={styles.templateScroll}>
+              {templates.map((template) => <Pressable key={template.name} accessibilityLabel={`Use ${template.name} template`} onPress={() => chooseTemplate(template)} style={({ pressed }) => [styles.template, name === template.name && styles.templateSelected, pressed && styles.pressed]}><MaterialIcons name={template.icon as never} color={jarAccent[template.accent]} size={19} /><Text style={styles.templateText}>{template.name}</Text></Pressable>)}
+            </ScrollView>
             <Text style={styles.label}>WHAT KIND OF JAR?</Text>
             <View style={styles.kindRow}>
               <Pressable onPress={() => { feedback.tap(); setKind("goal"); }} style={({ pressed }) => [styles.kind, kind === "goal" && styles.kindActive, pressed && styles.pressed]}>
@@ -120,6 +145,9 @@ export default function NewJar() {
               <Text style={styles.currency}>$</Text>
               <TextInput autoFocus value={target} onChangeText={(raw) => setTarget(sanitizeAmountInput(raw))} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.muted} style={styles.amountInput} />
             </View>
+            <Text style={styles.label}>SAVE OVER</Text>
+            <View style={styles.timeline}>{[1, 3, 6, 9, 12, 24].map((value) => <Pressable key={value} accessibilityLabel={`Set a ${value} month timeline`} onPress={() => { feedback.tap(); setMonths(value); setDeadline(deadlineAfterMonths(value)); }} style={({ pressed }) => [styles.timelineOption, months === value && { backgroundColor: colors.primary, borderColor: colors.primary }, pressed && styles.pressed]}><Text style={[styles.timelineText, months === value && styles.timelineTextSelected]}>{value}m</Text></Pressable>)}</View>
+            {rate ? <View style={[styles.rateCard, { backgroundColor: `${accentHex}16` }]}><MaterialIcons name="savings" size={18} color={accentHex} /><Text style={[styles.rateCardText, { color: accentHex }]}>≈ {format(rate.perWeekMinor)}/week · {format(rate.perDayMinor)}/day</Text></View> : null}
             <Text style={styles.label}>DEADLINE <Text style={styles.optional}>OPTIONAL</Text></Text>
             <View style={styles.deadlineField}>
               <MaterialIcons name="calendar-today" size={18} color={colors.muted} />
@@ -152,6 +180,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   previewLabel: { color: c.muted, fontWeight: "800", fontSize: 10, letterSpacing: 1.1 },
   previewName: { color: c.foreground, fontFamily: "Georgia", fontSize: 21, marginTop: 6 },
   previewTarget: { color: c.muted, fontSize: 12, marginTop: 6, lineHeight: 17 },
+  rate: { fontSize: 11, fontWeight: "800", marginTop: 6 },
   label: { color: c.muted, marginTop: 25, fontWeight: "800", letterSpacing: 1.05, fontSize: 10 },
   optional: { fontWeight: "600", opacity: .75 },
   kindRow: { flexDirection: "row", gap: 9, marginTop: 9 },
@@ -162,6 +191,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   kindNote: { color: c.muted, fontSize: 11, marginTop: 2 },
   kindNoteActive: { color: "#E8D9C8" },
   input: { backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border, color: c.foreground, minHeight: 54, paddingHorizontal: 15, fontSize: 16, marginTop: 9 },
+  templateScroll: { marginTop: 9, marginHorizontal: -20 }, templateRow: { paddingHorizontal: 20, gap: 8 }, template: { minHeight: 64, width: 108, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, padding: 10, justifyContent: "space-between" }, templateSelected: { borderColor: c.primary, backgroundColor: `${c.primary}0D` }, templateText: { color: c.foreground, fontSize: 11, fontWeight: "800" },
   iconRow: { flexDirection: "row", gap: 8, marginTop: 9 },
   iconChoice: { flex: 1, height: 43, borderRadius: 14, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center", backgroundColor: c.surface },
   iconChoiceActive: { borderWidth: 1.5 },
@@ -171,6 +201,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   amountField: { minHeight: 62, marginTop: 9, borderRadius: 17, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
   currency: { color: c.primary, fontSize: 24, fontFamily: "Georgia" },
   amountInput: { flex: 1, color: c.foreground, fontSize: 26, fontFamily: "Georgia", fontVariant: ["tabular-nums"] },
+  timeline: { flexDirection: "row", gap: 7, marginTop: 9 }, timelineOption: { flex: 1, minHeight: 38, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" }, timelineText: { color: c.muted, fontSize: 11, fontWeight: "800" }, timelineTextSelected: { color: "#FFFDF9" }, rateCard: { marginTop: 10, minHeight: 42, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }, rateCardText: { fontSize: 12, fontWeight: "800" },
   deadlineField: { minHeight: 52, marginTop: 9, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   deadlineInput: { flex: 1, color: c.foreground, fontSize: 14 },
   disclaimer: { color: c.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },

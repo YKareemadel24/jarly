@@ -20,6 +20,8 @@ type JarVesselProps = {
   label?: string;
   /** Increment to replay the coin-drop deposit effect. */
   coinDropKey?: number;
+  /** Translucent post-deposit preview fill; clamps to [0, 100]. */
+  previewProgress?: number;
 };
 
 const SIZES = {
@@ -30,10 +32,11 @@ const SIZES = {
 
 const TICK_LEVELS = [25, 50, 75];
 
-export function JarVessel({ accent, icon, progress, size = "medium", label, coinDropKey }: JarVesselProps) {
+export function JarVessel({ accent, icon, progress, size = "medium", label, coinDropKey, previewProgress }: JarVesselProps) {
   const metrics = SIZES[size];
   const reduceMotion = Boolean(useReducedMotion());
   const fill = Math.max(0, Math.min(100, progress));
+  const preview = previewProgress === undefined ? undefined : Math.max(0, Math.min(100, previewProgress));
   const complete = fill >= 99.5;
 
   // Fill height lives in pixels so Reanimated can drive it natively.
@@ -75,6 +78,9 @@ export function JarVessel({ accent, icon, progress, size = "medium", label, coin
         <Animated.View style={[styles.fill, { backgroundColor: `${accent}A8` }, fillStyle]}>
           <View style={[styles.surface, { backgroundColor: `${accent}C9` }]} />
         </Animated.View>
+        {preview !== undefined && preview > fill ? (
+          <View pointerEvents="none" style={[styles.fill, { height: `${preview - fill}%`, bottom: `${fill}%`, backgroundColor: `${accent}55`, borderTopLeftRadius: 24, borderTopRightRadius: 24 }]} />
+        ) : null}
         <View style={[styles.glow, { backgroundColor: complete ? `${accent}40` : `${accent}28` }]} />
         <View style={styles.reflection} />
         {/* Etched milestone ticks double as a progress ruler (never color-only meaning). */}

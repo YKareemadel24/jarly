@@ -3,13 +3,21 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyEntry,
   crossedMilestones,
+  dailyDepositTotals,
   deadlineCountdown,
+  depositPresets,
+  depositDayKeys,
+  groupEntriesByPeriod,
   type Jar,
   money,
   monthlyDeposits,
+  nextBestJarId,
+  paceProjection,
   runDueRecurring,
+  savingRate,
   sanitizeAmountInput,
   toMinor,
+  weeklyDepositTotals,
 } from "../lib/savings-core";
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -215,5 +223,139 @@ describe("monthlyDeposits", () => {
     const a = jar({ entries: [dep(100, new Date(2026, 7, 1))] });
     const b = jar({ entries: [dep(250, new Date(2026, 7, 10))] });
     expect(monthlyDeposits([a, b], now).at(-1)).toEqual({ label: "Aug", total: 350 });
+  });
+});
+
+describe("depositDayKeys", () => {
+  it("collects one key per deposit day, ignoring withdrawals", () => {
+    const keys = depositDayKeys([
+      { direction: "deposit", at: new Date(2026, 7, 2, 10).toISOString() },
+      { direction: "deposit", at: new Date(2026, 7, 2, 22).toISOString() },
+      { direction: "withdrawal", at: new Date(2026, 7, 3, 10).toISOString() },
+      { direction: "deposit", at: new Date(2026, 7, 4, 10).toISOString() },
+    ]);
+    expect(keys.size).toBe(2);
+  });
+});
+
+describe("UI savings selectors", () => {
+  const now = new Date(2026, 7, 15, 12);
+  const deposit = (id: string, amount: number, at: Date) => ({ id, amount, direction: "deposit" as const, source: "manual" as const, at: at.toISOString() });
+
+  it("buckets deposits into local calendar days ending today", () => {
+    const totals = dailyDepositTotals([jar({ entries: [
+      deposit("old", 700, new Date(2026, 7, 12, 9)),
+      deposit("in-range", 300, new Date(2026, 7, 13, 9)),
+      deposit("today", 500, new Date(2026, 7, 15, 9)),
+    ] })], 3, now);
+    expect(totals).toEqual([300, 0, 500]);
+  });
+
+  it("buckets deposits into week-sized blocks ending today", () => {
+    const totals = weeklyDepositTotals([jar({ entries: [
+      deposit("first-week", 400, new Date(2026, 7, 3, 9)),
+      deposit("second-week", 900, new Date(2026, 7, 12, 9)),
+    ] })], 2, now);
+    expect(totals).toEqual([400, 900]);
+  });
+
+  it("offers distinct useful deposit amounts", () => {
+    const target = jar({
+      balance: 2_000,
+      target: 10_000,
+      deadline: "2026-10-10",
+      entries: [deposit("usual", 1_100, new Date(2026, 7, 14, 9))],
+    });
+    expect(depositPresets(target, { status: "behind", requiredPerWeekMinor: 1_000, pacePerWeekMinor: 100 }))
+      .toEqual([
+        { kind: "usual", amount: 1_100 },
+        { kind: "weekly-pace", amount: 1_000 },
+        { kind: "milestone", amount: 500, level: 25 },
+        { kind: "finish", amount: 8_000 },
+      ]);
+  });
+
+  it("groups entries with the note as an available title", () => {
+    const entries = [
+      { ...deposit("today", 500, new Date(2026, 7, 15, 9)), note: "Round-up" },
+      deposit("week", 200, new Date(2026, 7, 13, 9)),
+    ];
+    expect(groupEntriesByPeriod(entries, now)).toEqual([
+      { label: "Today", entries: [entries[0]] },
+      { label: "This week", entries: [entries[1]] },
+    ]);
+  });
+
+  it("selects a behind jar before the closest active jar", () => {
+    const behind = jar({ id: "behind", balance: 2_000, target: 10_000, deadline: "2026-08-22", entries: [deposit("small", 100, new Date(2026, 7, 14, 9))] });
+    const closest = jar({ id: "closest", balance: 9_000, target: 10_000 });
+    expect(nextBestJarId([closest, behind], now)).toBe("behind");
+    expect(nextBestJarId([closest], now)).toBe("closest");
+  });
+
+  it("calculates daily and weekly rates from integer minor units", () => {
+    expect(savingRate(12_000, 3)).toEqual({ perWeekMinor: 934, perDayMinor: 134 });
+  });
+});
+
+describe("paceProjection", () => {
+  const now = new Date(2026, 7, 15, 12); // Aug 15, 2026
+  const dep = (amount: number, daysAgo: number) => ({
+    id: `e-${amount}-${daysAgo}`,
+    amount,
+    direction: "deposit" as const,
+    source: "manual" as const,
+    at: new Date(now.getTime() - daysAgo * 86_400_000).toISOString(),
+  });
+
+  it("reports on-track when recent pace covers the required rate", () => {
+    const result = paceProjection(
+      jar({ target: 10000, balance: 2000, deadline: "2026-10-10", entries: [dep(1000, 2), dep(1000, 9), dep(1000, 16), dep(1000, 23)] }),
+      now,
+    );
+    expect(result.status).toBe("on-track");
+    expect(result.requiredPerWeekMinor).toBe(1000);
+    expect(result.pacePerWeekMinor).toBe(1000);
+    // Day granularity: finishing on the deadline day itself counts as on-track.
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    expect(startOfDay(new Date(result.projectedDate!))).toBeLessThanOrEqual(startOfDay(new Date("2026-10-10")));
+  });
+
+  it("reports behind when recent pace falls short, with the required rate", () => {
+    const result = paceProjection(
+      jar({ target: 10000, balance: 2000, deadline: "2026-10-10", entries: [dep(400, 2)] }),
+      now,
+    );
+    expect(result.status).toBe("behind");
+    expect(result.requiredPerWeekMinor).toBe(1000);
+    expect(result.pacePerWeekMinor).toBe(100);
+  });
+
+  it("lets an active recurring schedule lift the pace to on-track", () => {
+    const result = paceProjection(
+      jar({
+        target: 10000,
+        balance: 2000,
+        deadline: "2026-10-10",
+        entries: [dep(400, 2)],
+        recurring: { amount: 1000, cadence: "weekly", paused: false },
+      }),
+      now,
+    );
+    expect(result.status).toBe("on-track");
+    expect(result.pacePerWeekMinor).toBe(1000);
+  });
+
+  it("reports no-pace when there are no deposits and no active schedule", () => {
+    const result = paceProjection(jar({ target: 10000, balance: 2000, deadline: "2026-10-10" }), now);
+    expect(result.status).toBe("no-pace");
+    expect(result.requiredPerWeekMinor).toBe(1000);
+    expect(result.pacePerWeekMinor).toBe(0);
+  });
+
+  it("stays silent without a parseable deadline or when already funded", () => {
+    expect(paceProjection(jar({ target: 10000, balance: 2000 }), now).status).toBe("no-deadline");
+    expect(paceProjection(jar({ target: 10000, balance: 2000, deadline: "someday maybe" }), now).status).toBe("no-deadline");
+    expect(paceProjection(jar({ target: 10000, balance: 10000, deadline: "2026-10-10" }), now).status).toBe("funded");
   });
 });

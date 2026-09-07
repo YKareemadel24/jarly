@@ -104,6 +104,94 @@ export function monthlyDeposits(jars: Pick<Jar, "entries">[], now: Date = new Da
   return buckets;
 }
 
+const DAY_MS = 86_400_000;
+
+function localDayNumber(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
+}
+
+/** Deposit totals for consecutive local calendar days ending today, oldest first. */
+export function dailyDepositTotals(jars: Pick<Jar, "entries">[], days: number, now: Date = new Date()): number[] {
+  const totals = new Array(Math.max(0, days)).fill(0);
+  const today = localDayNumber(now);
+  for (const jar of jars) {
+    for (const entry of jar.entries) {
+      if (entry.direction !== "deposit") continue;
+      const index = totals.length - 1 - (today - localDayNumber(new Date(entry.at)));
+      if (index >= 0 && index < totals.length) totals[index] += entry.amount;
+    }
+  }
+  return totals;
+}
+
+/** Deposit totals for consecutive seven-day blocks ending today, oldest first. */
+export function weeklyDepositTotals(jars: Pick<Jar, "entries">[], weeks: number, now: Date = new Date()): number[] {
+  const daily = dailyDepositTotals(jars, Math.max(0, weeks) * 7, now);
+  return Array.from({ length: Math.max(0, weeks) }, (_, index) =>
+    daily.slice(index * 7, index * 7 + 7).reduce((sum, amount) => sum + amount, 0),
+  );
+}
+
+export type DepositPreset = {
+  kind: "usual" | "weekly-pace" | "milestone" | "finish";
+  amount: number;
+  level?: number;
+};
+
+/** Goal-aware deposit choices, ordered by the user's established habit then useful outcomes. */
+export function depositPresets(jar: Pick<Jar, "balance" | "target" | "entries">, pace: PaceProjection): DepositPreset[] {
+  const remaining = Math.max(0, jar.target - jar.balance);
+  if (!remaining) return [];
+
+  const choices: DepositPreset[] = [];
+  const usual = jar.entries.find((entry) => entry.direction === "deposit")?.amount;
+  if (usual && usual > 0) choices.push({ kind: "usual", amount: usual });
+  if (pace.requiredPerWeekMinor > 0) choices.push({ kind: "weekly-pace", amount: pace.requiredPerWeekMinor });
+
+  const level = MILESTONE_LEVELS.find((candidate) => jar.balance < Math.ceil((jar.target * candidate) / 100));
+  if (level && level < 100) {
+    const amount = Math.ceil((jar.target * level) / 100) - jar.balance;
+    if (amount > 0) choices.push({ kind: "milestone", amount, level });
+  }
+  choices.push({ kind: "finish", amount: remaining });
+
+  return choices.filter((choice, index) =>
+    choice.amount > 0 && choices.findIndex((other) => other.amount === choice.amount) === index,
+  ).slice(0, 4);
+}
+
+export type EntryGroup = { label: string; entries: Entry[] };
+
+/** Group newest-first entries into concise, local-time activity sections. */
+export function groupEntriesByPeriod(entries: Entry[], now: Date = new Date()): EntryGroup[] {
+  const today = localDayNumber(now);
+  const groups: EntryGroup[] = [];
+  for (const entry of entries) {
+    const daysAgo = today - localDayNumber(new Date(entry.at));
+    const label = daysAgo <= 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? "This week" : daysAgo < 31
+      ? "This month"
+      : new Date(entry.at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const last = groups.at(-1);
+    if (last?.label === label) last.entries.push(entry);
+    else groups.push({ label, entries: [entry] });
+  }
+  return groups;
+}
+
+/** The jar that deserves the single Home call to action, if any. */
+export function nextBestJarId(jars: Pick<Jar, "id" | "target" | "balance" | "deadline" | "entries" | "recurring" | "archived">[], now: Date = new Date()): string | undefined {
+  const active = jars.filter((jar) => !jar.archived && percent(jar) < 100);
+  const behind = active.find((jar) => paceProjection(jar, now).status === "behind");
+  return (behind ?? active.sort((left, right) => percent(right) - percent(left))[0])?.id;
+}
+
+/** Required daily and weekly contributions for a month-based jar timeline. */
+export function savingRate(targetMinor: number, months: number): { perWeekMinor: number; perDayMinor: number } {
+  const days = Math.max(1, Math.round(months) * 30);
+  const target = Math.max(0, Math.round(targetMinor));
+  return { perWeekMinor: Math.ceil((target * 7) / days), perDayMinor: Math.ceil(target / days) };
+}
+
 /** All milestone levels newly crossed when balance moves to `nextBalance`. */
 export function crossedMilestones(jar: Pick<Jar, "target" | "milestonesHit">, nextBalance: number): number[] {
   if (jar.target <= 0) return [];
