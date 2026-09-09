@@ -2,6 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
+import { Sheet } from "@/components/sheet";
 import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
@@ -26,6 +27,7 @@ export default function ProfileScreen() {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const activeCurrency = SUPPORTED_CURRENCIES.find((c) => c.code === currency) ?? SUPPORTED_CURRENCIES[0];
+  const monogramIcon = jars.find((jar) => !jar.archived)?.icon;
 
   const openPinPrompt = (mode: PinPromptMode) => { setPinInput(""); setPinError(null); setPinMode(mode); };
   const closePinPrompt = () => { setPinMode(null); setPinInput(""); setPinError(null); };
@@ -71,7 +73,7 @@ export default function ProfileScreen() {
         <Text style={styles.title}>Make it feel{"\n"}like yours.</Text>
 
         <View style={styles.identity}>
-          <View style={styles.monogram}><Text style={styles.monogramText}>SJ</Text></View>
+          <View style={styles.monogram}>{monogramIcon ? <MaterialIcons name={monogramIcon as never} size={22} color="#FFFDF9" /> : <Text style={styles.monogramText}>SJ</Text>}</View>
           <View><Text style={styles.identityTitle}>Your Saving Jar</Text><Text style={styles.identityCopy}>A private progress tracker</Text></View>
         </View>
 
@@ -155,50 +157,42 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {currencyPickerOpen ? (
-        <View style={styles.sheetOverlay}>
-          <View style={styles.sheetCard}>
-            <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Choose a currency</Text><Pressable accessibilityLabel="Close" onPress={() => setCurrencyPickerOpen(false)} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
-            <Text style={styles.groupCopy}>All amounts in the app will display in this currency.</Text>
-            <ScrollView style={{ marginTop: 12, maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {SUPPORTED_CURRENCIES.map((option) => {
-                const active = option.code === currency;
-                return (
-                  <Pressable key={option.code} onPress={() => { setCurrency(option.code); setCurrencyPickerOpen(false); }} style={({ pressed }) => [styles.currencyOption, pressed && styles.pressed]}>
-                    <View style={[styles.currencyOptionIcon, active && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}><Text style={[styles.currencyOptionSymbol, active && { color: colors.primary }]}>{option.symbol}</Text></View>
-                    <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{option.name}</Text><Text style={styles.prefDetail}>{option.code}</Text></View>
-                    {active ? <MaterialIcons name="check" size={20} color={colors.primary} /> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      ) : null}
+      <Sheet visible={currencyPickerOpen} onClose={() => setCurrencyPickerOpen(false)} label="Choose a currency">
+        <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Choose a currency</Text><Pressable accessibilityLabel="Close" onPress={() => setCurrencyPickerOpen(false)} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
+        <Text style={styles.groupCopy}>All amounts in the app will display in this currency.</Text>
+        <ScrollView style={{ marginTop: 12, maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+          {SUPPORTED_CURRENCIES.map((option) => {
+            const active = option.code === currency;
+            return (
+              <Pressable key={option.code} onPress={() => { setCurrency(option.code); setCurrencyPickerOpen(false); }} style={({ pressed }) => [styles.currencyOption, pressed && styles.pressed]}>
+                <View style={[styles.currencyOptionIcon, active && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}><Text style={[styles.currencyOptionSymbol, active && { color: colors.primary }]}>{option.symbol}</Text></View>
+                <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{option.name}</Text><Text style={styles.prefDetail}>{option.code}</Text></View>
+                {active ? <MaterialIcons name="check" size={20} color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </Sheet>
 
-      {pinMode ? (
-        <View style={styles.sheetOverlay}>
-          <View style={styles.sheetCard}>
-            <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}</Text><Pressable accessibilityLabel="Close" onPress={closePinPrompt} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
-            <Text style={styles.groupCopy}>Use {MIN_PIN_LENGTH} or more digits. You&apos;ll be asked for it each time the app opens.</Text>
-            <TextInput
-              value={pinInput}
-              onChangeText={(text) => { setPinInput(text.replace(/\D/g, "")); setPinError(null); }}
-              secureTextEntry
-              keyboardType="number-pad"
-              autoFocus
-              placeholder="••••"
-              placeholderTextColor={colors.muted}
-              maxLength={12}
-              style={[styles.pinInput, pinError && { borderColor: colors.error }]}
-            />
-            {pinError ? <Text style={[styles.pinError, { color: colors.error }]}>{pinError}</Text> : null}
-            <Pressable onPress={() => { void submitPin(); }} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>{pinMode === "setup" ? "Turn on PIN lock" : "Save PIN"}</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      <Sheet visible={pinMode !== null} onClose={closePinPrompt} label={pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}>
+        <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}</Text><Pressable accessibilityLabel="Close" onPress={closePinPrompt} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
+        <Text style={styles.groupCopy}>Use {MIN_PIN_LENGTH} or more digits. You&apos;ll be asked for it each time the app opens.</Text>
+        <TextInput
+          value={pinInput}
+          onChangeText={(text) => { setPinInput(text.replace(/\D/g, "")); setPinError(null); }}
+          secureTextEntry
+          keyboardType="number-pad"
+          autoFocus
+          placeholder="••••"
+          placeholderTextColor={colors.muted}
+          maxLength={12}
+          style={[styles.pinInput, pinError && { borderColor: colors.error }]}
+        />
+        {pinError ? <Text style={[styles.pinError, { color: colors.error }]}>{pinError}</Text> : null}
+        <Pressable onPress={() => { void submitPin(); }} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          <Text style={styles.primaryText}>{pinMode === "setup" ? "Turn on PIN lock" : "Save PIN"}</Text>
+        </Pressable>
+      </Sheet>
     </ScreenContainer>
   );
 }
@@ -216,7 +210,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   groupTitle: { color: c.foreground, fontSize: 14, fontWeight: "800" },
   groupCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
   themes: { flexDirection: "row", gap: 7, marginTop: 14 },
-  themeChoice: { flex: 1, minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  themeChoice: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   themeChoiceActive: { backgroundColor: c.primary, borderColor: c.primary },
   themeText: { color: c.muted, fontSize: 11, fontWeight: "800" },
   themeTextActive: { color: "#FFFDF9" },
@@ -233,8 +227,6 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   currencyOption: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10 },
   currencyOptionIcon: { width: 37, height: 37, borderRadius: 13, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, alignItems: "center", justifyContent: "center" },
   currencyOptionSymbol: { color: c.muted, fontSize: 12, fontWeight: "800" },
-  sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,.35)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 },
-  sheetCard: { width: "100%", maxWidth: 400, backgroundColor: c.surface, borderRadius: 24, borderWidth: 1, borderColor: c.border, padding: 20 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   sheetTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 20 },
   pinInput: { borderWidth: 1, borderColor: c.border, borderRadius: 15, backgroundColor: c.background, color: c.foreground, fontSize: 22, paddingHorizontal: 16, height: 52, marginTop: 16, letterSpacing: 8 },
