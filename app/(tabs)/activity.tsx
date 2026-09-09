@@ -6,6 +6,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
+import { inkOnAccent } from "@/lib/jar-ink";
 import { type Entry, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
 type Row = { entry: Entry; jar: Jar };
@@ -29,13 +30,13 @@ function ActivityRow({ row, styles, colors, accents, format }: { row: Row; style
   return (
     <View style={styles.row} accessibilityLabel={`${title} into ${row.jar.name}. ${amountLabel}.`}>
       <View style={[styles.rowIcon, { backgroundColor: isDeposit ? `${accent}1D` : `${colors.error}17` }]}>
-        <MaterialIcons name={isDeposit ? "south" : "north"} size={18} color={isDeposit ? accent : colors.error} />
+        <MaterialIcons name={isDeposit ? "add" : "remove"} size={18} color={isDeposit ? accent : colors.error} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{row.jar.name}</Text>
         <Text style={styles.rowMeta}>{title}{row.entry.note ? ` · ${row.entry.note}` : ""}</Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isDeposit ? accent : colors.error }]}>{amountLabel}</Text>
+      <Text style={[styles.rowAmount, { color: isDeposit ? inkOnAccent(accent) : colors.error }]}>{amountLabel}</Text>
     </View>
   );
 }

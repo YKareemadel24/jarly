@@ -8,6 +8,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
+import { inkOnAccent } from "@/lib/jar-ink";
 import { nextBestJarId } from "@/lib/savings-core";
 import { deadlineCountdown, paceProjection, percent, type Accent, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
@@ -42,7 +43,7 @@ function GoalCard({ jar, styles, colors, accents, format }: { jar: Jar; styles: 
       accessibilityLabel={`Add money to ${jar.name}`}
       onPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
       style={({ pressed }) => [styles.quickAddChip, { backgroundColor: `${accent}1F` }, pressed && styles.pressed]}
-    ><Text style={[styles.quickAddChipText, { color: accent }]}>+ Add</Text></Pressable>
+    ><Text style={[styles.quickAddChipText, { color: inkOnAccent(accent) }]}>+ Add</Text></Pressable>
   </Pressable>;
 }
 
@@ -101,7 +102,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   kicker: { color: c.muted, fontSize: 10, letterSpacing: 1.5, fontWeight: "800" },
   greeting: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 29, lineHeight: 34, marginTop: 8 },
   profileButton: { width: 43, height: 43, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
-  balanceCard: { backgroundColor: "#3B2D24", padding: 22, borderRadius: 27, marginTop: 23, shadowColor: "#3B2D24", shadowOpacity: .22, shadowOffset: { width: 0, height: 12 }, shadowRadius: 18, elevation: 5 },
+  balanceCard: { backgroundColor: c.primary, padding: 22, borderRadius: 27, marginTop: 23, shadowColor: "#3B2D24", shadowOpacity: .22, shadowOffset: { width: 0, height: 12 }, shadowRadius: 18, elevation: 5 },
   balanceLabel: { color: "#E8D9C8", fontSize: 10, letterSpacing: 1.15, fontWeight: "800" },
   balanceValue: { color: "#FFFDF9", fontSize: 37, lineHeight: 46, marginTop: 8, fontFamily: Fonts.serif, fontWeight: "700", fontVariant: ["tabular-nums"] },
   balanceBottom: { marginTop: 15, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,253,249,.22)", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
@@ -112,5 +113,5 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   goalCard: { minHeight: 114, backgroundColor: c.surface, borderRadius: 22, borderColor: c.border, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 }, goalVisual: { width: 77, alignItems: "center", justifyContent: "center" }, goalCopy: { flex: 1, alignSelf: "stretch", justifyContent: "center", paddingRight: 42 }, goalHeading: { flexDirection: "row", alignItems: "center", gap: 7 }, goalName: { color: c.foreground, flex: 1, fontSize: 15, fontWeight: "800" }, pacePill: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 }, paceText: { fontSize: 9, fontWeight: "800" }, goalAmount: { color: c.foreground, fontSize: 14, marginTop: 5, fontWeight: "700", fontVariant: ["tabular-nums"] }, goalTarget: { color: c.muted, fontWeight: "500" }, track: { height: 5, borderRadius: 999, backgroundColor: c.border, overflow: "hidden", marginTop: 10 }, trackFill: { height: "100%", borderRadius: 999 }, goalMeta: { color: c.muted, fontSize: 11, marginTop: 8 },
   completedBlock: { marginTop: 26 }, completedTitle: { color: c.muted, fontSize: 11, fontWeight: "800", letterSpacing: .9 },
   empty: { backgroundColor: c.surface, borderRadius: 26, padding: 26, alignItems: "center", borderWidth: 1, borderColor: c.border }, emptyTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 24, marginTop: 14 }, emptyCopy: { color: c.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8, maxWidth: 275 }, primary: { backgroundColor: c.primary, minHeight: 52, borderRadius: 16, marginTop: 21, alignSelf: "stretch", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }, primaryText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
-  quickAdd: { position: "absolute", bottom: 14, alignSelf: "center", backgroundColor: "#3B2D24", minHeight: 51, paddingHorizontal: 19, borderRadius: 17, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, shadowColor: "#3B2D24", shadowOffset: { width: 0, height: 7 }, shadowOpacity: .24, shadowRadius: 12, elevation: 5 }, quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, quickAddChip: { position: "absolute", right: 12, top: "50%", marginTop: -16, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 7 }, quickAddChipText: { fontSize: 12, fontWeight: "800" }, pressed: { opacity: .86, transform: [{ scale: .98 }] },
+  quickAdd: { position: "absolute", bottom: 14, alignSelf: "center", backgroundColor: c.primary, minHeight: 51, paddingHorizontal: 19, borderRadius: 17, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, shadowColor: "#3B2D24", shadowOffset: { width: 0, height: 7 }, shadowOpacity: .24, shadowRadius: 12, elevation: 5 }, quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" }, quickAddChip: { position: "absolute", right: 12, top: "50%", marginTop: -16, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 7 }, quickAddChipText: { fontSize: 12, fontWeight: "800" }, pressed: { opacity: .86, transform: [{ scale: .98 }] },
 });
