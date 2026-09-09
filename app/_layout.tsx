@@ -11,6 +11,7 @@ import { ThemeProvider, useThemeContext } from "@/lib/theme-provider";
 import { SavingsProvider } from "@/lib/savings-store";
 import { SettingsProvider } from "@/lib/settings-store";
 import { LockScreen } from "@/components/lock-screen";
+import { NotificationResync } from "@/components/notification-resync";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -99,6 +100,7 @@ export default function RootLayout() {
           </Stack>
           <SavingJarStatusBar />
           <LockScreen />
+          <NotificationResync />
         </QueryClientProvider>
       </trpc.Provider>
     </GestureHandlerRootView>

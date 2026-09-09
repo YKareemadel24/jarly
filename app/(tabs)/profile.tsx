@@ -1,10 +1,13 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
+import { Sheet } from "@/components/sheet";
+import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
+import { requestPermissionAndEnable } from "@/lib/notifications";
+import { useMoney, useSavings } from "@/lib/savings-store";
 import { useThemeContext } from "@/lib/theme-provider";
 
 function Preference({ icon, title, detail, value, onChange, disabled, styles, colors }: { icon: string; title: string; detail: string; value: boolean; onChange: (next: boolean) => void; disabled?: boolean; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
@@ -14,13 +17,17 @@ function Preference({ icon, title, detail, value, onChange, disabled, styles, co
 type PinPromptMode = "setup" | "change";
 
 export default function ProfileScreen() {
-  const colors = useColors(); const styles = useMemo(() => makeStyles(colors), [colors]); const { appearanceMode, setAppearanceMode } = useThemeContext();
+  const colors = useColors(); const styles = useMemo(() => makeStyles(colors), [colors]);   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { remindersEnabled, setRemindersEnabled, biometricAvailable, biometricLockEnabled, setBiometricLockEnabled, pinLockEnabled, hasPin, setPin, enablePinLock, disablePinLock, currency, setCurrency } = useSettings();
+  const { jars, restoreJar, deleteJarPermanently } = useSavings();
+  const format = useMoney();
+  const archived = useMemo(() => jars.filter((jar) => jar.archived), [jars]);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [pinMode, setPinMode] = useState<PinPromptMode | null>(null);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const activeCurrency = SUPPORTED_CURRENCIES.find((c) => c.code === currency) ?? SUPPORTED_CURRENCIES[0];
+  const monogramIcon = jars.find((jar) => !jar.archived)?.icon;
 
   const openPinPrompt = (mode: PinPromptMode) => { setPinInput(""); setPinError(null); setPinMode(mode); };
   const closePinPrompt = () => { setPinMode(null); setPinInput(""); setPinError(null); };
@@ -42,6 +49,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const onRemindersChange = (next: boolean) => {
+    if (!next) {
+      setRemindersEnabled(false);
+      return;
+    }
+    void requestPermissionAndEnable().then((granted) => {
+      if (granted) {
+        setRemindersEnabled(true);
+      } else {
+        Alert.alert(
+          "Notifications off",
+          "Saving reminders stays off until you allow notifications in system Settings.",
+        );
+      }
+    });
+  };
+
   return (
     <ScreenContainer className="p-5">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -49,7 +73,7 @@ export default function ProfileScreen() {
         <Text style={styles.title}>Make it feel{"\n"}like yours.</Text>
 
         <View style={styles.identity}>
-          <View style={styles.monogram}><Text style={styles.monogramText}>SJ</Text></View>
+          <View style={styles.monogram}>{monogramIcon ? <MaterialIcons name={monogramIcon as never} size={22} color="#FFFDF9" /> : <Text style={styles.monogramText}>SJ</Text>}</View>
           <View><Text style={styles.identityTitle}>Your Saving Jar</Text><Text style={styles.identityCopy}>A private progress tracker</Text></View>
         </View>
 
@@ -69,7 +93,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>GENTLE SUPPORT</Text>
         <View style={styles.group}>
-          <Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={setRemindersEnabled} styles={styles} colors={colors} />
+          <Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={onRemindersChange} styles={styles} colors={colors} />
           <View style={styles.line} />
           <Preference
             icon="fingerprint"
@@ -101,62 +125,84 @@ export default function ProfileScreen() {
           <View style={styles.currencyChip}><Text style={styles.currencyChipText}>{activeCurrency.code}</Text></View>
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
+
+        <Text style={styles.sectionLabel}>ARCHIVED</Text>
+        <View style={styles.group}>
+          {archived.length === 0 ? (
+            <Text style={styles.groupCopy}>Nothing archived. Archiving removes a jar from your active goals while keeping its history.</Text>
+          ) : archived.map((jar, index) => (
+            <View key={jar.id}>
+              {index > 0 ? <View style={styles.line} /> : null}
+              <View style={styles.preference}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.prefTitle} numberOfLines={1}>{jar.name}</Text>
+                  <Text style={styles.prefDetail}>{format(jar.balance)} saved</Text>
+                </View>
+                <Pressable accessibilityLabel={`Restore ${jar.name}`} onPress={() => restoreJar(jar.id)} style={({ pressed }) => [styles.currencyChip, pressed && styles.pressed]}>
+                  <Text style={styles.currencyChipText}>Restore</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Delete ${jar.name} permanently`}
+                  onPress={() => Alert.alert("Delete forever?", `${jar.name} and its history will be permanently removed.`, [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Delete", style: "destructive", onPress: () => deleteJarPermanently(jar.id) },
+                  ])}
+                  hitSlop={8}
+                >
+                  <MaterialIcons name="delete-outline" size={20} color={colors.muted} />
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
       </ScrollView>
 
-      {currencyPickerOpen ? (
-        <View style={styles.sheetOverlay}>
-          <View style={styles.sheetCard}>
-            <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Choose a currency</Text><Pressable accessibilityLabel="Close" onPress={() => setCurrencyPickerOpen(false)} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
-            <Text style={styles.groupCopy}>All amounts in the app will display in this currency.</Text>
-            <ScrollView style={{ marginTop: 12, maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-              {SUPPORTED_CURRENCIES.map((option) => {
-                const active = option.code === currency;
-                return (
-                  <Pressable key={option.code} onPress={() => { setCurrency(option.code); setCurrencyPickerOpen(false); }} style={({ pressed }) => [styles.currencyOption, pressed && styles.pressed]}>
-                    <View style={[styles.currencyOptionIcon, active && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}><Text style={[styles.currencyOptionSymbol, active && { color: colors.primary }]}>{option.symbol}</Text></View>
-                    <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{option.name}</Text><Text style={styles.prefDetail}>{option.code}</Text></View>
-                    {active ? <MaterialIcons name="check" size={20} color={colors.primary} /> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      ) : null}
+      <Sheet visible={currencyPickerOpen} onClose={() => setCurrencyPickerOpen(false)} label="Choose a currency">
+        <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Choose a currency</Text><Pressable accessibilityLabel="Close" onPress={() => setCurrencyPickerOpen(false)} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
+        <Text style={styles.groupCopy}>All amounts in the app will display in this currency.</Text>
+        <ScrollView style={{ marginTop: 12, maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+          {SUPPORTED_CURRENCIES.map((option) => {
+            const active = option.code === currency;
+            return (
+              <Pressable key={option.code} onPress={() => { setCurrency(option.code); setCurrencyPickerOpen(false); }} style={({ pressed }) => [styles.currencyOption, pressed && styles.pressed]}>
+                <View style={[styles.currencyOptionIcon, active && { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}><Text style={[styles.currencyOptionSymbol, active && { color: colors.primary }]}>{option.symbol}</Text></View>
+                <View style={{ flex: 1 }}><Text style={styles.prefTitle}>{option.name}</Text><Text style={styles.prefDetail}>{option.code}</Text></View>
+                {active ? <MaterialIcons name="check" size={20} color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </Sheet>
 
-      {pinMode ? (
-        <View style={styles.sheetOverlay}>
-          <View style={styles.sheetCard}>
-            <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}</Text><Pressable accessibilityLabel="Close" onPress={closePinPrompt} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
-            <Text style={styles.groupCopy}>Use {MIN_PIN_LENGTH} or more digits. You&apos;ll be asked for it each time the app opens.</Text>
-            <TextInput
-              value={pinInput}
-              onChangeText={(text) => { setPinInput(text.replace(/\D/g, "")); setPinError(null); }}
-              secureTextEntry
-              keyboardType="number-pad"
-              autoFocus
-              placeholder="••••"
-              placeholderTextColor={colors.muted}
-              maxLength={12}
-              style={[styles.pinInput, pinError && { borderColor: colors.error }]}
-            />
-            {pinError ? <Text style={[styles.pinError, { color: colors.error }]}>{pinError}</Text> : null}
-            <Pressable onPress={() => { void submitPin(); }} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
-              <Text style={styles.primaryText}>{pinMode === "setup" ? "Turn on PIN lock" : "Save PIN"}</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      <Sheet visible={pinMode !== null} onClose={closePinPrompt} label={pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}>
+        <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>{pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}</Text><Pressable accessibilityLabel="Close" onPress={closePinPrompt} hitSlop={8}><MaterialIcons name="close" size={20} color={colors.muted} /></Pressable></View>
+        <Text style={styles.groupCopy}>Use {MIN_PIN_LENGTH} or more digits. You&apos;ll be asked for it each time the app opens.</Text>
+        <TextInput
+          value={pinInput}
+          onChangeText={(text) => { setPinInput(text.replace(/\D/g, "")); setPinError(null); }}
+          secureTextEntry
+          keyboardType="number-pad"
+          autoFocus
+          placeholder="••••"
+          placeholderTextColor={colors.muted}
+          maxLength={12}
+          style={[styles.pinInput, pinError && { borderColor: colors.error }]}
+        />
+        {pinError ? <Text style={[styles.pinError, { color: colors.error }]}>{pinError}</Text> : null}
+        <Pressable onPress={() => { void submitPin(); }} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          <Text style={styles.primaryText}>{pinMode === "setup" ? "Turn on PIN lock" : "Save PIN"}</Text>
+        </Pressable>
+      </Sheet>
     </ScreenContainer>
   );
 }
 
 const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   kicker: { color: c.muted, fontSize: 10, letterSpacing: 1.4, fontWeight: "800", marginTop: 4 },
-  title: { color: c.foreground, fontFamily: "Georgia", fontSize: 31, lineHeight: 36, marginTop: 7 },
+  title: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 7 },
   identity: { minHeight: 82, marginTop: 23, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 23, padding: 16, flexDirection: "row", alignItems: "center", gap: 13 },
   monogram: { width: 48, height: 48, borderRadius: 17, backgroundColor: c.primary, alignItems: "center", justifyContent: "center" },
-  monogramText: { color: "#FFFDF9", fontFamily: "Georgia", fontSize: 16 },
+  monogramText: { color: "#FFFDF9", fontFamily: Fonts.serif, fontSize: 16 },
   identityTitle: { color: c.foreground, fontSize: 15, fontWeight: "800" },
   identityCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
   sectionLabel: { color: c.muted, fontSize: 10, letterSpacing: 1.1, fontWeight: "800", marginTop: 26, marginBottom: 9 },
@@ -164,7 +210,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   groupTitle: { color: c.foreground, fontSize: 14, fontWeight: "800" },
   groupCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
   themes: { flexDirection: "row", gap: 7, marginTop: 14 },
-  themeChoice: { flex: 1, minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  themeChoice: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   themeChoiceActive: { backgroundColor: c.primary, borderColor: c.primary },
   themeText: { color: c.muted, fontSize: 11, fontWeight: "800" },
   themeTextActive: { color: "#FFFDF9" },
@@ -181,10 +227,8 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   currencyOption: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 10 },
   currencyOptionIcon: { width: 37, height: 37, borderRadius: 13, borderWidth: 1, borderColor: c.border, backgroundColor: c.background, alignItems: "center", justifyContent: "center" },
   currencyOptionSymbol: { color: c.muted, fontSize: 12, fontWeight: "800" },
-  sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,.35)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 },
-  sheetCard: { width: "100%", maxWidth: 400, backgroundColor: c.surface, borderRadius: 24, borderWidth: 1, borderColor: c.border, padding: 20 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  sheetTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 20 },
+  sheetTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 20 },
   pinInput: { borderWidth: 1, borderColor: c.border, borderRadius: 15, backgroundColor: c.background, color: c.foreground, fontSize: 22, paddingHorizontal: 16, height: 52, marginTop: 16, letterSpacing: 8 },
   pinError: { fontSize: 12, fontWeight: "700", marginTop: 10 },
   primary: { backgroundColor: c.primary, minHeight: 50, borderRadius: 15, marginTop: 18, alignItems: "center", justifyContent: "center" },

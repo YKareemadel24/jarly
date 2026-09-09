@@ -70,3 +70,6 @@ Thumbs.db
 # workspace scratch files
 todo*.md
 reference-notes.md
+
+# agent execution scratch (ledgers, briefs, review packages)
+.superpowers/

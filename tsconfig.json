@@ -25,6 +25,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "App Design Enhancement Suggestions"
+    "App Design Enhancement Suggestions",
+    "jarly-uiux-improvement-suggestions"
   ]
 }

@@ -1,11 +1,13 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { EmptyState } from "@/components/empty-state";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
+import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
+import { inkOnAccent } from "@/lib/jar-ink";
 import { type Entry, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
 type Row = { entry: Entry; jar: Jar };
@@ -29,13 +31,13 @@ function ActivityRow({ row, styles, colors, accents, format }: { row: Row; style
   return (
     <View style={styles.row} accessibilityLabel={`${title} into ${row.jar.name}. ${amountLabel}.`}>
       <View style={[styles.rowIcon, { backgroundColor: isDeposit ? `${accent}1D` : `${colors.error}17` }]}>
-        <MaterialIcons name={isDeposit ? "south" : "north"} size={18} color={isDeposit ? accent : colors.error} />
+        <MaterialIcons name={isDeposit ? "add" : "remove"} size={18} color={isDeposit ? accent : colors.error} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{row.jar.name}</Text>
         <Text style={styles.rowMeta}>{title}{row.entry.note ? ` · ${row.entry.note}` : ""}</Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isDeposit ? accent : colors.error }]}>{amountLabel}</Text>
+      <Text style={[styles.rowAmount, { color: isDeposit ? inkOnAccent(accent) : colors.error }]}>{amountLabel}</Text>
     </View>
   );
 }
@@ -46,12 +48,16 @@ export default function ActivityScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { jars } = useSavings();
   const format = useMoney();
+  const [filter, setFilter] = useState<"all" | "deposit" | "withdrawal">("all");
+
+  const hasEntries = useMemo(() => jars.filter((jar) => !jar.archived).some((jar) => jar.entries.length > 0), [jars]);
 
   const groups = useMemo<Group[]>(() => {
     const now = new Date();
     const rows: Row[] = jars
       .filter((jar) => !jar.archived)
       .flatMap((jar) => jar.entries.map((entry) => ({ entry, jar })))
+      .filter((row) => filter === "all" || row.entry.direction === filter)
       .sort((a, b) => b.entry.at.localeCompare(a.entry.at));
     const grouped: Group[] = [];
     for (const row of rows) {
@@ -61,19 +67,38 @@ export default function ActivityScreen() {
       else grouped.push({ label, rows: [row] });
     }
     return grouped;
-  }, [jars]);
+  }, [jars, filter]);
 
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>ACTIVITY</Text>
         <Text style={styles.title}>Every deposit,{`\n`}told simply.</Text>
-        {groups.length === 0 ? (
-          <View style={styles.empty}>
-            <JarVessel accent={accents.amber} icon="star" progress={0} size="medium" />
-            <Text style={styles.emptyTitle}>Nothing saved yet.</Text>
-            <Text style={styles.emptyCopy}>Your deposits will appear here.</Text>
+        {hasEntries ? (
+          <View style={styles.filterRow}>
+            {(["all", "deposit", "withdrawal"] as const).map((option) => {
+              const active = filter === option;
+              const label = option === "all" ? "All" : option === "deposit" ? "Deposits" : "Withdrawals";
+              return (
+                <Pressable key={option} accessibilityLabel={`Show ${label.toLowerCase()}`} accessibilityState={{ selected: active }} onPress={() => setFilter(option)} style={({ pressed }) => [styles.chip, active && { backgroundColor: colors.primary, borderColor: colors.primary }, pressed && styles.pressed]}>
+                  <Text style={[styles.chipText, active && { color: "#FFFDF9" }]}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
+        ) : null}
+        {groups.length === 0 ? (
+          filter === "all" ? (
+            <View style={styles.empty}>
+              <JarVessel accent={accents.amber} icon="star" progress={0} size="medium" />
+              <Text style={styles.emptyTitle}>Nothing saved yet.</Text>
+              <Text style={styles.emptyCopy}>Your deposits will appear here.</Text>
+            </View>
+          ) : (
+            <View style={{ marginTop: 26 }}>
+              <EmptyState title="Nothing here yet." copy="Try a different filter to see more activity." ctaLabel="Show everything" onCta={() => setFilter("all")} />
+            </View>
+          )
         ) : (
           groups.map((group) => (
             <View key={group.label} style={styles.group}>
@@ -97,10 +122,14 @@ export default function ActivityScreen() {
 const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   content: { padding: 20, paddingBottom: 108 },
   kicker: { color: c.muted, fontSize: 10, letterSpacing: 1.4, fontWeight: "800", marginTop: 4 },
-  title: { color: c.foreground, fontFamily: "Georgia", fontSize: 31, lineHeight: 36, marginTop: 7 },
+  title: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 7 },
   empty: { backgroundColor: c.surface, borderRadius: 26, padding: 26, alignItems: "center", borderWidth: 1, borderColor: c.border, marginTop: 26 },
-  emptyTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22, marginTop: 14 },
+  emptyTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 22, marginTop: 14 },
   emptyCopy: { color: c.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8 },
+  filterRow: { flexDirection: "row", gap: 8, marginTop: 18 },
+  chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
+  chipText: { color: c.muted, fontSize: 12, fontWeight: "800" },
+  pressed: { opacity: 0.86 },
   group: { marginTop: 24 },
   groupLabel: { color: c.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.9, marginBottom: 9 },
   groupCard: { backgroundColor: c.surface, borderRadius: 21, borderWidth: 1, borderColor: c.border, paddingHorizontal: 15, paddingVertical: 5 },

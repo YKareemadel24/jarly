@@ -104,6 +104,94 @@ export function monthlyDeposits(jars: Pick<Jar, "entries">[], now: Date = new Da
   return buckets;
 }
 
+const DAY_MS = 86_400_000;
+
+function localDayNumber(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
+}
+
+/** Deposit totals for consecutive local calendar days ending today, oldest first. */
+export function dailyDepositTotals(jars: Pick<Jar, "entries">[], days: number, now: Date = new Date()): number[] {
+  const totals = new Array(Math.max(0, days)).fill(0);
+  const today = localDayNumber(now);
+  for (const jar of jars) {
+    for (const entry of jar.entries) {
+      if (entry.direction !== "deposit") continue;
+      const index = totals.length - 1 - (today - localDayNumber(new Date(entry.at)));
+      if (index >= 0 && index < totals.length) totals[index] += entry.amount;
+    }
+  }
+  return totals;
+}
+
+/** Deposit totals for consecutive seven-day blocks ending today, oldest first. */
+export function weeklyDepositTotals(jars: Pick<Jar, "entries">[], weeks: number, now: Date = new Date()): number[] {
+  const daily = dailyDepositTotals(jars, Math.max(0, weeks) * 7, now);
+  return Array.from({ length: Math.max(0, weeks) }, (_, index) =>
+    daily.slice(index * 7, index * 7 + 7).reduce((sum, amount) => sum + amount, 0),
+  );
+}
+
+export type DepositPreset = {
+  kind: "usual" | "weekly-pace" | "milestone" | "finish";
+  amount: number;
+  level?: number;
+};
+
+/** Goal-aware deposit choices, ordered by the user's established habit then useful outcomes. */
+export function depositPresets(jar: Pick<Jar, "balance" | "target" | "entries">, pace: PaceProjection): DepositPreset[] {
+  const remaining = Math.max(0, jar.target - jar.balance);
+  if (!remaining) return [];
+
+  const choices: DepositPreset[] = [];
+  const usual = jar.entries.find((entry) => entry.direction === "deposit")?.amount;
+  if (usual && usual > 0) choices.push({ kind: "usual", amount: usual });
+  if (pace.requiredPerWeekMinor > 0) choices.push({ kind: "weekly-pace", amount: pace.requiredPerWeekMinor });
+
+  const level = MILESTONE_LEVELS.find((candidate) => jar.balance < Math.ceil((jar.target * candidate) / 100));
+  if (level && level < 100) {
+    const amount = Math.ceil((jar.target * level) / 100) - jar.balance;
+    if (amount > 0) choices.push({ kind: "milestone", amount, level });
+  }
+  choices.push({ kind: "finish", amount: remaining });
+
+  return choices.filter((choice, index) =>
+    choice.amount > 0 && choices.findIndex((other) => other.amount === choice.amount) === index,
+  ).slice(0, 4);
+}
+
+export type EntryGroup = { label: string; entries: Entry[] };
+
+/** Group newest-first entries into concise, local-time activity sections. */
+export function groupEntriesByPeriod(entries: Entry[], now: Date = new Date()): EntryGroup[] {
+  const today = localDayNumber(now);
+  const groups: EntryGroup[] = [];
+  for (const entry of entries) {
+    const daysAgo = today - localDayNumber(new Date(entry.at));
+    const label = daysAgo <= 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? "This week" : daysAgo < 31
+      ? "This month"
+      : new Date(entry.at).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const last = groups.at(-1);
+    if (last?.label === label) last.entries.push(entry);
+    else groups.push({ label, entries: [entry] });
+  }
+  return groups;
+}
+
+/** The jar that deserves the single Home call to action, if any. */
+export function nextBestJarId(jars: Pick<Jar, "id" | "target" | "balance" | "deadline" | "entries" | "recurring" | "archived">[], now: Date = new Date()): string | undefined {
+  const active = jars.filter((jar) => !jar.archived && percent(jar) < 100);
+  const behind = active.find((jar) => paceProjection(jar, now).status === "behind");
+  return (behind ?? active.sort((left, right) => percent(right) - percent(left))[0])?.id;
+}
+
+/** Required daily and weekly contributions for a month-based jar timeline. */
+export function savingRate(targetMinor: number, months: number): { perWeekMinor: number; perDayMinor: number } {
+  const days = Math.max(1, Math.round(months) * 30);
+  const target = Math.max(0, Math.round(targetMinor));
+  return { perWeekMinor: Math.ceil((target * 7) / days), perDayMinor: Math.ceil(target / days) };
+}
+
 /** All milestone levels newly crossed when balance moves to `nextBalance`. */
 export function crossedMilestones(jar: Pick<Jar, "target" | "milestonesHit">, nextBalance: number): number[] {
   if (jar.target <= 0) return [];
@@ -121,6 +209,16 @@ function previousDayKey(key: string): string {
   const [y, m, d] = key.split("-").map(Number);
   const date = new Date(y, m, d - 1);
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/** Local-day keys with at least one deposit — backing for the habit rhythm view. */
+export function depositDayKeys(entries: Pick<Entry, "at" | "direction">[]): Set<string> {
+  const keys = new Set<string>();
+  for (const entry of entries) {
+    if (entry.direction !== "deposit") continue;
+    keys.add(dayKey(entry.at));
+  }
+  return keys;
 }
 
 /** Result of applying a single entry to a jar. */
@@ -273,6 +371,17 @@ export const jarAccentDark: Record<Accent, string> = {
 
 const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
+/** Parse an ISO or "Month Year" (end of that month) deadline. Undefined when unparseable. */
+export function parseDeadline(deadline: string): Date | undefined {
+  const date = new Date(deadline);
+  if (!Number.isNaN(date.getTime())) return date;
+  const match = /^([A-Za-z]+)\s+(\d{4})$/.exec(deadline.trim());
+  const month = match ? MONTH_NAMES.indexOf(match[1].toLowerCase()) : -1;
+  if (month < 0 || !match) return undefined;
+  const endOfMonth = new Date(Number(match[2]), month + 1, 0);
+  return Number.isNaN(endOfMonth.getTime()) ? undefined : endOfMonth;
+}
+
 /**
  * Human deadline chip. Returns a countdown ("12 days left") when the deadline
  * is parseable (ISO or "December 2026"), the original text otherwise.
@@ -280,21 +389,83 @@ const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "ju
  */
 export function deadlineCountdown(deadline: string | undefined, now: Date = new Date()): string | undefined {
   if (!deadline) return undefined;
-  let date = new Date(deadline);
-  if (Number.isNaN(date.getTime())) {
-    const match = /^([A-Za-z]+)\s+(\d{4})$/.exec(deadline.trim());
-    const month = match ? MONTH_NAMES.indexOf(match[1].toLowerCase()) : -1;
-    if (month < 0 || !match) return deadline;
-    // Interpret "Month Year" as the end of that month.
-    date = new Date(Number(match[2]), month + 1, 0);
-    if (Number.isNaN(date.getTime())) return deadline;
-  }
+  const date = parseDeadline(deadline);
+  if (!date) return deadline;
   const days = Math.ceil((date.getTime() - now.getTime()) / 86_400_000);
   if (days < 0) return "Past deadline";
   if (days === 0) return "Due today";
   if (days === 1) return "1 day left";
   if (days <= 45) return `${days} days left`;
   return deadline;
+}
+
+const WEEK_MS = 7 * 86_400_000;
+
+/** Weekly pace of a recurring rule in minor units, rounded. Paused or empty rules pace zero. */
+function recurringPerWeek(rule: RecurringRule | undefined): number {
+  if (!rule || rule.paused || !(rule.amount > 0)) return 0;
+  switch (rule.cadence) {
+    case "daily":
+      return rule.amount * 7;
+    case "weekly":
+      return rule.amount;
+    case "biweekly":
+      return Math.round(rule.amount / 2);
+    case "monthly":
+      return Math.round((rule.amount * 12) / 52);
+  }
+}
+
+export type PaceStatus = "funded" | "no-deadline" | "no-pace" | "on-track" | "behind";
+
+export type PaceProjection = {
+  status: PaceStatus;
+  /** Minor units needed per week to hit the deadline. Zero when funded or dateless. */
+  requiredPerWeekMinor: number;
+  /** Minor units per week of effective pace (best of recent deposits, recurring schedule). */
+  pacePerWeekMinor: number;
+  /** ISO timestamp of the projected finish at current pace. Present for on-track/behind. */
+  projectedDate?: string;
+};
+
+/**
+ * Coach verdict for a dated jar: required-per-week vs. effective pace, where
+ * pace is the best of trailing-28-day deposits and the recurring schedule.
+ * Pure and integer-minor throughout; returns data, callers format the words.
+ */
+export function paceProjection(
+  jar: Pick<Jar, "target" | "balance" | "deadline" | "entries" | "recurring">,
+  now: Date = new Date(),
+): PaceProjection {
+  const remaining = jar.target - jar.balance;
+  if (remaining <= 0) return { status: "funded", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+  if (!jar.deadline) return { status: "no-deadline", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+  const date = parseDeadline(jar.deadline);
+  if (!date) return { status: "no-deadline", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+
+  const weeksLeft = Math.max(1, Math.ceil((date.getTime() - now.getTime()) / WEEK_MS));
+  const requiredPerWeekMinor = Math.ceil(remaining / weeksLeft);
+
+  const cutoff = now.getTime() - 28 * 86_400_000;
+  let recent = 0;
+  for (const entry of jar.entries) {
+    if (entry.direction !== "deposit") continue;
+    const at = new Date(entry.at).getTime();
+    if (at >= cutoff && at <= now.getTime()) recent += entry.amount;
+  }
+  const pacePerWeekMinor = Math.max(Math.round(recent / 4), recurringPerWeek(jar.recurring));
+  if (pacePerWeekMinor <= 0) return { status: "no-pace", requiredPerWeekMinor, pacePerWeekMinor: 0 };
+
+  const projectedDate = new Date(now.getTime() + (remaining / pacePerWeekMinor) * WEEK_MS).toISOString();
+  // Day granularity: finishing on the deadline day itself counts as on-track,
+  // so intraday clock time never flips the verdict.
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return {
+    status: startOfDay(new Date(projectedDate)) <= startOfDay(date) ? "on-track" : "behind",
+    requiredPerWeekMinor,
+    pacePerWeekMinor,
+    projectedDate,
+  };
 }
 
 const accentAliases: Record<string, Accent> = {
