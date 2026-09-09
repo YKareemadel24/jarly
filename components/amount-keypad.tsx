@@ -15,11 +15,11 @@ export function AmountKeypad({ value, onChange, color }: { value: string; onChan
     onChange(sanitizeAmountInput(`${value}${key}`));
   };
 
-  return <View style={styles.grid}>{KEYS.map((key) => <Pressable key={key} accessibilityLabel={key === "back" ? "Delete amount digit" : key} onPress={() => press(key)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: `${color}16` }]}>{key === "back" ? <MaterialIcons name="backspace" size={22} color={color} /> : <Text style={styles.keyText}>{key}</Text>}</Pressable>)}</View>;
+  return <View style={styles.grid}>{KEYS.map((key) => <Pressable key={key} accessibilityLabel={key === "back" ? "Delete amount digit" : key} onPress={() => press(key)} onLongPress={key === "back" ? () => onChange("") : undefined} style={({ pressed }) => [styles.key, pressed && { backgroundColor: `${color}16` }]}>{key === "back" ? <MaterialIcons name="backspace" size={22} color={color} /> : <Text style={styles.keyText}>{key}</Text>}</Pressable>)}</View>;
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", marginTop: 10, gap: 5 },
-  key: { width: "32.2%", height: 45, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  grid: { flexDirection: "row", flexWrap: "wrap", marginTop: 10, gap: 8 },
+  key: { width: "31.8%", height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   keyText: { fontSize: 20, fontWeight: "600", color: "#2C231D" },
 });

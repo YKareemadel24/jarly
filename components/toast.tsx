@@ -46,7 +46,7 @@ export function Toast({ visible, message, actionLabel, onAction, onDismiss, dura
 }
 
 const toastStyles = StyleSheet.create({
-  wrap: { position: "absolute", left: 20, right: 20, bottom: 24, alignItems: "center", zIndex: 20 },
+  wrap: { position: "absolute", left: 20, right: 20, bottom: 96, alignItems: "center", zIndex: 20 },
   toast: { flexDirection: "row", alignItems: "center", gap: 12, maxWidth: 420, alignSelf: "stretch", borderRadius: 17, paddingHorizontal: 16, minHeight: 52, paddingVertical: 10, shadowColor: "#201B18", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6 },
   message: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   action: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 7 },
