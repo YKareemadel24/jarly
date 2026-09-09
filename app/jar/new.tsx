@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
+import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
 import { useJarAccents } from "@/hooks/use-jar-accents";
@@ -173,12 +173,12 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   navTitle: { color: c.muted, fontSize: 10, letterSpacing: 1.35, fontWeight: "800" },
   stepDots: { flexDirection: "row", gap: 5, alignItems: "center" },
   stepDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: c.border },
-  title: { color: c.foreground, fontFamily: "Georgia", fontSize: 29, lineHeight: 34, marginTop: 23 },
+  title: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 29, lineHeight: 34, marginTop: 23 },
   sub: { color: c.muted, fontSize: 13, lineHeight: 19, marginTop: 9, maxWidth: 310 },
   preview: { backgroundColor: c.surface, borderRadius: 25, borderWidth: 1, borderColor: c.border, flexDirection: "row", marginTop: 20, padding: 14, alignItems: "center", gap: 16 },
   previewCopy: { flex: 1 },
   previewLabel: { color: c.muted, fontWeight: "800", fontSize: 10, letterSpacing: 1.1 },
-  previewName: { color: c.foreground, fontFamily: "Georgia", fontSize: 21, marginTop: 6 },
+  previewName: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 21, marginTop: 6 },
   previewTarget: { color: c.muted, fontSize: 12, marginTop: 6, lineHeight: 17 },
   rate: { fontSize: 11, fontWeight: "800", marginTop: 6 },
   label: { color: c.muted, marginTop: 25, fontWeight: "800", letterSpacing: 1.05, fontSize: 10 },
@@ -199,8 +199,8 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   color: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   colorSelected: { borderWidth: 3, borderColor: c.surface, shadowColor: "#4A3324", shadowOpacity: .2, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5, elevation: 3 },
   amountField: { minHeight: 62, marginTop: 9, borderRadius: 17, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 8 },
-  currency: { color: c.primary, fontSize: 24, fontFamily: "Georgia" },
-  amountInput: { flex: 1, color: c.foreground, fontSize: 26, fontFamily: "Georgia", fontVariant: ["tabular-nums"] },
+  currency: { color: c.primary, fontSize: 24, fontFamily: Fonts.serif },
+  amountInput: { flex: 1, color: c.foreground, fontSize: 26, fontFamily: Fonts.serif, fontVariant: ["tabular-nums"] },
   timeline: { flexDirection: "row", gap: 7, marginTop: 9 }, timelineOption: { flex: 1, minHeight: 38, borderRadius: 12, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" }, timelineText: { color: c.muted, fontSize: 11, fontWeight: "800" }, timelineTextSelected: { color: "#FFFDF9" }, rateCard: { marginTop: 10, minHeight: 42, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12 }, rateCardText: { fontSize: 12, fontWeight: "800" },
   deadlineField: { minHeight: 52, marginTop: 9, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   deadlineInput: { flex: 1, color: c.foreground, fontSize: 14 },

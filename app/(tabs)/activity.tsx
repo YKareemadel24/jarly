@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
+import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import { type Entry, type Jar, useMoney, useSavings } from "@/lib/savings-store";
@@ -97,9 +97,9 @@ export default function ActivityScreen() {
 const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   content: { padding: 20, paddingBottom: 108 },
   kicker: { color: c.muted, fontSize: 10, letterSpacing: 1.4, fontWeight: "800", marginTop: 4 },
-  title: { color: c.foreground, fontFamily: "Georgia", fontSize: 31, lineHeight: 36, marginTop: 7 },
+  title: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 7 },
   empty: { backgroundColor: c.surface, borderRadius: 26, padding: 26, alignItems: "center", borderWidth: 1, borderColor: c.border, marginTop: 26 },
-  emptyTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22, marginTop: 14 },
+  emptyTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 22, marginTop: 14 },
   emptyCopy: { color: c.muted, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8 },
   group: { marginTop: 24 },
   groupLabel: { color: c.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.9, marginBottom: 9 },

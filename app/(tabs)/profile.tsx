@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
+import { Fonts, type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 import { requestPermissionAndEnable } from "@/lib/notifications";
@@ -205,10 +205,10 @@ export default function ProfileScreen() {
 
 const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   kicker: { color: c.muted, fontSize: 10, letterSpacing: 1.4, fontWeight: "800", marginTop: 4 },
-  title: { color: c.foreground, fontFamily: "Georgia", fontSize: 31, lineHeight: 36, marginTop: 7 },
+  title: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 31, lineHeight: 36, marginTop: 7 },
   identity: { minHeight: 82, marginTop: 23, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 23, padding: 16, flexDirection: "row", alignItems: "center", gap: 13 },
   monogram: { width: 48, height: 48, borderRadius: 17, backgroundColor: c.primary, alignItems: "center", justifyContent: "center" },
-  monogramText: { color: "#FFFDF9", fontFamily: "Georgia", fontSize: 16 },
+  monogramText: { color: "#FFFDF9", fontFamily: Fonts.serif, fontSize: 16 },
   identityTitle: { color: c.foreground, fontSize: 15, fontWeight: "800" },
   identityCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
   sectionLabel: { color: c.muted, fontSize: 10, letterSpacing: 1.1, fontWeight: "800", marginTop: 26, marginBottom: 9 },
@@ -236,7 +236,7 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   sheetOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,.35)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 },
   sheetCard: { width: "100%", maxWidth: 400, backgroundColor: c.surface, borderRadius: 24, borderWidth: 1, borderColor: c.border, padding: 20 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  sheetTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 20 },
+  sheetTitle: { color: c.foreground, fontFamily: Fonts.serif, fontSize: 20 },
   pinInput: { borderWidth: 1, borderColor: c.border, borderRadius: 15, backgroundColor: c.background, color: c.foreground, fontSize: 22, paddingHorizontal: 16, height: 52, marginTop: 16, letterSpacing: 8 },
   pinError: { fontSize: 12, fontWeight: "700", marginTop: 10 },
   primary: { backgroundColor: c.primary, minHeight: 50, borderRadius: 15, marginTop: 18, alignItems: "center", justifyContent: "center" },
