@@ -40,7 +40,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.0",
+  version: "1.0.5",
   orientation: "portrait",
   updates: {
     url: "https://u.expo.dev/55c67265-81c0-4d30-8a4c-62322f5ca429",
