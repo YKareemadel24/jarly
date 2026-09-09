@@ -10,6 +10,8 @@ export function Sheet({ visible, onClose, children, label }: { visible: boolean;
   const opacity = useSharedValue(0);
   useEffect(() => {
     if (!visible) return;
+    y.value = 60;
+    opacity.value = 0;
     y.value = reduce ? withTiming(0, { duration: 90 }) : withSpring(0, { damping: 26, stiffness: 260 });
     opacity.value = withTiming(1, { duration: 150 });
   }, [visible, y, opacity, reduce]);
