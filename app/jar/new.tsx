@@ -7,6 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
+import { useAuth } from "@/hooks/use-auth";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import { jarAccent, money, type Accent, type JarKind, sanitizeAmountInput, toMinor, useMoney, useSavings } from "@/lib/savings-store";
 
@@ -21,10 +22,16 @@ export default function NewJar() {
   const colors = useColors();
   const accentsForScheme = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { addJar } = useSavings();
+  const { addJar, createSharedJar } = useSavings();
   const format = useMoney();
   const [step, setStep] = useState(1);
   const [name, setName] = useState(""); const [target, setTarget] = useState(""); const [accent, setAccent] = useState<Accent>("ocean"); const [icon, setIcon] = useState("flight"); const [kind, setKind] = useState<JarKind>("goal"); const [deadline, setDeadline] = useState("");
+  // A shared jar is created on the server so every member reads one balance;
+  // this flag is only offered when the user is signed in, since it needs an account.
+  const [shared, setShared] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth({ autoFetch: true });
   // Money is stored as integer minor units; inputs are sanitized as typed.
   const targetValue = toMinor(target);
   const accentHex = accentsForScheme[accent];
@@ -35,10 +42,26 @@ export default function NewJar() {
     feedback.tap();
     setStep(step - 1);
   };
-  const next = () => {
-    if (!stepValid) return;
+  const next = async () => {
+    if (!stepValid || busy) return;
     feedback.tap();
     if (step < 3) return setStep(step + 1);
+
+    if (shared) {
+      // Shared creation is a network call, so it can fail: stay on the step and
+      // say so rather than leaving the user on a jar that was never created.
+      setBusy(true);
+      try {
+        const id = await createSharedJar({ name: name.trim(), target: targetValue!, accent, icon, kind, deadline: deadline.trim() || undefined, streak: kind === "habit" ? 0 : undefined });
+        router.replace(`/jar/${id}` as never);
+      } catch (problem) {
+        feedback.error();
+        setBusy(false);
+        setCreateError(problem instanceof Error ? problem.message : "Check your connection and try again.");
+      }
+      return;
+    }
+
     const id = addJar({ name: name.trim(), target: targetValue!, accent, icon, kind, deadline: deadline.trim() || undefined, streak: kind === "habit" ? 0 : undefined });
     router.replace(`/jar/${id}` as never);
   };
@@ -125,7 +148,16 @@ export default function NewJar() {
               <MaterialIcons name="calendar-today" size={18} color={colors.muted} />
               <TextInput value={deadline} onChangeText={setDeadline} placeholder="e.g. December 2026" placeholderTextColor={colors.muted} style={styles.deadlineInput} />
             </View>
-            <Text style={styles.disclaimer}>Saving Jar records your progress. It never moves your money.</Text>
+            {isAuthenticated ? <Pressable accessibilityRole="switch" accessibilityState={{ checked: shared }} accessibilityLabel="Save this jar with other people" onPress={() => { feedback.tap(); setShared(!shared); }} style={({ pressed }) => [styles.shareRow, shared && styles.shareRowActive, pressed && styles.pressed]}>
+              <View style={[styles.shareIcon, shared && { backgroundColor: accentHex }]}><MaterialIcons name={shared ? "people" : "person-outline"} size={18} color={shared ? "#FFFDF9" : colors.muted} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.shareTitle}>Save this one together</Text>
+                <Text style={styles.shareCopy}>{shared ? "Anyone you add can contribute, and the jar stays in sync on every device." : "Keep it private to this device. This is the default."}</Text>
+              </View>
+              <View style={[styles.shareToggle, shared && { backgroundColor: accentHex, borderColor: accentHex }]}>{shared ? <MaterialIcons name="check" size={14} color="#FFFDF9" /> : null}</View>
+            </Pressable> : null}
+            {createError ? <Text style={styles.createError}>{createError}</Text> : null}
+            <Text style={styles.disclaimer}>Saving Jar records your progress. It never moves your money.{shared ? " Shared jars are stored on your account so everyone sees the same balance." : ""}</Text>
           </>
         ) : null}
 
@@ -173,6 +205,13 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   amountInput: { flex: 1, color: c.foreground, fontSize: 26, fontFamily: "Georgia", fontVariant: ["tabular-nums"] },
   deadlineField: { minHeight: 52, marginTop: 9, borderRadius: 16, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   deadlineInput: { flex: 1, color: c.foreground, fontSize: 14 },
+  shareRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 22, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
+  shareRowActive: { borderColor: `${c.primary}55` },
+  shareIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: c.border, alignItems: "center", justifyContent: "center" },
+  shareTitle: { color: c.foreground, fontSize: 13.5, fontWeight: "800" },
+  shareCopy: { color: c.muted, fontSize: 11, lineHeight: 15, marginTop: 3 },
+  shareToggle: { width: 24, height: 24, borderRadius: 999, borderWidth: 1.5, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  createError: { color: c.error, fontSize: 12, fontWeight: "700", lineHeight: 17, marginTop: 14 },
   disclaimer: { color: c.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },
   create: { backgroundColor: c.primary, minHeight: 54, borderRadius: 17, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 26 },
   createText: { color: "#FFFDF9", fontSize: 15, fontWeight: "800" },

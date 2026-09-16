@@ -1,12 +1,14 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActionSheet } from "@/components/action-sheet";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 import { requestPermissionAndEnable } from "@/lib/notifications";
-import { useMoney, useSavings } from "@/lib/savings-store";
+import { type Jar, useMoney, useSavings } from "@/lib/savings-store";
 import { useThemeContext } from "@/lib/theme-provider";
 
 function Preference({ icon, title, detail, value, onChange, disabled, styles, colors }: { icon: string; title: string; detail: string; value: boolean; onChange: (next: boolean) => void; disabled?: boolean; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
@@ -23,6 +25,9 @@ export default function ProfileScreen() {
   const archived = useMemo(() => jars.filter((jar) => jar.archived), [jars]);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [pinMode, setPinMode] = useState<PinPromptMode | null>(null);
+  // Alert.alert is a no-op on web, so confirmations and notices are in-app sheets.
+  const [pendingDelete, setPendingDelete] = useState<Jar | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const activeCurrency = SUPPORTED_CURRENCIES.find((c) => c.code === currency) ?? SUPPORTED_CURRENCIES[0];
@@ -56,10 +61,7 @@ export default function ProfileScreen() {
       if (granted) {
         setRemindersEnabled(true);
       } else {
-        Alert.alert(
-          "Notifications off",
-          "Saving reminders stays off until you allow notifications in system Settings.",
-        );
+        setNotice("Saving reminders stays off until you allow notifications in system Settings.");
       }
     });
   };
@@ -124,6 +126,20 @@ export default function ProfileScreen() {
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
 
+        <Text style={styles.sectionLabel}>YOUR DEVICES</Text>
+        <Pressable
+          accessibilityLabel="Move jars to another device"
+          style={({ pressed }) => [styles.currencyRow, pressed && styles.pressed]}
+          onPress={() => router.push("/transfer" as never)}
+        >
+          <View style={styles.prefIcon}><MaterialIcons name="devices" size={19} color={colors.primary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.prefTitle}>Move to another device</Text>
+            <Text style={styles.prefDetail}>Pass your jars across with a code — no account, no network.</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+        </Pressable>
+
         <Text style={styles.sectionLabel}>ARCHIVED</Text>
         <View style={styles.group}>
           {archived.length === 0 ? (
@@ -141,10 +157,7 @@ export default function ProfileScreen() {
                 </Pressable>
                 <Pressable
                   accessibilityLabel={`Delete ${jar.name} permanently`}
-                  onPress={() => Alert.alert("Delete forever?", `${jar.name} and its history will be permanently removed.`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteJarPermanently(jar.id) },
-                  ])}
+                  onPress={() => setPendingDelete(jar)}
                   hitSlop={8}
                 >
                   <MaterialIcons name="delete-outline" size={20} color={colors.muted} />
@@ -199,6 +212,25 @@ export default function ProfileScreen() {
           </View>
         </View>
       ) : null}
+
+      <ActionSheet
+        visible={notice !== null}
+        title="Notifications off"
+        message={notice ?? ""}
+        actions={[{ label: "Got it", onPress: () => undefined }]}
+        onDismiss={() => setNotice(null)}
+      />
+
+      <ActionSheet
+        visible={pendingDelete !== null}
+        title="Delete forever?"
+        message={pendingDelete ? `${pendingDelete.name} and its history will be permanently removed.` : ""}
+        actions={[
+          { label: "Delete", detail: "This cannot be undone.", destructive: true, icon: "delete-outline", onPress: () => { if (pendingDelete) deleteJarPermanently(pendingDelete.id); } },
+          { label: "Cancel", onPress: () => undefined },
+        ]}
+        onDismiss={() => setPendingDelete(null)}
+      />
     </ScreenContainer>
   );
 }

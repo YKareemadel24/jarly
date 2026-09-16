@@ -15,8 +15,8 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 | Create jar sheet | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview | Create a goal jar |
 | Deposit sheet | Selected jar, amount entry, balance impact, confirmation | Add a manual contribution and trigger progress feedback |
 | Activity view | Recent contributions and withdrawals grouped by jar | Review transaction history |
-| Insights | Saving rate, goal progress, habit consistency, monthly contribution view | Review progress patterns |
-| Profile / settings | Theme, reminders, security concept, app preferences | Change personal preferences |
+| Insights | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight | Review progress patterns |
+| Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, archived jars | Change personal preferences, lock the app, restore or permanently delete archived jars |
 
 ## Core user flows
 
@@ -31,6 +31,16 @@ The user opens the create-jar sheet from the dashboard, names the goal, picks an
 ### Check progress and activity
 
 The user opens a jar card to see its physical jar visualization paired with saved, target, and percentage values. The detail screen exposes recent contributions and a focused activity link rather than overwhelming the dashboard with dense financial data.
+
+### Gentle support: reminders and OS notifications
+
+Home shows at most one reminder card (`nextReminder`): a due recurring deposit (today/tomorrow, top priority) or an approaching deadline (within 3 days). Completed and archived jars never remind. The same guards drive OS local notifications (`dueNotifications`): at most one ping per jar, fired at 09:00 local on the due day. Every ping has a matching card; cards may appear without a ping.
+
+The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push, no background tasks, no generic daily repeater.
+
+### Lock, currency, and archiving
+
+Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (SecureStore on native, AsyncStorage on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
 
 ## Layout and interaction rules
 
@@ -52,4 +62,4 @@ The reusable visual system contains a `Jar` component with a glass silhouette, t
 
 ## Implementation decisions
 
-The first build will keep data local to the device using in-memory state with AsyncStorage-ready structures, because cross-device synchronization was not requested. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. The app should be usable with seeded demonstration data until the user creates and adjusts their own jars.
+Savings data is device-local: jars persist to AsyncStorage (`saving-jar:v3`, one-generation backup, migrates legacy v1/v2 float stores to integer minor units); PIN uses SecureStore on native. Money is always integer minor units. Withdrawals never roll back milestones or streaks. Recurring rules (daily/weekly/biweekly/monthly, pausable) catch up deterministically, capped at 366 occurrences per call. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. Insights derives entirely from local entries (6-month `monthlyDeposits`, streaks, closest goal); no server data. The server provides auth/system plumbing only.

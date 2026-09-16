@@ -5,7 +5,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
-import { type MonthTotal, monthlyDeposits } from "@/lib/savings-core";
+import { badges, type MonthTotal, monthlyDeposits } from "@/lib/savings-core";
 import { percent, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
 function Metric({ icon, label, value, styles, colors }: { icon: string; label: string; value: string; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
@@ -46,6 +46,8 @@ export default function InsightsScreen() {
   const streak = useMemo(() => active.reduce((best, jar) => Math.max(best, jar.streak ?? 0), 0), [active]);
   const depositCount = useMemo(() => active.reduce((count, jar) => count + jar.entries.filter((entry) => entry.direction === "deposit").length, 0), [active]);
   const months = useMemo(() => monthlyDeposits(active), [active]);
+  const badgeList = useMemo(() => badges(active), [active]);
+  const earnedCount = useMemo(() => badgeList.filter((badge) => badge.earned).length, [badgeList]);
 
   return (
     <ScreenContainer>
@@ -99,6 +101,55 @@ export default function InsightsScreen() {
 
         <Text style={styles.sectionLabel}>MONTHLY CONTRIBUTIONS</Text>
         <MonthlyChart months={months} styles={styles} colors={colors} format={format} />
+
+        <Text style={styles.sectionLabel}>BADGES</Text>
+        <View style={styles.badgeSummary}>
+          <View style={styles.badgeSummaryRing}>
+            <Text style={styles.badgeSummaryCount}>{earnedCount}</Text>
+            <Text style={styles.badgeSummaryTotal}>of {badgeList.length}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.badgeSummaryTitle}>
+              {earnedCount === 0
+                ? "Your first badge is close."
+                : earnedCount === badgeList.length
+                  ? "Every badge earned."
+                  : earnedCount >= badgeList.length / 2
+                    ? "More than halfway."
+                    : "Just getting started."}
+            </Text>
+            <Text style={styles.badgeSummaryCopy}>Milestones you reach simply by saving, one deposit at a time.</Text>
+          </View>
+        </View>
+        <View style={styles.badgeGrid}>
+          {badgeList.map((badge) => {
+            const progress = badge.target > 0 ? Math.min(100, Math.round((badge.value / badge.target) * 100)) : 0;
+            return (
+              <View
+                key={badge.id}
+                accessibilityLabel={
+                  badge.earned
+                    ? `${badge.name}, earned. ${badge.description}.`
+                    : `${badge.name}, locked. ${badge.description}. ${Math.min(badge.value, badge.target)} of ${badge.target}.`
+                }
+                style={[styles.badge, badge.earned && styles.badgeEarned]}
+              >
+                <View style={[styles.badgeGlyph, badge.earned && styles.badgeGlyphEarned]}>
+                  <Text style={styles.badgeGlyphText}>{badge.earned ? badge.glyph : "🔒"}</Text>
+                </View>
+                <Text style={[styles.badgeName, badge.earned && { color: colors.foreground }]}>{badge.name}</Text>
+                <Text style={styles.badgeDesc} numberOfLines={2}>{badge.description}</Text>
+                {badge.earned ? (
+                  <View style={styles.badgeEarnedTag}><MaterialIcons name="check" size={12} color={colors.success} /><Text style={styles.badgeEarnedTagText}>Earned</Text></View>
+                ) : (
+                  <View style={styles.badgeProgressTrack}>
+                    <View style={[styles.badgeProgressFill, { width: `${progress}%` }]} />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
       </ScrollView>
     </ScreenContainer>
   );
@@ -135,4 +186,22 @@ const makeStyles = (c: ThemeColorPalette) => StyleSheet.create({
   chartValue: { color: c.muted, fontSize: 9, fontWeight: "700", fontVariant: ["tabular-nums"], marginBottom: 4 },
   chartLabel: { color: c.muted, fontSize: 10, fontWeight: "700", marginTop: 6 },
   chartEmpty: { color: c.muted, fontSize: 12, textAlign: "center", paddingVertical: 22 },
+  badgeSummary: { borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: 16, flexDirection: "row", alignItems: "center", gap: 14 },
+  badgeSummaryRing: { width: 58, height: 58, borderRadius: 29, borderWidth: 3, borderColor: c.primary, alignItems: "center", justifyContent: "center" },
+  badgeSummaryCount: { color: c.foreground, fontFamily: "Georgia", fontSize: 19, fontVariant: ["tabular-nums"] },
+  badgeSummaryTotal: { color: c.muted, fontSize: 9, fontWeight: "700" },
+  badgeSummaryTitle: { color: c.foreground, fontSize: 14, fontWeight: "800" },
+  badgeSummaryCopy: { color: c.muted, fontSize: 11, marginTop: 4, lineHeight: 15 },
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  badge: { width: "47.8%", flexGrow: 1, minHeight: 128, borderRadius: 19, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, padding: 13 },
+  badgeEarned: { borderColor: `${c.success}66` },
+  badgeGlyph: { width: 36, height: 36, borderRadius: 12, backgroundColor: c.border, alignItems: "center", justifyContent: "center" },
+  badgeGlyphEarned: { backgroundColor: `${c.warning}24` },
+  badgeGlyphText: { fontSize: 17 },
+  badgeName: { color: c.muted, fontSize: 12.5, fontWeight: "800", marginTop: 10 },
+  badgeDesc: { color: c.muted, fontSize: 10.5, marginTop: 3, lineHeight: 14 },
+  badgeProgressTrack: { height: 4, borderRadius: 999, backgroundColor: c.border, overflow: "hidden", marginTop: 9 },
+  badgeProgressFill: { height: "100%", borderRadius: 999, backgroundColor: c.muted },
+  badgeEarnedTag: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 9 },
+  badgeEarnedTagText: { color: c.success, fontSize: 10.5, fontWeight: "800" },
 });

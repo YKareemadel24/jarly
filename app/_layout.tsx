@@ -97,6 +97,11 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="oauth/callback" />
+            {/* An invite link opens the app on this screen, signed in or not. */}
+            <Stack.Screen name="join" />
+            <Stack.Screen name="transfer/index" />
+            <Stack.Screen name="transfer/send" />
+            <Stack.Screen name="transfer/receive" />
           </Stack>
           <SavingJarStatusBar />
           <LockScreen />

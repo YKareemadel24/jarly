@@ -20,6 +20,24 @@ export type Entry = {
   note?: string;
   at: string;
   source?: "manual" | "recurring";
+  /** Display name of the member who made this contribution (shared jars only). */
+  who?: string;
+};
+
+/**
+ * One participant in a shared jar. Shared jars are server-backed so several
+ * devices see the same jar; personal jars never carry members.
+ */
+export type JarMember = {
+  /** Stable member id; for the signed-in user this is their account id. */
+  id: string;
+  name: string;
+  /** Integer minor units this member has put in. */
+  contributed: number;
+  /** True for the signed-in user viewing the jar. */
+  you?: boolean;
+  /** True for the member who created the jar and may invite or remove others. */
+  isOwner?: boolean;
 };
 
 export type RecurringRule = {
@@ -49,6 +67,13 @@ export type Jar = {
   archived?: boolean;
   recurring?: RecurringRule;
   entries: Entry[];
+  /**
+   * Server jar id backing a shared jar. Personal jars leave this unset and stay
+   * device-local; a jar with a remoteId syncs through the sharedJar router.
+   */
+  remoteId?: string;
+  /** Participants, present only on shared jars. */
+  members?: JarMember[];
 };
 
 export const MILESTONE_LEVELS = [25, 50, 75, 100] as const;
@@ -378,6 +403,217 @@ export function paceProjection(
     pacePerWeekMinor,
     projectedDate,
   };
+}
+
+/** Identity for a one-tap deposit suggestion. */
+export type QuickPresetId = "round-up" | "next-milestone" | "weekly-pace" | "repeat-last";
+
+export type QuickPreset = {
+  id: QuickPresetId;
+  /** Short primary label, e.g. "Hit 50%". */
+  label: string;
+  /** One-line explanation of where the amount came from. */
+  hint: string;
+  /** Integer minor units, always greater than zero. */
+  amount: number;
+};
+
+/** Step a round-up suggestion snaps the balance to, in minor units. */
+const ROUND_UP_STEP = 500;
+/** Largest round-up gap worth suggesting, so a chip never dwarfs the goal. */
+const ROUND_UP_CAP = 20_000;
+/** Trailing window used to derive the jar's own saving pace. */
+const PACE_WINDOW_MS = 28 * 86_400_000;
+
+/**
+ * One-tap deposit suggestions derived entirely from the jar's own state: a
+ * round-up, the exact gap to the next unreached milestone, the jar's own recent
+ * pace, and a repeat of the last deposit. Pure and integer-minor throughout;
+ * callers format the words. Equal amounts collapse to their first suggestion,
+ * so a jar never shows two chips that would deposit the same money.
+ */
+export function quickPresets(
+  jar: Pick<Jar, "target" | "balance" | "milestonesHit" | "entries" | "recurring">,
+  now: Date = new Date(),
+  currency: string = "USD",
+): QuickPreset[] {
+  const suggestions: QuickPreset[] = [];
+
+  // 1. Neaten the balance up to the next clean step. An empty jar has nothing
+  // to neaten, so it starts from the milestone or pace suggestion instead.
+  const remainder = Math.abs(jar.balance) % ROUND_UP_STEP;
+  const roundUp = remainder === 0 ? ROUND_UP_STEP : ROUND_UP_STEP - remainder;
+  if (jar.balance > 0 && roundUp > 0 && roundUp <= ROUND_UP_CAP) {
+    suggestions.push({
+      id: "round-up",
+      label: `Round to ${money(jar.balance + roundUp, currency)}`,
+      hint: "Neaten the balance",
+      amount: roundUp,
+    });
+  }
+
+  // 2. Land exactly on the next milestone this jar has not recorded yet.
+  if (jar.target > 0) {
+    const ratio = (jar.balance / jar.target) * 100;
+    const level = MILESTONE_LEVELS.find((candidate) => ratio < candidate);
+    if (level) {
+      const gap = Math.round((jar.target * level) / 100) - jar.balance;
+      if (gap > 0) {
+        suggestions.push({
+          id: "next-milestone",
+          label: `Hit ${level}%`,
+          hint: `${money(gap, currency)} to go`,
+          amount: gap,
+        });
+      }
+    }
+  }
+
+  // 3. The jar's own pace: trailing deposits, or its recurring schedule.
+  let recent = 0;
+  for (const entry of jar.entries) {
+    if (entry.direction !== "deposit") continue;
+    const at = new Date(entry.at).getTime();
+    if (at >= now.getTime() - PACE_WINDOW_MS && at <= now.getTime()) recent += entry.amount;
+  }
+  const pace = Math.max(Math.round(recent / 4), recurringPerWeek(jar.recurring));
+  if (pace > 0) {
+    suggestions.push({
+      id: "weekly-pace",
+      label: "Your weekly pace",
+      hint: `${money(pace, currency)} per week`,
+      amount: pace,
+    });
+  }
+
+  // 4. Repeat whatever was last added. Newest entries come first.
+  for (const entry of jar.entries) {
+    if (entry.direction !== "deposit") continue;
+    suggestions.push({ id: "repeat-last", label: "Repeat last", hint: money(entry.amount, currency), amount: entry.amount });
+    break;
+  }
+
+  const seen = new Set<number>();
+  return suggestions
+    .filter((preset) => {
+      if (!Number.isInteger(preset.amount) || preset.amount <= 0) return false;
+      if (seen.has(preset.amount)) return false;
+      seen.add(preset.amount);
+      return true;
+    })
+    .slice(0, 4);
+}
+
+/** Identity for an achievement badge. */
+export type BadgeId =
+  | "first-deposit"
+  | "ten-deposits"
+  | "fifty-deposits"
+  | "hundred-deposits"
+  | "streak-3"
+  | "streak-7"
+  | "streak-30"
+  | "saved-100"
+  | "saved-1000"
+  | "first-goal"
+  | "steady-months"
+  | "shared-jar";
+
+/** Everything badges are earned from — all derived from the jar list. */
+export type BadgeStats = {
+  /** Count of deposit entries across every jar. */
+  deposits: number;
+  /** Integer minor units deposited across every jar. */
+  totalDeposited: number;
+  /** Best habit streak on any jar. */
+  maxStreak: number;
+  /** Jars that reached 100%. */
+  completed: number;
+  /** Distinct calendar months with at least one deposit. */
+  months: number;
+  /** Jars shared with at least one other person. */
+  sharedJars: number;
+};
+
+export type Badge = {
+  id: BadgeId;
+  glyph: string;
+  name: string;
+  description: string;
+  /** Current progress toward `target`, clamped for display. */
+  value: number;
+  /** Requirement that earns the badge. */
+  target: number;
+  earned: boolean;
+};
+
+/** The full badge catalogue, in display order. */
+const BADGE_CATALOGUE: { id: BadgeId; glyph: string; name: string; description: string; of: (stats: BadgeStats) => [number, number] }[] = [
+  { id: "first-deposit", glyph: "🌱", name: "First Light", description: "Log your first deposit", of: (s) => [s.deposits, 1] },
+  { id: "ten-deposits", glyph: "✨", name: "Getting Going", description: "Log 10 deposits", of: (s) => [s.deposits, 10] },
+  { id: "fifty-deposits", glyph: "🧱", name: "Brick by Brick", description: "Log 50 deposits", of: (s) => [s.deposits, 50] },
+  { id: "hundred-deposits", glyph: "🏛️", name: "Centurion", description: "Log 100 deposits", of: (s) => [s.deposits, 100] },
+  { id: "streak-3", glyph: "🔥", name: "Three in a Row", description: "Reach a 3-day streak", of: (s) => [s.maxStreak, 3] },
+  { id: "streak-7", glyph: "📅", name: "Week Strong", description: "Reach a 7-day streak", of: (s) => [s.maxStreak, 7] },
+  { id: "streak-30", glyph: "🛡️", name: "Iron Jar", description: "Reach a 30-day streak", of: (s) => [s.maxStreak, 30] },
+  { id: "saved-100", glyph: "💯", name: "First Hundred", description: "Save 100.00 in total", of: (s) => [s.totalDeposited, 10_000] },
+  { id: "saved-1000", glyph: "🏔️", name: "Four Figures", description: "Save 1,000.00 in total", of: (s) => [s.totalDeposited, 100_000] },
+  { id: "first-goal", glyph: "🎯", name: "Goal Smasher", description: "Complete a jar", of: (s) => [s.completed, 1] },
+  { id: "steady-months", glyph: "🗓️", name: "Steady Hand", description: "Save in 4 different months", of: (s) => [s.months, 4] },
+  { id: "shared-jar", glyph: "🤝", name: "Better Together", description: "Fill a shared jar", of: (s) => [s.sharedJars, 1] },
+];
+
+/** Roll a jar list up into the counters badges are earned from. */
+export function badgeStats(jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[], now: Date = new Date()): BadgeStats {
+  const months = new Set<string>();
+  let deposits = 0;
+  let totalDeposited = 0;
+  let maxStreak = 0;
+  let completed = 0;
+  let sharedJars = 0;
+
+  for (const jar of jars) {
+    for (const entry of jar.entries) {
+      if (entry.direction !== "deposit") continue;
+      deposits += 1;
+      totalDeposited += entry.amount;
+      const at = new Date(entry.at);
+      if (!Number.isNaN(at.getTime())) {
+        months.add(`${at.getFullYear()}-${at.getMonth()}`);
+      }
+    }
+    maxStreak = Math.max(maxStreak, jar.streak ?? 0);
+    if (jar.target > 0 && jar.balance >= jar.target) completed += 1;
+    if (jar.members && jar.members.length > 1) sharedJars += 1;
+  }
+
+  return { deposits, totalDeposited, maxStreak, completed, months: months.size, sharedJars };
+}
+
+/** Every badge with its live progress, earned flags included. `now` is accepted for symmetry and future time-boxed badges. */
+export function badges(jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[], now: Date = new Date()): Badge[] {
+  const stats = badgeStats(jars, now);
+  return BADGE_CATALOGUE.map((badge) => {
+    const [value, target] = badge.of(stats);
+    return {
+      id: badge.id,
+      glyph: badge.glyph,
+      name: badge.name,
+      description: badge.description,
+      value: Math.max(0, value),
+      target,
+      earned: value >= target,
+    };
+  });
+}
+
+/**
+ * Badge ids present in `current` but absent from `previous` — the ones worth
+ * celebrating. Pass the ids the user has already been shown as `previous`.
+ */
+export function newlyEarnedBadges(previous: Iterable<BadgeId>, current: Badge[]): Badge[] {
+  const known = new Set(previous);
+  return current.filter((badge) => badge.earned && !known.has(badge.id));
 }
 
 const accentAliases: Record<string, Accent> = {
