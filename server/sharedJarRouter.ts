@@ -24,13 +24,12 @@ import {
   inviteStatus,
   inviteStatusMessage,
   sharedJarTotals,
-  validateContribution,
 } from "../shared/shared-jar";
+import { openingAdjustment, personalShareSchema } from "../shared/personal-share";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   addMember,
-  addSharedEntry,
-  consumeInvite,
+  contributeToJar,
   countMembers,
   createInvite,
   createSharedJar,
@@ -39,7 +38,9 @@ import {
   findJarById,
   findUserById,
   getSharedJar,
+  importPersonalJar,
   isMember,
+  joinJarViaInvite,
   listInvites,
   listSharedJars,
   removeMember,
@@ -155,27 +156,34 @@ export const sharedJarRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
       }
 
-      // Recompute server-side; never trust a client-supplied balance.
-      const totals = sharedJarTotals(view.jar, view.members, view.entries, ctx.user.id);
-      const problem = validateContribution(input.amount, input.direction, totals.balance);
-      if (problem) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: problem });
+      // The balance is re-derived and the contribution validated inside a
+      // transaction holding a lock on the jar row, so two concurrent
+      // withdrawals can never both pass the check and overdraw the jar.
+      const result = await contributeToJar({
+        jarId: input.jarId,
+        userId: ctx.user.id,
+        amount: input.amount,
+        direction: input.direction,
+        note: input.note,
+      });
+      if (!result) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Shared jars need a database connection." });
       }
-
-      const entry = requireDb(
-        await addSharedEntry({
-          jarId: input.jarId,
-          userId: ctx.user.id,
-          amount: input.amount,
-          direction: input.direction,
-          note: input.note,
-        }),
-      );
+      if (!result.ok) {
+        if (result.reason === "jar-missing") {
+          throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        }
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.message ?? "That contribution is not valid." });
+      }
 
       const refreshed = await getSharedJar(input.jarId, ctx.user.id);
       return {
-        entry,
-        totals: refreshed ? sharedJarTotals(refreshed.jar, refreshed.members, refreshed.entries, ctx.user.id) : totals,
+        entry: result.entry,
+        totals: refreshed
+          ? sharedJarTotals(refreshed.jar, refreshed.members, refreshed.entries, ctx.user.id)
+          : // The entry just committed, so projecting it onto the pre-write
+            // view yields the same totals without a second read.
+            sharedJarTotals(view.jar, view.members, [...view.entries, result.entry], ctx.user.id),
       };
     }),
 
@@ -397,30 +405,82 @@ export const sharedJarRouter = router({
    * Only a genuinely new membership consumes a use.
    */
   joinInvite: protectedProcedure.input(z.object({ token: inviteTokenSchema })).mutation(async ({ ctx, input }) => {
-    const invite = await findInviteByToken(input.token);
-    if (!invite) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That invite link is not valid." });
+    // Idempotent by design: someone who taps the same link twice, or who was
+    // already invited by account id, ends up a member rather than seeing an
+    // error. The status check, membership insert, and use count run as one
+    // transaction holding a lock on the invite row, so a maxUses=1 link cannot
+    // admit two people at once, and only a genuinely new membership spends a use.
+    const result = await joinJarViaInvite({
+      token: input.token,
+      userId: ctx.user.id,
+      displayName: ctx.user.name ?? `Member ${ctx.user.id}`,
+    });
+    if (!result) {
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Shared jars need a database connection." });
+    }
+    switch (result.outcome) {
+      case "invalid-token":
+        throw new TRPCError({ code: "NOT_FOUND", message: "That invite link is not valid." });
+      case "closed":
+        throw new TRPCError({ code: "BAD_REQUEST", message: inviteStatusMessage(result.status) });
+      case "jar-missing":
+        throw new TRPCError({ code: "NOT_FOUND", message: "That jar no longer exists." });
+      case "already-member":
+        return { jarId: result.jarId, alreadyMember: true } as const;
+      case "joined":
+        return { jarId: result.jarId, alreadyMember: false } as const;
+    }
+  }),
+
+  /**
+   * Turn a device-local jar into a shared one, carrying its whole history.
+   *
+   * The client sends its full snapshot and the server is the only writer, so the
+   * entry timestamps, notes and the derived balance it stores are exactly what
+   * every member will read back. Re-sending the same `sourceLocalId` returns the
+   * jar the first attempt created rather than duplicating history, which makes a
+   * retry after a lost response harmless.
+   *
+   * Money never comes from a client-computed total alone: an unexplained
+   * remainder between the balance and the recorded history becomes an explicit
+   * opening contribution, dated when the jar was created.
+   */
+  importPersonal: protectedProcedure.input(personalShareSchema).mutation(async ({ ctx, input }) => {
+    if (input.balance > 0 && input.entries.length === 0 && openingAdjustment(input) <= 0) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "That jar has a balance but no history to import." });
     }
 
-    // Already in? Re-read the status so a used-up link still succeeds for the
-    // person who used it, instead of failing on their second tap.
-    if (await isMember(invite.jarId, ctx.user.id)) {
-      return { jarId: invite.jarId, alreadyMember: true } as const;
+    const adjustment = openingAdjustment(input);
+    if (adjustment < 0) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "This jar's history adds up to more than its balance, so it cannot be shared safely.",
+      });
     }
 
-    const status = inviteStatus(invite);
-    if (status !== "open") {
-      throw new TRPCError({ code: "BAD_REQUEST", message: inviteStatusMessage(status) });
-    }
+    const result = await importPersonalJar({
+      ownerId: ctx.user.id,
+      ownerName: ctx.user.name ?? "You",
+      sourceLocalId: input.sourceLocalId,
+      name: input.name,
+      icon: input.icon,
+      accent: input.accent,
+      kind: input.kind,
+      target: input.target,
+      createdAt: new Date(input.createdAt),
+      deadline: input.deadline,
+      streak: input.streak,
+      lastDepositAt: input.lastDepositAt,
+      openingAdjustment: adjustment,
+      entries: input.entries.map((entry) => ({
+        amount: entry.amount,
+        direction: entry.direction,
+        at: new Date(entry.at),
+        note: entry.note,
+        source: entry.source,
+      })),
+    });
 
-    const summary = await jarSummary(invite.jarId);
-    if (!summary) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That jar no longer exists." });
-    }
-
-    await addMember(invite.jarId, ctx.user.id, ctx.user.name ?? `Member ${ctx.user.id}`);
-    await consumeInvite(invite.id);
-
-    return { jarId: invite.jarId, alreadyMember: false } as const;
+    return requireDb(result);
   }),
 });

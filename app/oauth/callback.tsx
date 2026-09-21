@@ -1,270 +1,94 @@
-import { ThemedView } from "@/components/themed-view";
-import * as Api from "@/lib/_core/api";
-import * as Auth from "@/lib/_core/auth";
-import * as Linking from "expo-linking";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function OAuthCallback() {
-  const router = useRouter();
-  const params = useLocalSearchParams<{
-    code?: string;
-    state?: string;
-    error?: string;
-    sessionToken?: string;
-    user?: string;
-  }>();
-  const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+import { ThemedView } from "@/components/themed-view";
+import { isSupabaseConfigured } from "@/constants/oauth";
+import { getSupabase } from "@/lib/supabase";
+
+type Status = "working" | "done" | "failed";
+
+/**
+ * Where a sign-in link lands.
+ *
+ * Two different things arrive here. On web, supabase-js has already traded the
+ * code in the URL for a session by the time this renders, because the client is
+ * created with `detectSessionInUrl` — so the session is simply read. On native
+ * there is no URL for it to read, and the code has to be exchanged explicitly.
+ * Both paths therefore end in the same place: look for a session, and exchange
+ * the code only when there is not one yet.
+ */
+export default function AuthCallback() {
+  const params = useLocalSearchParams<{ code?: string; error?: string; error_description?: string }>();
+  const [status, setStatus] = useState<Status>("working");
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      console.log("[OAuth] Callback handler triggered");
-      console.log("[OAuth] Params received:", {
-        code: params.code,
-        state: params.state,
-        error: params.error,
-        sessionToken: params.sessionToken ? "present" : "missing",
-        user: params.user ? "present" : "missing",
-      });
+    let cancelled = false;
+    const settle = (next: Status, detail: string | null = null) => {
+      if (cancelled) return;
+      setStatus(next);
+      setMessage(detail);
+    };
+
+    const complete = async () => {
+      if (params.error || params.error_description) {
+        settle("failed", params.error_description ?? params.error ?? "That link is no longer valid.");
+        return;
+      }
+      if (!isSupabaseConfigured()) {
+        settle("failed", "This build has no Supabase project configured.");
+        return;
+      }
+
+      const supabase = getSupabase();
       try {
-        // Check for sessionToken in params first (web OAuth callback from server redirect)
-        if (params.sessionToken) {
-          console.log("[OAuth] Session token found in params (web callback)");
-          await Auth.setSessionToken(params.sessionToken);
-
-          // Decode and store user info if available
-          if (params.user) {
-            try {
-              // Use atob for base64 decoding (works in both web and React Native)
-              const userJson =
-                typeof atob !== "undefined"
-                  ? atob(params.user)
-                  : Buffer.from(params.user, "base64").toString("utf-8");
-              const userData = JSON.parse(userJson);
-              const userInfo: Auth.User = {
-                id: userData.id,
-                openId: userData.openId,
-                name: userData.name,
-                email: userData.email,
-                loginMethod: userData.loginMethod,
-                lastSignedIn: new Date(userData.lastSignedIn || Date.now()),
-              };
-              await Auth.setUserInfo(userInfo);
-              console.log("[OAuth] User info stored:", userInfo);
-            } catch (err) {
-              console.error("[OAuth] Failed to parse user data:", err);
-            }
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          if (!params.code) {
+            settle("failed", "That link is missing the code it needs. Ask for a new one.");
+            return;
           }
-
-          setStatus("success");
-          console.log("[OAuth] Web authentication successful, redirecting to home...");
-          setTimeout(() => {
-            router.replace("/(tabs)");
-          }, 1000);
-          return;
+          const exchanged = await supabase.auth.exchangeCodeForSession(params.code);
+          if (exchanged.error) throw exchanged.error;
         }
-
-        // Get URL from params or Linking
-        let url: string | null = null;
-
-        // Try to get from local search params first (works with expo-router)
-        if (params.code || params.state || params.error) {
-          console.log("[OAuth] Found params in route params");
-          // Extract from params
-          const urlParams = new URLSearchParams();
-          if (params.code) urlParams.set("code", params.code);
-          if (params.state) urlParams.set("state", params.state);
-          if (params.error) urlParams.set("error", params.error);
-          url = `?${urlParams.toString()}`;
-          console.log("[OAuth] Constructed URL from params:", url);
-        } else {
-          console.log("[OAuth] No params found, checking Linking.getInitialURL()...");
-          // Fallback: try to get from Linking
-          const initialUrl = await Linking.getInitialURL();
-          console.log("[OAuth] Linking.getInitialURL():", initialUrl);
-          if (initialUrl) {
-            url = initialUrl;
-          }
-        }
-
-        // Check for error
-        const error =
-          params.error || (url ? new URL(url, "http://dummy").searchParams.get("error") : null);
-        if (error) {
-          console.error("[OAuth] Error parameter found:", error);
-          setStatus("error");
-          setErrorMessage(error || "OAuth error occurred");
-          return;
-        }
-
-        // Check for code and state
-        let code: string | null = null;
-        let state: string | null = null;
-        let sessionToken: string | null = null;
-
-        // Try to get from params first
-        if (params.code && params.state) {
-          console.log("[OAuth] Using code and state from route params");
-          code = params.code;
-          state = params.state;
-        } else if (url) {
-          console.log("[OAuth] Parsing code and state from URL:", url);
-          // Parse from URL
-          try {
-            const urlObj = new URL(url);
-            code = urlObj.searchParams.get("code");
-            state = urlObj.searchParams.get("state");
-            sessionToken = urlObj.searchParams.get("sessionToken");
-            console.log("[OAuth] Extracted from URL:", {
-              code: code?.substring(0, 20) + "...",
-              state: state?.substring(0, 20) + "...",
-              sessionToken: sessionToken ? "present" : "missing",
-            });
-          } catch (e) {
-            console.log("[OAuth] Failed to parse as full URL, trying regex:", e);
-            // Try parsing as relative URL with query params
-            const match = url.match(/[?&](code|state|sessionToken)=([^&]+)/g);
-            if (match) {
-              match.forEach((param) => {
-                const [key, value] = param.substring(1).split("=");
-                if (key === "code") code = decodeURIComponent(value);
-                if (key === "state") state = decodeURIComponent(value);
-                if (key === "sessionToken") sessionToken = decodeURIComponent(value);
-              });
-              console.log("[OAuth] Extracted from regex:", {
-                code: code?.substring(0, 20) + "...",
-                state: state?.substring(0, 20) + "...",
-                sessionToken: sessionToken ? "present" : "missing",
-              });
-            }
-          }
-        }
-
-        console.log("[OAuth] Final extracted values:", {
-          hasCode: !!code,
-          hasState: !!state,
-          hasSessionToken: !!sessionToken,
-        });
-
-        // If we have sessionToken directly from URL, use it
-        if (sessionToken) {
-          console.log("[OAuth] Session token found in URL, storing...");
-          await Auth.setSessionToken(sessionToken);
-          console.log("[OAuth] Session token stored successfully");
-          // User info is already in the OAuth callback response
-          // No need to fetch from API
-          setStatus("success");
-          console.log("[OAuth] Redirecting to home...");
-          setTimeout(() => {
-            router.replace("/(tabs)");
-          }, 1000);
-          return;
-        }
-
-        // Otherwise, exchange code for session token
-        if (!code || !state) {
-          console.error("[OAuth] Missing code or state parameter", {
-            hasCode: !!code,
-            hasState: !!state,
-          });
-          setStatus("error");
-          setErrorMessage("Missing code or state parameter");
-          return;
-        }
-
-        // Exchange code for session token
-        console.log("[OAuth] Exchanging code for session token...", {
-          code: code.substring(0, 20) + "...",
-          state: state.substring(0, 20) + "...",
-        });
-        const result = await Api.exchangeOAuthCode(code, state);
-        console.log("[OAuth] Exchange result:", {
-          hasSessionToken: !!result.sessionToken,
-          hasUser: !!result.user,
-        });
-
-        if (result.sessionToken) {
-          console.log("[OAuth] Session token received, storing...");
-          // Store session token
-          await Auth.setSessionToken(result.sessionToken);
-          console.log("[OAuth] Session token stored successfully");
-
-          // Store user info if available
-          if (result.user) {
-            console.log("[OAuth] User data received:", result.user);
-            const userInfo: Auth.User = {
-              id: result.user.id,
-              openId: result.user.openId,
-              name: result.user.name,
-              email: result.user.email,
-              loginMethod: result.user.loginMethod,
-              lastSignedIn: new Date(result.user.lastSignedIn || Date.now()),
-            };
-            await Auth.setUserInfo(userInfo);
-            console.log("[OAuth] User info stored:", userInfo);
-          } else {
-            console.log("[OAuth] No user data in result");
-          }
-
-          setStatus("success");
-          console.log("[OAuth] Authentication successful, redirecting to home...");
-
-          // Redirect to home after a short delay
-          setTimeout(() => {
-            console.log("[OAuth] Executing redirect...");
-            router.replace("/(tabs)");
-          }, 1000);
-        } else {
-          console.error("[OAuth] No session token in result:", result);
-          setStatus("error");
-          setErrorMessage("No session token received");
-        }
+        settle("done");
+        setTimeout(() => router.replace("/(tabs)" as never), 700);
       } catch (error) {
-        console.error("[OAuth] Callback error:", error);
-        setStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Failed to complete authentication",
-        );
+        settle("failed", error instanceof Error ? error.message : "Sign-in could not be completed.");
       }
     };
 
-    handleCallback();
-  }, [params.code, params.state, params.error, params.sessionToken, params.user, router]);
+    void complete();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.code, params.error, params.error_description]);
 
   return (
     <SafeAreaView className="flex-1" edges={["top", "bottom", "left", "right"]}>
       <ThemedView className="flex-1 items-center justify-center gap-4 p-5">
-        {status === "processing" && (
+        {status === "working" ? (
           <>
             <ActivityIndicator size="large" />
-            <Text className="mt-4 text-base leading-6 text-center text-foreground">
-              Completing authentication...
-            </Text>
+            <Text className="mt-4 text-base leading-6 text-center text-foreground">Finishing sign-in…</Text>
           </>
-        )}
-        {status === "success" && (
+        ) : null}
+
+        {status === "done" ? (
+          <Text className="text-base leading-6 text-center text-foreground">You are signed in. Opening your jars…</Text>
+        ) : null}
+
+        {status === "failed" ? (
           <>
-            <Text className="text-base leading-6 text-center text-foreground">
-              Authentication successful!
-            </Text>
-            <Text className="text-base leading-6 text-center text-foreground">
-              Redirecting...
-            </Text>
+            <Text className="mb-2 text-xl font-bold leading-7 text-error">Sign-in failed</Text>
+            <Text className="text-base leading-6 text-center text-foreground">{message}</Text>
+            <Pressable accessibilityLabel="Back to sign in" onPress={() => router.replace("/login" as never)} className="mt-4">
+              <Text className="text-base font-bold text-primary">Try signing in again</Text>
+            </Pressable>
           </>
-        )}
-        {status === "error" && (
-          <>
-            <Text className="mb-2 text-xl font-bold leading-7 text-error">
-              Authentication failed
-            </Text>
-            <Text className="text-base leading-6 text-center text-foreground">
-              {errorMessage}
-            </Text>
-          </>
-        )}
+        ) : null}
       </ThemedView>
     </SafeAreaView>
   );

@@ -3,7 +3,8 @@ import { httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "@/server/routers";
 import { getApiBaseUrl } from "@/constants/oauth";
-import * as Auth from "@/lib/_core/auth";
+import { apiFetch } from "@/lib/api-transport";
+import { getAccessToken } from "@/lib/_core/auth";
 
 /**
  * tRPC React client for type-safe API calls.
@@ -26,16 +27,15 @@ export function createTRPCClient() {
         // tRPC v11: transformer MUST be inside httpBatchLink, not at root
         transformer: superjson,
         async headers() {
-          const token = await Auth.getSessionToken();
+          // Every platform authenticates identically now: the Supabase access
+          // token travels as a Bearer header. Web no longer depends on a cookie
+          // being set by a separate endpoint first.
+          const token = await getAccessToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
         },
-        // Custom fetch to include credentials for cookie-based auth
-        fetch(url, options) {
-          return fetch(url, {
-            ...options,
-            credentials: "include",
-          });
-        },
+        // Custom fetch turns a non-tRPC error page (a bundler 404, a static
+        // host, a proxy) into a message worth reading.
+        fetch: apiFetch,
       }),
     ],
   });

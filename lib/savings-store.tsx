@@ -1,8 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppState } from "react-native";
+import { createSharedRefresh, isSharedAuthFailure } from "@/lib/shared-refresh";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { contributeToSharedJar, createSharedJar, fetchSharedJars, inviteToSharedJar, joinInvite } from "@/lib/shared-jar-api";
+import { contributeToSharedJar, createSharedJar, fetchSharedJars, importPersonalJar, inviteToSharedJar, joinInvite } from "@/lib/shared-jar-api";
 import { mergeJars, remoteIdFromLocalId, sharedJarLocalId, sharedJarToJar } from "@/lib/shared-jars";
+import { personalSharePayload, replaceWithShared } from "@/shared/personal-share";
 import { TRANSFER_VERSION, decodeTransferFrames, encodeTransferFrames, type TransferSnapshot } from "@/shared/transfer";
 
 import {
@@ -65,7 +68,7 @@ type Store = {
   /** Non-null when shared jars could not be loaded (offline, signed out, no DB). */
   syncError: string | null;
   /** Refetch shared jars from the server. */
-  refreshShared: () => void;
+  refreshShared: () => Promise<void>;
   addJar: (input: JarInput) => string;
   editJar: (id: string, input: Partial<Pick<Jar, "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak" | "recurring">>) => void;
   archiveJar: (id: string) => void;
@@ -90,6 +93,14 @@ type Store = {
   contributeShared: (id: string, amountMinor: number, direction: Entry["direction"], note?: string) => Promise<void>;
   /** Owner-only: invite an account to a shared jar by its user id. */
   inviteShared: (id: string, userId: number) => Promise<void>;
+  /**
+   * Share a jar that already exists on this device, carrying its whole history.
+   *
+   * The local jar is only removed after the server confirms the history landed,
+   * so a network failure leaves the personal jar exactly as it was. Returns the
+   * local id of the new shared jar.
+   */
+  shareExisting: (id: string) => Promise<string>;
   /**
    * Join a jar through an invite token, then refresh so it appears immediately.
    * Returns the local id of the joined jar. Rejects when the token is unusable.
@@ -197,24 +208,37 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
     setLocalJars(next);
   };
 
-  const refreshShared = useCallback(() => {
-    setSyncing(true);
-    fetchSharedJars()
-      .then((payloads) => {
-        setSharedJars(payloads.map(sharedJarToJar));
-        setSyncError(null);
-      })
-      .catch((error: unknown) => {
-        // Signed out, offline, or no database: personal jars must still work,
-        // so a failed sync degrades to "no shared jars" rather than an error wall.
-        setSharedJars([]);
-        setSyncError(error instanceof Error ? error.message : "Could not load shared jars.");
-      })
-      .finally(() => setSyncing(false));
-  }, []);
+  const syncController = useRef<ReturnType<typeof createSharedRefresh<Awaited<ReturnType<typeof fetchSharedJars>>>> | undefined>(undefined);
+  const refreshShared = useCallback(() => syncController.current?.refresh() ?? Promise.resolve(), []);
 
   useEffect(() => {
-    refreshShared();
+    let active = AppState.currentState == null || AppState.currentState === "active";
+    const controller = createSharedRefresh({
+      fetch: fetchSharedJars,
+      receive: (payloads) => { setSharedJars(payloads.map(sharedJarToJar)); setSyncError(null); },
+      failed: (error) => {
+        if (isSharedAuthFailure(error)) setSharedJars([]);
+        setSyncError(error instanceof Error ? error.message : "Could not load shared jars.");
+      },
+      busy: setSyncing,
+      active: () => active && (typeof document === "undefined" || document.visibilityState !== "hidden"),
+    });
+    syncController.current = controller;
+    const refreshIfActive = controller.foreground;
+    refreshIfActive();
+    const subscription = AppState.addEventListener("change", (state) => {
+      active = state === "active";
+      refreshIfActive();
+    });
+    if (typeof window !== "undefined") window.addEventListener("online", refreshIfActive);
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", refreshIfActive);
+    return () => {
+      controller.dispose();
+      syncController.current = undefined;
+      subscription.remove();
+      if (typeof window !== "undefined") window.removeEventListener("online", refreshIfActive);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", refreshIfActive);
+    };
   }, [refreshShared]);
 
   const store = useMemo<Store>(() => {
@@ -288,6 +312,41 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         // to re-read: a local guess could disagree with what other members see.
         await refreshShared();
         return sharedJarLocalId(joined.jarId);
+      },
+      shareExisting: async (id) => {
+        const source = jarsRef.current.find((jar) => jar.id === id);
+        if (!source) throw new Error("That jar is no longer available.");
+        if (remoteIdOf(id) !== undefined) return sharedJarLocalId(remoteIdOf(id) as number);
+
+        // One attempt per local jar: the server recognises this id on retry.
+        const imported = await importPersonalJar(personalSharePayload(source));
+        await refreshShared();
+
+        // The server row may not have reached the refreshed list yet if the
+        // fetch raced the import, so fall back to projecting the known shape.
+        const shared = jarsRef.current.find((jar) => jar.remoteId === String(imported.jarId));
+        const authoritative =
+          shared ??
+          sharedJarToJar({
+            id: imported.jarId,
+            name: source.name,
+            icon: source.icon,
+            accent: source.accent,
+            kind: source.kind,
+            target: source.target,
+            createdAt: source.createdAt,
+            balance: source.balance,
+            totalDeposited: source.balance,
+            progress: 0,
+            depositCount: 0,
+            members: [],
+            entries: [],
+          });
+
+        // Only now does the device-local copy go away. Until this line the
+        // personal jar is untouched, so a failure above loses nothing.
+        commit(replaceWithShared(jarsRef.current, id, authoritative) as typeof jarsRef.current);
+        return authoritative.id;
       },
       exportTransfer: (currency) => {
         // Only device-local jars travel. A shared jar lives on the server and

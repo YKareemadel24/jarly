@@ -1,122 +1,83 @@
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
-import { SESSION_TOKEN_KEY, USER_INFO_KEY } from "@/constants/oauth";
+/**
+ * Session access for the app.
+ *
+ * Supabase owns the session: it stores it, refreshes it, and knows when it
+ * expires. This module is the thin typed seam everything else reads through, so
+ * screens never import supabase-js directly and an unconfigured or signed-out
+ * app degrades to "no account" instead of throwing.
+ *
+ * `User` deliberately mirrors the shape the app already had (rather than
+ * exposing a raw Supabase user) so the invite screen and the account row did not
+ * have to be rewritten around a provider change that is not their concern.
+ */
 
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+
+import { isSupabaseConfigured } from "@/constants/oauth";
+import { getSupabase } from "@/lib/supabase";
+
+/** The signed-in account, as the rest of the app expects to see it. */
 export type User = {
-  id: number;
-  openId: string;
-  name: string | null;
+  /** Supabase account id (a uuid). */
+  id: string;
   email: string | null;
+  name: string | null;
+  /** How they signed in — "email", "google", … — when the provider says. */
   loginMethod: string | null;
-  lastSignedIn: Date;
+  lastSignedIn: string;
 };
 
-export async function getSessionToken(): Promise<string | null> {
-  try {
-    // Web platform uses cookie-based auth, no manual token management needed
-    if (Platform.OS === "web") {
-      return null;
-    }
+/** Project a Supabase user onto the shape the app renders. */
+export function toUser(account: SupabaseUser): User {
+  const metadata = (account.user_metadata ?? {}) as Record<string, unknown>;
+  const fullName = [metadata.full_name, metadata.name].find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+  const provider = (account.app_metadata as { provider?: string } | undefined)?.provider ?? null;
 
-    // Use SecureStore for native
-    const token = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
-    return token;
-  } catch (error) {
-    console.error("[Auth] Failed to get session token:", error);
+  return {
+    id: account.id,
+    email: account.email ?? null,
+    name: fullName?.trim() ?? account.email?.split("@")[0] ?? null,
+    loginMethod: provider,
+    lastSignedIn: account.last_sign_in_at ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * The access token to send as a Bearer header, or null when signed out.
+ *
+ * Read from the stored session rather than the network: this runs on every API
+ * call, and the server verifies the token itself, so a stale value here only
+ * means the call is rejected — never that it is trusted.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await getSupabase().auth.getSession();
+    if (error || !data.session) return null;
+    return data.session.access_token;
+  } catch {
+    // A storage failure must not break the request; it just means no account.
     return null;
   }
 }
 
-export async function setSessionToken(token: string): Promise<void> {
-  try {
-    // Web platform uses cookie-based auth, no manual token management needed
-    if (Platform.OS === "web") {
-      return;
-    }
-
-    // Use SecureStore for native
-
-    await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
-
-  } catch (error) {
-    console.error("[Auth] Failed to set session token:", error);
-    throw error;
-  }
+/**
+ * The signed-in account, read from the stored session.
+ *
+ * Local and offline-friendly on purpose. Screens use this to decide what to
+ * show; the API server is what actually enforces identity.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await getSupabase().auth.getSession();
+  if (error || !data.session) return null;
+  return toUser(data.session.user);
 }
 
-export async function removeSessionToken(): Promise<void> {
-  try {
-    // Web platform uses cookie-based auth, logout is handled by server clearing cookie
-    if (Platform.OS === "web") {
-
-      return;
-    }
-
-    // Use SecureStore for native
-
-    await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
-
-  } catch (error) {
-    console.error("[Auth] Failed to remove session token:", error);
-  }
-}
-
-export async function getUserInfo(): Promise<User | null> {
-  try {
-
-
-    let info: string | null = null;
-    if (Platform.OS === "web") {
-      // Use localStorage for web
-      info = window.localStorage.getItem(USER_INFO_KEY);
-    } else {
-      // Use SecureStore for native
-      info = await SecureStore.getItemAsync(USER_INFO_KEY);
-    }
-
-    if (!info) {
-      
-      return null;
-    }
-    const user = JSON.parse(info);
-    
-    return user;
-  } catch (error) {
-    console.error("[Auth] Failed to get user info:", error);
-    return null;
-  }
-}
-
-export async function setUserInfo(user: User): Promise<void> {
-  try {
-    
-
-    if (Platform.OS === "web") {
-      // Use localStorage for web
-      window.localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
-
-      return;
-    }
-
-    // Use SecureStore for native
-    await SecureStore.setItemAsync(USER_INFO_KEY, JSON.stringify(user));
-
-  } catch (error) {
-    console.error("[Auth] Failed to set user info:", error);
-  }
-}
-
-export async function clearUserInfo(): Promise<void> {
-  try {
-    if (Platform.OS === "web") {
-      // Use localStorage for web
-      window.localStorage.removeItem(USER_INFO_KEY);
-      return;
-    }
-
-    // Use SecureStore for native
-    await SecureStore.deleteItemAsync(USER_INFO_KEY);
-  } catch (error) {
-    console.error("[Auth] Failed to clear user info:", error);
-  }
+/** Clear the stored session. There is no server-side session of ours to end. */
+export async function signOut(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  await getSupabase().auth.signOut();
 }

@@ -2,7 +2,7 @@ import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Platform } from "react-native";
@@ -18,10 +18,10 @@ import {
   SafeAreaProvider,
   initialWindowMetrics,
 } from "react-native-safe-area-context";
-import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
+import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
-import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { isApiBaseUrlConfigured, isSupabaseConfigured } from "@/constants/oauth";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -39,24 +39,11 @@ export default function RootLayout() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
-  const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
-  const [frame, setFrame] = useState<Rect>(initialFrame);
-
-  // Initialize Manus runtime for cookie injection from parent container
-  useEffect(() => {
-    initManusRuntime();
-  }, []);
-
-  const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
-    setInsets(metrics.insets);
-    setFrame(metrics.frame);
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const unsubscribe = subscribeSafeAreaInsets(handleSafeAreaUpdate);
-    return () => unsubscribe();
-  }, [handleSafeAreaUpdate]);
+  // The web preview container used to push safe-area insets in over postMessage.
+  // That was specific to one embedder; a real browser reports nothing and the
+  // provider's own metrics are correct, so the values are simply fixed here.
+  const insets: EdgeInsets = initialWindowMetrics?.insets ?? initialInsets;
+  const frame: Rect = initialWindowMetrics?.frame ?? initialFrame;
 
   // Create clients once and reuse them
   const [queryClient] = useState(
@@ -73,6 +60,21 @@ export default function RootLayout() {
       }),
   );
   const [trpcClient] = useState(() => createTRPCClient());
+
+  // Fail loudly, once, when a build is missing configuration it cannot recover
+  // from at runtime — much easier to diagnose than a silent "no shared jars".
+  useEffect(() => {
+    if (Platform.OS !== "web" && !__DEV__ && !isApiBaseUrlConfigured()) {
+      console.error(
+        "[config] EXPO_PUBLIC_API_BASE_URL is not set: release native builds cannot derive the API address, so sign-in and shared jars will fail.",
+      );
+    }
+    if (__DEV__ && !isSupabaseConfigured()) {
+      console.warn(
+        "[config] Supabase is not configured: sign-in and shared jars are disabled; personal jars keep working offline.",
+      );
+    }
+  }, []);
 
   // Ensure minimum 8px padding for top and bottom on mobile
   const providerInitialMetrics = useMemo(() => {
@@ -96,7 +98,10 @@ export default function RootLayout() {
           {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
+            {/* Where a sign-in link or an external provider returns to. */}
             <Stack.Screen name="oauth/callback" />
+            {/* Reached from the invite screen and the account row. */}
+            <Stack.Screen name="login" />
             {/* An invite link opens the app on this screen, signed in or not. */}
             <Stack.Screen name="join" />
             <Stack.Screen name="transfer/index" />

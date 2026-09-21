@@ -1,7 +1,7 @@
 /**
  * Pure shared-jar aggregation, importable from both the client and the server.
  *
- * Shared jars are the one part of the savings domain that lives in MySQL, so
+ * Shared jars are the one part of the savings domain that lives in Postgres, so
  * the maths has to run on both sides: the server validates against it, and the
  * client renders from it. Keeping it here means there is exactly one definition
  * of "balance" and "who contributed what".
@@ -112,7 +112,7 @@ export function sharedJarTotals(
 }
 
 /**
- * Newest-first entries for display. Timestamps come back from MySQL as Date and
+ * Newest-first entries for display. Timestamps come back from Postgres as Date and
  * from superjson as strings, so normalise before comparing.
  */
 export function orderEntriesNewestFirst<T extends { createdAt: Date | string }>(entries: T[]): T[] {

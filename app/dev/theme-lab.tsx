@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Redirect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { ThemedView } from "@/components/themed-view";
 import { SchemeColors, type ColorScheme } from "@/constants/theme";
@@ -25,6 +26,12 @@ function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
 }
 
 export default function ThemeLabScreen() {
+  // Development tool: never reachable in a release build.
+  if (!__DEV__) return <Redirect href="/" />;
+  return <ThemeLabInner />;
+}
+
+function ThemeLabInner() {
   const [pressCount, setPressCount] = useState(0);
   const [lastAction, setLastAction] = useState<string>("None yet");
   const { colorScheme, setColorScheme } = useThemeContext();

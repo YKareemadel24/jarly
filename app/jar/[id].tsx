@@ -29,13 +29,18 @@ import { isSharedJar } from "@/lib/shared-jars";
 import { SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 
 export default function JarDetail() {
-  const colors = useColors(); const accents = useJarAccents(); const styles = useMemo(() => makeStyles(colors), [colors]); const { id, action } = useLocalSearchParams<{ id: string; action?: string }>(); const { jars, addEntry, archiveJar, editJar, contributeShared, remoteIdOf } = useSavings(); const format = useMoney(); const { currency } = useSettings(); const currencySymbol = SUPPORTED_CURRENCIES.find((c) => c.code === currency)?.symbol ?? "$"; const jar = jars.find((item) => item.id === id);
+  const colors = useColors(); const accents = useJarAccents(); const styles = useMemo(() => makeStyles(colors), [colors]); const { id, action } = useLocalSearchParams<{ id: string; action?: string }>(); const { jars, addEntry, archiveJar, editJar, contributeShared, remoteIdOf, shareExisting } = useSavings(); const format = useMoney(); const { currency } = useSettings(); const currencySymbol = SUPPORTED_CURRENCIES.find((c) => c.code === currency)?.symbol ?? "$"; const jar = jars.find((item) => item.id === id);
   const [direction, setDirection] = useState<"deposit" | "withdrawal" | null>(null); const [amount, setAmount] = useState(""); const [note, setNote] = useState(""); const [error, setError] = useState(""); const [celebration, setCelebration] = useState<{ level: number; progress: number } | null>(null); const [recurringVisible, setRecurringVisible] = useState(false); const [recurringAmount, setRecurringAmount] = useState(""); const [cadence, setCadence] = useState<Cadence>("weekly"); const [editVisible, setEditVisible] = useState(false); const [editName, setEditName] = useState(""); const [editTarget, setEditTarget] = useState("");
   const [coinKey, setCoinKey] = useState(0);
   // Shared contributions are a network round-trip, so the sheet needs a busy state.
   const [busy, setBusy] = useState(false);
   // Sharing mints a link on demand; the sheet owns that whole flow.
   const [inviteVisible, setInviteVisible] = useState(false);
+  // Confirming turns this personal jar into a shared one, which moves its
+  // history to the server: worth one explicit confirmation before it happens.
+  const [shareConfirm, setShareConfirm] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   // A withdrawal stays reversible for a few seconds instead of demanding a confirm dialog.
   const [undo, setUndo] = useState<{ jarId: string; name: string; amount: number } | null>(null);
@@ -146,11 +151,28 @@ export default function JarDetail() {
   const menuActions = shared
     ? [{ label: "Got it", onPress: () => undefined }]
     : [
+        { label: "Save together", detail: "Share this jar with someone, keeping its history.", icon: "group-add", onPress: () => setShareConfirm(true) },
         { label: "Edit jar", detail: "Rename it or change its target.", icon: "edit", onPress: openEdit },
         { label: "Archive jar", detail: "Hide it from your active goals, keeping its history.", icon: "archive", onPress: () => { archiveJar(jar.id); router.replace("/(tabs)" as never); } },
         { label: "Cancel", onPress: () => undefined },
       ];
   const openInvite = () => setInviteVisible(true);
+  // Turn this personal jar into a shared one, then open the invite sheet so the
+  // next step — sending the link — is already on screen.
+  const shareThisJar = async () => {
+    if (sharing) return;
+    setSharing(true); setShareError(null);
+    try {
+      await shareExisting(jar.id);
+      feedback.success();
+      setShareConfirm(false);
+      setInviteVisible(true);
+    } catch (problem) {
+      setShareError(problem instanceof Error ? problem.message : "Could not share this jar.");
+    } finally {
+      setSharing(false);
+    }
+  };
   const nextOccurrence = jar.recurring?.nextDate && !jar.recurring.paused ? new Date(jar.recurring.nextDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null;
   return <ScreenContainer edges={["top", "bottom", "left", "right"]}><FlatList data={jar.entries} keyExtractor={(entry) => entry.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
     ListHeaderComponent={<>
@@ -188,6 +210,17 @@ export default function JarDetail() {
   <Modal transparent animationType="fade" visible={recurringVisible} onRequestClose={() => { setRecurringVisible(false); setError(""); }}><View style={styles.backdrop}><View style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>REPEAT CONTRIBUTION</Text><Text style={styles.sheetTitle}>Build the habit.</Text><Text style={styles.sheetCopy}>Choose a contribution you can repeat comfortably.</Text><View style={styles.sheetAmount}><Text style={styles.sheetCurrency}>{currencySymbol}</Text><TextInput autoFocus accessibilityLabel="Recurring amount" value={recurringAmount} onChangeText={(raw) => { setRecurringAmount(sanitizeAmountInput(raw)); setError(""); }} keyboardType="decimal-pad" placeholder={jar.recurring ? String(jar.recurring.amount / 100) : "0"} placeholderTextColor={colors.muted} style={styles.sheetAmountInput} /></View><View style={styles.cadences}>{CADENCES.map((item) => <Pressable key={item} accessibilityLabel={`Every ${item}`} onPress={() => setCadence(item)} style={[styles.cadence, cadence === item && { backgroundColor: accent, borderColor: accent }]}><Text style={[styles.cadenceText, cadence === item && styles.cadenceTextActive]}>{item}</Text></Pressable>)}</View><Text style={styles.error}>{error}</Text><Pressable onPress={saveRecurring} style={({ pressed }) => [styles.sheetButton, pressed && styles.pressed]}><Text style={styles.sheetButtonText}>Save schedule</Text></Pressable>{jar.recurring ? <Pressable onPress={toggleRecurringPause} style={styles.cancel}><Text style={styles.pauseText}>{jar.recurring.paused ? "Resume schedule" : "Pause schedule"}</Text></Pressable> : null}<Pressable onPress={() => { setRecurringVisible(false); setError(""); }} style={styles.cancel}><Text style={styles.cancelText}>Cancel</Text></Pressable></View></View></Modal>
   <Modal transparent animationType="fade" visible={editVisible} onRequestClose={() => { setEditVisible(false); setError(""); }}><View style={styles.backdrop}><View style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>EDIT JAR</Text><Text style={styles.sheetTitle}>Adjust your goal.</Text><Text style={styles.sheetCopy}>Rename it or change its target. Your history stays untouched.</Text><TextInput accessibilityLabel="Jar name" value={editName} onChangeText={setEditName} maxLength={60} placeholder="Jar name" placeholderTextColor={colors.muted} style={styles.noteInput} /><View style={[styles.sheetAmount, { marginTop: 10 }]}><Text style={styles.sheetCurrency}>{currencySymbol}</Text><TextInput accessibilityLabel="Target amount" value={editTarget} onChangeText={(raw) => { setEditTarget(sanitizeAmountInput(raw)); setError(""); }} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.muted} style={styles.sheetAmountInput} /></View><View style={styles.cadences}>{(["goal", "habit"] as JarKind[]).map((kind) => <Pressable key={kind} accessibilityLabel={`${kind} jar`} onPress={() => editJar(jar.id, { kind })} style={[styles.cadence, jar.kind === kind && { backgroundColor: accent, borderColor: accent }]}><Text style={[styles.cadenceText, jar.kind === kind && styles.cadenceTextActive]}>{kind === "goal" ? "Goal" : "Habit"}</Text></Pressable>)}</View><Text style={styles.error}>{error}</Text><Pressable onPress={saveEdit} style={({ pressed }) => [styles.sheetButton, pressed && styles.pressed]}><Text style={styles.sheetButtonText}>Save changes</Text></Pressable><Pressable onPress={() => { setEditVisible(false); setError(""); }} style={styles.cancel}><Text style={styles.cancelText}>Cancel</Text></Pressable></View></View></Modal>
   <ActionSheet visible={menuVisible} title={shared ? "Shared jar" : "Jar options"} message={shared ? "Anyone on this jar can add money, and its balance stays in sync across every member's device." : "Keep its history while removing it from your active goals."} actions={menuActions} onDismiss={() => setMenuVisible(false)} />
+  <ActionSheet
+    visible={shareConfirm}
+    title="Share this jar?"
+    message={`${jar.name} moves to your account so someone else can add to it. Its ${jar.entries.length} ${jar.entries.length === 1 ? "entry" : "entries"} and balance come with it, and you keep ownership. Personal jars on this device are never copied unless you share them.`}
+    actions={[
+      { label: sharing ? "Sharing…" : "Share it", icon: "group-add", onPress: () => void shareThisJar() },
+      { label: "Cancel", onPress: () => undefined },
+    ]}
+    onDismiss={() => { if (!sharing) { setShareConfirm(false); setShareError(null); } }}
+  />
+  {shareError ? <ActionSheet visible={shareError !== null} title="Could not share" message={shareError ?? ""} actions={[{ label: "Got it", onPress: () => undefined }]} onDismiss={() => setShareError(null)} /> : null}
   <InviteSheet visible={inviteVisible} jarId={remoteIdOf(jar.id)} jarName={jar.name} accent={accent} onDismiss={() => setInviteVisible(false)} />
   <Modal transparent animationType="fade" visible={celebration !== null} onRequestClose={() => setCelebration(null)}><View style={styles.celebrationBackdrop}><View style={styles.celebration}><Text style={styles.celebrationNumber}>{celebration?.level}%</Text><JarVessel accent={accent} icon={jar.icon} progress={celebration?.progress ?? progress} size="medium" /><Text style={styles.celebrationTitle}>{celebration?.level === 100 ? "You made it." : celebration?.level === 50 ? "Halfway there." : "A beautiful milestone."}</Text><Text style={styles.celebrationCopy}>{jar.name} is now {celebration?.level}% funded. Small, steady progress is real progress.</Text><Pressable onPress={() => setCelebration(null)} style={({ pressed }) => [styles.celebrationButton, pressed && styles.pressed]}><Text style={styles.sheetButtonText}>Keep saving</Text></Pressable></View></View></Modal>
   <Toast visible={undo !== null} message={`${format(undo?.amount ?? 0)} withdrawn from ${undo?.name ?? "your jar"}`} actionLabel="Undo" onAction={performUndo} onDismiss={() => setUndo(null)} />

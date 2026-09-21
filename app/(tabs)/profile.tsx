@@ -5,6 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from
 import { ActionSheet } from "@/components/action-sheet";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
+import { isSupabaseConfigured } from "@/constants/oauth";
+import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { MIN_PIN_LENGTH, SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 import { requestPermissionAndEnable } from "@/lib/notifications";
@@ -21,6 +23,7 @@ export default function ProfileScreen() {
   const colors = useColors(); const styles = useMemo(() => makeStyles(colors), [colors]);   const { appearanceMode, setAppearanceMode } = useThemeContext();
   const { remindersEnabled, setRemindersEnabled, biometricAvailable, biometricLockEnabled, setBiometricLockEnabled, pinLockEnabled, hasPin, setPin, enablePinLock, disablePinLock, currency, setCurrency } = useSettings();
   const { jars, restoreJar, deleteJarPermanently } = useSavings();
+  const { user, logout } = useAuth({ autoFetch: true });
   const format = useMoney();
   const archived = useMemo(() => jars.filter((jar) => jar.archived), [jars]);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
@@ -106,7 +109,7 @@ export default function ProfileScreen() {
             colors={colors}
           />
           <View style={styles.line} />
-          <Preference icon="lock-outline" title="PIN lock" detail="Use a 4-digit code if you'd rather not use biometrics" value={pinLockEnabled} onChange={onPinLockChange} styles={styles} colors={colors} />
+          <Preference icon="lock-outline" title="PIN lock" detail="Use a 4–12 digit code if you'd rather not use biometrics" value={pinLockEnabled} onChange={onPinLockChange} styles={styles} colors={colors} />
           <View style={styles.line} />
           <Pressable disabled={!pinLockEnabled} style={({ pressed }) => [styles.prefAction, !pinLockEnabled && styles.prefActionDisabled, pressed && pinLockEnabled && styles.pressed]} onPress={() => pinLockEnabled ? (hasPin ? openPinPrompt("change") : openPinPrompt("setup")) : undefined}>
             <View style={styles.prefIcon}><MaterialIcons name="key" size={19} color={colors.primary} /></View>
@@ -125,6 +128,39 @@ export default function ProfileScreen() {
           <View style={styles.currencyChip}><Text style={styles.currencyChipText}>{activeCurrency.code}</Text></View>
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
+
+        <Text style={styles.sectionLabel}>ACCOUNT</Text>
+        {!isSupabaseConfigured() ? (
+          <Text style={styles.groupCopy}>
+            This build has no Supabase project configured, so accounts are unavailable. Personal jars are unaffected.
+          </Text>
+        ) : user ? (
+          <Pressable
+            accessibilityLabel="Sign out"
+            style={({ pressed }) => [styles.currencyRow, pressed && styles.pressed]}
+            onPress={() => void logout()}
+          >
+            <View style={styles.prefIcon}><MaterialIcons name="logout" size={19} color={colors.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.prefTitle} numberOfLines={1}>{user.email ?? "Signed in"}</Text>
+              <Text style={styles.prefDetail}>Shared jars follow this account. Tap to sign out.</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityLabel="Sign in"
+            style={({ pressed }) => [styles.currencyRow, pressed && styles.pressed]}
+            onPress={() => router.push("/login" as never)}
+          >
+            <View style={styles.prefIcon}><MaterialIcons name="login" size={19} color={colors.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.prefTitle}>Sign in</Text>
+              <Text style={styles.prefDetail}>Only needed for jars you share with other people.</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
+          </Pressable>
+        )}
 
         <Text style={styles.sectionLabel}>YOUR DEVICES</Text>
         <Pressable

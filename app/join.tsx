@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
-import { getLoginUrl } from "@/constants/oauth";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
@@ -97,14 +96,11 @@ export default function JoinScreen() {
 
   const openSignIn = () => {
     feedback.tap();
-    const url = getLoginUrl();
-    if (typeof window !== "undefined" && typeof (window as { location?: Location }).location !== "undefined") {
-      (window as unknown as { location: { href: string } }).location.href = url;
-      return;
-    }
-    // Native: the callback reopens the app through the deep link, which returns
-    // to this same screen with the token still in the URL.
-    void import("expo-linking").then((Linking) => Linking.openURL(url));
+    // The sign-in screen owns the choices (email, an external provider, or
+    // creating an account), so this stays a plain navigation with no provider
+    // knowledge in it. The invite token survives because this screen is still
+    // underneath on the navigation stack.
+    router.push("/login" as never);
   };
 
   const accent = preview?.ok ? (accents[preview.jar.accent as keyof typeof accents] ?? accents.ocean) : accents.ocean;

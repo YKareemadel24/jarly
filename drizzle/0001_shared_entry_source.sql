@@ -1,0 +1,1 @@
+ALTER TABLE "shared_jar_entries" ADD COLUMN "source" varchar(16) DEFAULT 'manual' NOT NULL;

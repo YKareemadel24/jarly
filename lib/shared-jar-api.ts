@@ -13,10 +13,11 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 
 import { getApiBaseUrl } from "@/constants/oauth";
-import * as Auth from "@/lib/_core/auth";
+import { apiFetch } from "@/lib/api-transport";
+import { getAccessToken } from "@/lib/_core/auth";
 import type { SharedJarPayload } from "@/lib/shared-jars";
-import type { InviteStatus } from "@/shared/shared-jar";
-import type { SharedJarAccent } from "@/shared/shared-jar";
+import type { PersonalShareInput } from "@/shared/personal-share";
+import type { InviteStatus, SharedJarAccent } from "@/shared/shared-jar";
 import type { AppRouter } from "@/server/routers";
 
 /** Fields a caller may set when creating or editing a shared jar. */
@@ -40,12 +41,12 @@ function getClient(): Client {
           url: `${getApiBaseUrl()}/api/trpc`,
           transformer: superjson,
           async headers() {
-            const token = await Auth.getSessionToken();
+            // Same Bearer-token transport as lib/trpc.ts, so the vanilla client
+            // used above the React tree talks to the API exactly as hooks do.
+            const token = await getAccessToken();
             return token ? { Authorization: `Bearer ${token}` } : {};
           },
-          fetch(url, options) {
-            return fetch(url, { ...options, credentials: "include" });
-          },
+          fetch: apiFetch,
         }),
       ],
     });
@@ -95,6 +96,23 @@ export async function updateSharedJar(
 /** Owner-only, destructive. */
 export async function deleteSharedJar(jarId: number): Promise<void> {
   await getClient().sharedJar.remove.mutate({ jarId });
+}
+
+/**
+ * Turn a device-local jar into a shared one, sending its complete history.
+ *
+ * Returns the server jar id. Safe to call again after a lost response: the
+ * server recognises the same `sourceLocalId` and returns the jar it already
+ * created rather than duplicating the history.
+ */
+export async function importPersonalJar(
+  snapshot: PersonalShareInput,
+): Promise<{ jarId: number; created: boolean; entryCount: number }> {
+  return (await getClient().sharedJar.importPersonal.mutate(snapshot)) as unknown as {
+    jarId: number;
+    created: boolean;
+    entryCount: number;
+  };
 }
 
 /* -------------------------------------------------------------------------- */

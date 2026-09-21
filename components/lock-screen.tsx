@@ -6,12 +6,10 @@ import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useSettings } from "@/lib/settings-store";
 
-const PIN_LENGTH = 4;
-
-function PinDots({ length, styles, colors }: { length: number; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
+function PinDots({ length, total, styles, colors }: { length: number; total: number; styles: ReturnType<typeof makeStyles>; colors: ThemeColorPalette }) {
   return (
     <View style={styles.dots}>
-      {Array.from({ length: PIN_LENGTH }).map((_, index) => (
+      {Array.from({ length: total }).map((_, index) => (
         <View key={index} style={[styles.dot, index < length && { backgroundColor: colors.foreground }]} />
       ))}
     </View>
@@ -25,7 +23,7 @@ function PinDots({ length, styles, colors }: { length: number; styles: ReturnTyp
 export function LockScreen() {
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { biometricLockEnabled, biometricAvailable, authenticateWithBiometrics, pinLockEnabled, hasPin, tryUnlock, disablePinLock } = useSettings();
+  const { biometricLockEnabled, biometricAvailable, authenticateWithBiometrics, pinLockEnabled, hasPin, pinLength, pinLockedUntil, tryUnlock, disablePinLock } = useSettings();
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -36,6 +34,10 @@ export function LockScreen() {
   const canBio = biometricLockEnabled && biometricAvailable && Platform.OS !== "web";
   const canPin = pinLockEnabled && hasPin;
   const anyLock = canBio || canPin;
+  // The PIN length comes from the stored record, so 4-12 digit PINs all work.
+  const expectedPinLength = pinLength ?? 4;
+  const lockedOut = pinLockedUntil !== null && pinLockedUntil > Date.now();
+  const lockoutSeconds = lockedOut && pinLockedUntil !== null ? Math.max(1, Math.ceil((pinLockedUntil - Date.now()) / 1000)) : 0;
 
   const promptBio = useCallback(() => {
     if (!canBio || unlocking) return;
@@ -56,16 +58,18 @@ export function LockScreen() {
 
   const submitPin = useCallback(
     (candidate: string) => {
-      if (candidate.length !== PIN_LENGTH || unlocking) return;
+      if (candidate.length !== expectedPinLength || unlocking) return;
       setUnlocking(true);
       tryUnlock(candidate)
-        .then((ok) => {
-          if (ok) {
+        .then((result) => {
+          if (result === "ok") {
             setShown(false);
             setPinShown(false);
             setPin("");
             setPinError(false);
           } else {
+            // "wrong" and "locked" both clear the entry; the lockout message
+            // below distinguishes them once the throttle has kicked in.
             setPinError(true);
             setPin("");
           }
@@ -76,12 +80,30 @@ export function LockScreen() {
         })
         .finally(() => setUnlocking(false));
     },
-    [tryUnlock, unlocking],
+    [tryUnlock, unlocking, expectedPinLength],
   );
 
+  /**
+   * Escape hatch for a genuinely forgotten PIN. Where the device has enrolled
+   * biometrics it demands proof of presence first; elsewhere the lock is a
+   * UI-level gate (jar data is not encrypted at rest), so the honest fallback
+   * is to allow the reset. Either way the stored PIN is cleared.
+   */
+  const forgotPin = useCallback(async () => {
+    if (biometricAvailable && Platform.OS !== "web") {
+      const ok = await authenticateWithBiometrics();
+      if (!ok) return;
+    }
+    await disablePinLock();
+    setShown(false);
+    setPinShown(false);
+    setPin("");
+    setPinError(false);
+  }, [biometricAvailable, authenticateWithBiometrics, disablePinLock]);
+
   useEffect(() => {
-    if (pin.length === PIN_LENGTH) submitPin(pin);
-  }, [pin, submitPin]);
+    if (pin.length === expectedPinLength) submitPin(pin);
+  }, [pin, submitPin, expectedPinLength]);
 
   useEffect(() => {
     if (!anyLock) {
@@ -115,7 +137,7 @@ export function LockScreen() {
   if (!shown) return null;
 
   const handleKey = (digit: string) => {
-    if (unlocking || pin.length >= PIN_LENGTH) return;
+    if (unlocking || pin.length >= expectedPinLength) return;
     setPin((current) => current + digit);
     setPinError(false);
   };
@@ -135,8 +157,12 @@ export function LockScreen() {
             <View style={styles.mark}><MaterialIcons name="lock" size={30} color={colors.primary} /></View>
             <Text style={styles.title}>Your Saving Jar is locked</Text>
             <Text style={styles.subtitle}>Enter your PIN to keep saving.</Text>
-            {pinError ? <Text style={styles.error}>That PIN didn&apos;t match. Try again.</Text> : null}
-            <PinDots length={pin.length} styles={styles} colors={colors} />
+            {lockedOut ? (
+              <Text style={styles.error}>Too many tries. Try again in about {lockoutSeconds}s.</Text>
+            ) : pinError ? (
+              <Text style={styles.error}>That PIN didn&apos;t match. Try again.</Text>
+            ) : null}
+            <PinDots length={pin.length} total={expectedPinLength} styles={styles} colors={colors} />
             {canBio ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Use fingerprint or face instead" onPress={() => { setPin(""); setPinError(false); setPinShown(false); promptBio(); }} style={({ pressed }) => [styles.bioButton, pressed && styles.pressed]}>
                 <MaterialIcons name="fingerprint" size={20} color={colors.primary} />
@@ -154,8 +180,8 @@ export function LockScreen() {
               })}
             </View>
             {unlocking ? <ActivityIndicator color={colors.primary} style={styles.spinner} /> : null}
-            <Pressable accessibilityRole="button" accessibilityLabel="Forgot PIN, turn off lock" onPress={() => { void disablePinLock(); setShown(false); setPinShown(false); }} hitSlop={8} style={styles.forgot}>
-              <Text style={styles.forgotText}>Forgot PIN? Turn off lock</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Forgot PIN, turn off lock" onPress={() => void forgotPin()} hitSlop={8} style={styles.forgot}>
+              <Text style={styles.forgotText}>{biometricAvailable ? "Forgot PIN? Verify with biometrics to turn off" : "Forgot PIN? Turn off lock"}</Text>
             </Pressable>
           </>
         ) : (

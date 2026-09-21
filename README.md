@@ -60,7 +60,7 @@ The primary loop is intentionally short:
 - **Light / dark / system theming** — a white-first modern palette with warm, complete dark-mode tokens, persisted per user.
 - **Tactile feedback** — haptics on success/error and confirmation for destructive actions.
 - **Accessibility** — descriptive labels, explicit numeric progress, and large touch targets.
-- **OAuth authentication** — Manus OAuth with web (cookie) and native (secure-token) session flows.
+- **Account sign-in** — Supabase Auth (email + password). Only jars you *share* need an account; personal jars never do.
 - **Type-safe API** — end-to-end typed tRPC with `superjson` serialization.
 
 ---
@@ -75,8 +75,8 @@ The primary loop is intentionally short:
 | Animation | `react-native-reanimated`, `react-native-gesture-handler`, `expo-haptics` |
 | Client state | React Context + `AsyncStorage` (savings), [TanStack Query](https://tanstack.com/query) (API) |
 | API | [tRPC](https://trpc.io) v11 + [Express](https://expressjs.com) 4, `superjson` transformer |
-| Database | [Drizzle ORM](https://orm.drizzle.team) + MySQL (`mysql2`), `drizzle-kit` |
-| Auth | Manus OAuth + [jose](https://github.com/panva/jose) JWT (cookie / Bearer) |
+| Database | [Supabase](https://supabase.com) Postgres via [Drizzle ORM](https://orm.drizzle.team) (`postgres-js`), `drizzle-kit` |
+| Auth | [Supabase Auth](https://supabase.com/docs/guides/auth), verified server-side with [jose](https://github.com/panva/jose) against the project JWKS |
 | Validation | [Zod](https://zod.dev) v4 |
 | Testing | [Vitest](https://vitest.dev) |
 | Tooling | TypeScript, ESLint (Expo config), Prettier, `esbuild`, `tsx`, `concurrently` |
@@ -93,9 +93,9 @@ The project is a **full-stack Expo monolith**: an Expo Router client and an Expr
 │  Client (Expo Router)        │        │  Server (Express + tRPC)       │
 │  app/  components/  lib/     │  HTTP  │  server/                        │
 │  - Screens & navigation      │ ─────► │  - /api/trpc (tRPC)            │
-│  - Savings domain + store    │        │  - /api/oauth/* (auth)         │
-│  - Theme provider            │  tRPC  │  - /api/auth/*  (session)      │
-│  - tRPC React client         │        │  - Drizzle (MySQL)             │
+│  - Savings domain + store    │        │  - /api/health                 │
+│  - Supabase session          │  tRPC  │  - verifies Supabase JWTs      │
+│  - tRPC React client         │        │  - Drizzle (Supabase Postgres) │
 └──────────────────────────────┘        └────────────────────────────────┘
            │ AsyncStorage (local)                      │
            └───────────────────────────────────────────┘
@@ -105,7 +105,7 @@ Key decisions:
 
 - **Domain logic is pure and isolated** in `lib/savings-core.ts` (money math, milestones, streaks, recurring schedule). This layer has no React or I/O, which keeps it fully unit-testable.
 - **The React store** (`lib/savings-store.tsx`) is a thin context wrapper around the pure domain layer, persisting to `AsyncStorage`.
-- **Savings data is device-local** by design (see `design.md` — cross-device sync was not requested). The backend currently provides authentication and system plumbing from the app template; savings data is not stored in MySQL.
+- **Savings data is device-local by default.** Personal jars live only in `AsyncStorage`. A jar reaches Postgres only when its owner explicitly shares it, and those jars stay server-authoritative so two members can never disagree about the balance.
 - **Shared contracts** live in `shared/` and are imported by both client and server to avoid drift.
 - **Money is always integer minor units** (cents). Floats are never used for balances; see [Domain & data model](#domain--data-model).
 
@@ -126,7 +126,8 @@ jarly/
 │   │   ├── new.tsx             # Create-goal screen (with live preview)
 │   │   └── [id].tsx            # Jar detail: deposit/withdraw/recurring/edit/archive
 │   ├── oauth/
-│   │   └── callback.tsx        # OAuth callback route
+│   │   └── callback.tsx        # Where a sign-in link or provider redirect lands
+│   ├── login.tsx               # Email + password sign-in / sign-up
 │   └── dev/
 │       └── theme-lab.tsx       # Theme development playground
 ├── components/                 # Reusable UI
@@ -134,24 +135,26 @@ jarly/
 │   ├── screen-container.tsx    # Safe-area aware screen wrapper
 │   ├── themed-view.tsx         # Theme-aware View
 │   └── ui/                     # Low-level primitives (icons, collapsible, …)
-├── constants/                  # Public constants & re-exports (theme, oauth, shared)
+├── constants/                  # Public constants (theme, API config, Supabase keys)
 ├── drizzle/                    # Drizzle schema, migrations, and meta
-│   └── schema.ts               # MySQL tables (users)
+│   └── schema.ts               # Postgres tables (users, shared jars, invites)
 ├── hooks/                      # use-auth, use-colors, use-color-scheme
 ├── lib/                        # Client domain + infrastructure
 │   ├── savings-core.ts         # PURE domain logic (money, milestones, streaks, recurring)
 │   ├── savings-store.tsx       # Context provider + AsyncStorage persistence
+│   ├── supabase.ts             # The one Supabase client (session storage, PKCE)
 │   ├── theme-provider.tsx      # Light/dark/system theme provider
 │   ├── trpc.ts                 # tRPC React client
 │   ├── haptics.ts              # Cross-platform haptic helpers
 │   ├── utils.ts                # cn() class merge helper
-│   └── _core/                  # Auth, API client, theme plumbing, Manus runtime bridge
+│   └── _core/                  # Session access + theme plumbing
 ├── scripts/                    # load-env, QR generation, project reset
 ├── server/                     # Express + tRPC backend
 │   ├── routers.ts              # Root tRPC router
 │   ├── db.ts                   # Drizzle instance + user queries
-│   ├── storage.ts              # Forge/S3 storage helpers
-│   └── _core/                  # OAuth, SDK, context, cookies, system router, env
+│   ├── sharedJarRouter.ts      # Shared-jar + invite tRPC router
+│   ├── shared-jars-db.ts       # Shared-jar repository (membership-scoped queries)
+│   └── _core/                  # Supabase token verification, context, system router, env
 ├── shared/                     # Types & constants shared by client and server
 ├── tests/                      # Vitest unit tests
 ├── assets/                     # App icons, splash, and images
@@ -168,20 +171,39 @@ jarly/
 
 ## Getting started
 
-### Prerequisites
+### 1. Create a Supabase project
 
-- **Node.js** 20+ (Expo SDK 54 requirement)
-- **pnpm** 9.12 (`corepack enable` will pick up the version declared in `package.json`)
-- **Expo Go** on a physical device, or an iOS/Android simulator, for native development
-- **MySQL** (optional) — only required for the server-side user table / Drizzle commands
+1. Create a project at [supabase.com](https://supabase.com) (the free tier is enough).
+2. Copy **Project URL** and the **publishable key** from *Project Settings → API Keys*.
+3. Copy the **Shared Pooler** connection string from *Connect*, and replace the
+   password placeholder with your database password.
+4. Apply the schema:
 
-### 1. Install dependencies
+   ```bash
+   pnpm db:push
+   ```
+
+   This runs `drizzle-kit generate && drizzle-kit migrate` against `DATABASE_URL`.
+   The generated migration also lives in `drizzle/` if you would rather paste it
+   into the dashboard's SQL editor.
+
+5. Under *Authentication → Sign In / Providers → Email*, decide whether to require
+   email confirmation. With it **on**, sign-up returns no session and the person
+   must open the emailed link before signing in — the app says so rather than
+   appearing to do nothing. For local development, turning it **off** is simpler.
+
+> Sign-in only matters for shared jars. Skip all of this and the app still runs:
+> personal jars, transfers and theming have no backend dependency at all.
+
+### 2. Install dependencies
+
+**Node.js 20+** and **pnpm 9.12** (`corepack enable` picks up the version declared in `package.json`) are required. **Expo Go** on a device, or a simulator, for native development.
 
 ```bash
 pnpm install
 ```
 
-### 2. Configure environment variables
+### 3. Configure environment variables
 
 Copy the example file and fill in the values:
 
@@ -191,7 +213,7 @@ cp .env.example .env
 
 See [Environment variables](#environment-variables) for a full description.
 
-### 3. Run the app
+### 4. Run the app
 
 Start the API server and Expo web preview together:
 
@@ -216,34 +238,36 @@ pnpm android   # or: pnpm ios
 
 ## Environment variables
 
-The app loads variables with **system environment taking priority over `.env`** (see `scripts/load-env.js`), so platform-injected values are never overridden by placeholders.
+The app loads variables with **system environment taking priority over `.env`** (see `scripts/load-env.js`).
+
+Everything accounts and shared jars need comes from a single Supabase project. Keys live under **Project Settings → API Keys**; the connection string under **Connect → Shared Pooler**.
 
 ### Server (`server/_core/env.ts`)
 
 | Variable | Required | Description |
 |---|---|---|
-| `VITE_APP_ID` | Yes | App/project ID; also used as the OAuth client ID. |
-| `OAUTH_SERVER_URL` | Yes | Manus OAuth server base URL. |
-| `JWT_SECRET` | Yes | Secret used to sign/verify session JWTs. |
-| `OWNER_OPEN_ID` | Yes | Open ID of the project owner; granted the `admin` role. |
-| `DATABASE_URL` | No | MySQL connection string (e.g. `mysql://user:pass@host:3306/db`). Required for Drizzle commands. |
-| `BUILT_IN_FORGE_API_URL` | No | Forge API base URL for storage/upload features. |
-| `BUILT_IN_FORGE_API_KEY` | No | Forge API key for storage/upload features. |
+| `SUPABASE_URL` | Yes | Project URL, e.g. `https://abcdefgh.supabase.co`. The token issuer and JWKS endpoint are derived from it. |
+| `DATABASE_URL` | Yes | Postgres connection string. Use the **Shared Pooler** URI — the direct connection is IPv6-only unless the project has the IPv4 add-on. |
+| `SUPABASE_PUBLISHABLE_KEY` | No | `sb_publishable_…`; only needed server-side if the server itself calls Supabase. |
+| `SUPABASE_SECRET_KEY` | No | `sb_secret_…`. Server-only; bypasses RLS, so it must never be given an `EXPO_PUBLIC_` name. |
+| `SUPABASE_JWKS_URL` | No | Override the derived JWKS endpoint (self-hosted project or custom auth domain). |
+| `OWNER_EMAIL` | No | Address granted the `admin` role. |
+| `ALLOWED_ORIGINS` | No | Comma-separated extra CORS origins for the API (e.g. the deployed web build). Loopback dev origins are always allowed; native apps send no `Origin` header. |
 | `PORT` | No | API server port (defaults to `3000`; auto-increments if busy). |
 | `NODE_ENV` | No | `development` / `production`. |
 
 ### Client (`EXPO_PUBLIC_*`)
 
+`EXPO_PUBLIC_*` values are inlined into the app bundle, so **never put a secret key in one** — anything here is public by definition.
+
 | Variable | Required | Description |
 |---|---|---|
-| `EXPO_PUBLIC_APP_ID` | Yes | App ID for the OAuth login flow. |
-| `EXPO_PUBLIC_OAUTH_PORTAL_URL` | Yes | OAuth portal URL used to build the login link. |
-| `EXPO_PUBLIC_OAUTH_SERVER_URL` | Yes | OAuth server URL. |
-| `EXPO_PUBLIC_OWNER_OPEN_ID` | Yes | Owner open ID. |
-| `EXPO_PUBLIC_OWNER_NAME` | No | Owner display name. |
-| `EXPO_PUBLIC_API_BASE_URL` | No | Override the API base URL. When unset, it is derived from the current hostname (Metro `8081` → API `3000`). |
+| `EXPO_PUBLIC_SUPABASE_URL` | For accounts | Project URL. Without it the app runs local-only and the sign-in screen says so. |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | For accounts | `sb_publishable_…`. Safe to ship: it can only reach what row level security allows. |
+| `EXPO_PUBLIC_API_BASE_URL` | Production native | Override the API base URL. When unset, it is derived from the current hostname (Metro `8081` → API `3000`) — which only works on web/dev, so release native builds must set it. |
+| `EXPO_PUBLIC_APP_URL` | No | Public origin an invite link should point at, so it opens for someone who does not have the app. Defaults to the API origin. |
 
-> `scripts/load-env.js` automatically maps `VITE_APP_ID`, `VITE_OAUTH_PORTAL_URL`, `OAUTH_SERVER_URL`, `OWNER_OPEN_ID`, and `OWNER_NAME` to their `EXPO_PUBLIC_*` counterparts when those are not already set.
+> `scripts/load-env.js` maps `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` onto their `EXPO_PUBLIC_*` counterparts when those are not already set, so a project only has to be configured once.
 
 ---
 
@@ -307,23 +331,22 @@ A `Jar` has a `target`, `balance`, `accent` color, `icon`, `kind`, and optional 
 
 | Router / procedure | Type | Access | Description |
 |---|---|---|---|
-| `auth.me` | query | public | Returns the current authenticated user (or `null`). |
-| `auth.logout` | mutation | public | Clears the session cookie. |
+| `auth.me` | query | public | Returns the account behind the request's Supabase token (or `null`). |
 | `system.health` | query | public | Health check (`{ ok: true }`). |
 | `system.notifyOwner` | mutation | admin | Sends an owner notification. |
 
 > Add feature routers in `server/routers.ts`. `protectedProcedure` and `adminProcedure` are exported from `server/_core/trpc.ts`.
 
-### REST (OAuth / auth)
+### REST
 
 | Method & path | Description |
 |---|---|
 | `GET /api/health` | Server health check. |
-| `GET /api/oauth/callback` | Web OAuth callback; exchanges code, sets session cookie, redirects to the frontend. |
-| `GET /api/oauth/mobile` | Native OAuth exchange; returns `{ app_session_id, user }`. |
-| `GET /api/auth/me` | Current user (cookie or Bearer token). |
-| `POST /api/auth/logout` | Clears the session cookie. |
-| `POST /api/auth/session` | Establishes a session cookie from a Bearer token (used by the iframe preview). |
+
+> There are no auth endpoints any more. Supabase Auth issues and refreshes the
+> session entirely on the client, and the resulting access token is attached as a
+> Bearer header to every tRPC call, where `server/_core/supabase-auth.ts` verifies
+> it against the project JWKS.
 
 ---
 
@@ -362,11 +385,21 @@ pnpm lint     # ESLint (Expo config)
 pnpm format   # Prettier
 ```
 
+All three checks (typecheck, lint, tests) also run on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`).
+
 Test coverage (`tests/`):
 
 - `savings-core.test.ts` — money conversion, amount sanitization, milestones, deposits/withdrawals, habit streaks, recurring catch-up.
 - `saving-jar.helpers.test.ts` — progress helpers, currency formatting, accent colors.
-- `auth.logout.test.ts` — session-cookie clearing (currently `.skip`ped pending auth wiring).
+- `badges.test.ts`, `quick-presets.test.ts` — badge thresholds and deposit presets.
+- `shared-jar.test.ts` — shared-jar aggregation, entry ordering, contribution validation, invite status.
+- `shared-jars-map.test.ts` — projecting server payloads into the local `Jar` shape.
+- `personal-share.test.ts` — shaping a local jar into a share request and swapping it for the shared one.
+- `import-personal.test.ts` — the conversion endpoint end to end through a tRPC caller, with `getDb` stubbed.
+- `shared-refresh.test.ts` — refresh ordering: cached data survives a network failure, is dropped on an auth rejection.
+- `api-transport.test.ts` — turning a non-tRPC error page into a message worth reading.
+- `api-base-url.test.ts` — deriving the API origin from the Metro origin.
+- `notifications.test.ts`, `reminders.test.ts` — reminder scheduling and the permission gate.
 
 ---
 
@@ -389,12 +422,13 @@ See [`todo.md`](todo.md) for the working backlog. Notable open items:
 
 ## Conventions & notes
 
-- **Package name:** `package.json` still names the project `app-template` (cosmetic; the app itself is "Saving Jar" via `app.config.ts`).
 - **Money math:** always integer minor units — never floats.
 - **Paths:** `@/*` maps to the project root; `@shared/*` maps to `shared/`.
 - **Native folders** (`ios/`, `android/`) are generated and git-ignored.
 - **Sensitive data:** never commit `.env` files; use `.env.example` as the source of truth for required variables.
-- **Auth (web):** uses cookies; **auth (native):** uses a Bearer token stored in `expo-secure-store`.
+- **Auth:** Supabase owns the session on the client (persisted in `AsyncStorage`). The API server verifies the access token against the project JWKS on every request, so there is no server-issued cookie and no session table.
+- **Identity:** Supabase accounts are UUIDs, but app tables reference an integer `users.id`, linked by `users.supabaseUserId`. That is why the shared-jar code did not have to change when the auth provider did.
+- **Postgres has no `ON UPDATE CURRENT_TIMESTAMP`**, so `updatedAt` is stamped by the application; and an error inside a transaction aborts the whole transaction, so duplicate-key cases use `ON CONFLICT DO NOTHING` rather than a caught exception.
 
 ---
 
