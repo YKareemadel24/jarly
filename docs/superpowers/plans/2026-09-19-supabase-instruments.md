@@ -23,10 +23,12 @@
 ### Task 1: Verify env wiring
 
 **Files:**
+
 - Modify: `.env` (untracked, copy from `.env.example` — never commit)
 - Verify: `constants/oauth.ts:35-37`, `scripts/load-env.js:38-46`, `lib/supabase.ts:26-47`
 
 **Interfaces:**
+
 - Consumes: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (server env or `.env`)
 - Produces: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for Expo bundle
 
@@ -52,11 +54,13 @@ Expected: PASS (typecheck covers `constants/oauth.ts`, `lib/supabase.ts`).
 ### Task 2: Add instruments demo route
 
 **Files:**
+
 - Create: `app/dev/instruments.tsx`
 - Test: manual via Expo (`pnpm dev:metro`, open `/dev/instruments`)
 - Verify: `lib/supabase.ts:26`
 
 **Interfaces:**
+
 - Consumes: `getSupabase(): SupabaseClient`, `isSupabaseConfigured(): boolean`, `SUPABASE_NOT_CONFIGURED: string`
 - Produces: default export `InstrumentsScreen` React component
 
@@ -80,7 +84,9 @@ export default function InstrumentsScreen() {
         setError(SUPABASE_NOT_CONFIGURED);
         return;
       }
-      const { data, error } = await getSupabase().from("instruments").select("id,name");
+      const { data, error } = await getSupabase()
+        .from("instruments")
+        .select("id,name");
       if (error) {
         setError(error.message);
         return;
@@ -103,7 +109,9 @@ export default function InstrumentsScreen() {
       <FlatList
         data={instruments}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <Text style={{ padding: 16 }}>{item.name}</Text>}
+        renderItem={({ item }) => (
+          <Text style={{ padding: 16 }}>{item.name}</Text>
+        )}
       />
     </View>
   );

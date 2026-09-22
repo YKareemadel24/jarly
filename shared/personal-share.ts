@@ -21,7 +21,11 @@ const amount = z.number().int().min(0).max(1_000_000_000);
 /** Kept inside a sane, portable range; Postgres timestamptz itself is far wider. */
 const date = z.string().refine((value) => {
   const time = Date.parse(value);
-  return Number.isFinite(time) && time >= Date.UTC(1970, 0, 2) && time < Date.UTC(2100, 0, 1);
+  return (
+    Number.isFinite(time) &&
+    time >= Date.UTC(1970, 0, 2) &&
+    time < Date.UTC(2100, 0, 1)
+  );
 }, "History date is outside the supported range.");
 
 export const personalShareSchema = z.object({
@@ -68,7 +72,8 @@ export function openingAdjustment(snapshot: {
   return (
     snapshot.balance -
     snapshot.entries.reduce(
-      (total, entry) => total + (entry.direction === "deposit" ? entry.amount : -entry.amount),
+      (total, entry) =>
+        total + (entry.direction === "deposit" ? entry.amount : -entry.amount),
       0,
     )
   );
@@ -88,7 +93,13 @@ export function personalSharePayload(jar: {
   streak?: number;
   lastDepositAt?: string;
   milestonesHit: number[];
-  entries: { amount: number; direction: string; at: string; note?: string; source?: string }[];
+  entries: {
+    amount: number;
+    direction: string;
+    at: string;
+    note?: string;
+    source?: string;
+  }[];
 }): PersonalShareInput {
   return {
     sourceLocalId: jar.id,

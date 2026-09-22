@@ -27,7 +27,11 @@ export function inviteWebBase(): string {
   const api = getApiBaseUrl();
   if (api) return api.replace(/\/+$/, "");
 
-  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+  if (
+    Platform.OS === "web" &&
+    typeof window !== "undefined" &&
+    window.location?.origin
+  ) {
     return window.location.origin;
   }
   return "";

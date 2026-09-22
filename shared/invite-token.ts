@@ -14,7 +14,8 @@
  * Token alphabet, minus the characters people confuse when a code is read aloud
  * or typed off a screen: 0/O, 1/l/I.
  */
-export const INVITE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+export const INVITE_ALPHABET =
+  "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 /** Length of a generated token, in characters. */
 export const INVITE_TOKEN_LENGTH = 22;

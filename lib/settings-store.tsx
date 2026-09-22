@@ -2,7 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Platform } from "react-native";
 
 const REMINDERS_KEY = "saving-jar:reminders";
@@ -45,11 +52,16 @@ const PIN_LOCKOUT_SCHEDULE_MS = [30_000, 60_000, 5 * 60_000, 15 * 60_000];
  * plaintext PINs: they still verify, and are upgraded on the next success.
  */
 async function hashPin(pin: string, saltHex: string): Promise<string> {
-  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${saltHex}:${pin}`);
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${saltHex}:${pin}`,
+  );
 }
 
 async function makePinRecord(pin: string): Promise<string> {
-  const salt = Array.from(await Crypto.getRandomBytesAsync(16), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const salt = Array.from(await Crypto.getRandomBytesAsync(16), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
   const hash = await hashPin(pin, salt);
   return `v1:${pin.length}:${salt}:${hash}`;
 }
@@ -115,13 +127,17 @@ async function readAttempts(): Promise<PinAttemptState> {
 }
 
 async function writeAttempts(state: PinAttemptState): Promise<void> {
-  await AsyncStorage.setItem(PIN_ATTEMPTS_KEY, JSON.stringify(state)).catch(() => undefined);
+  await AsyncStorage.setItem(PIN_ATTEMPTS_KEY, JSON.stringify(state)).catch(
+    () => undefined,
+  );
 }
 
 /** Lockout duration for a given consecutive-failure count (0 = no lockout). */
 function lockoutMsFor(failures: number): number {
   if (failures < PIN_FREE_ATTEMPTS) return 0;
-  return PIN_LOCKOUT_SCHEDULE_MS[Math.min(failures - PIN_FREE_ATTEMPTS, PIN_LOCKOUT_SCHEDULE_MS.length - 1)];
+  return PIN_LOCKOUT_SCHEDULE_MS[
+    Math.min(failures - PIN_FREE_ATTEMPTS, PIN_LOCKOUT_SCHEDULE_MS.length - 1)
+  ];
 }
 
 type SettingsContextValue = {
@@ -200,7 +216,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [remindersRaw, biometricRaw, pinLockRaw, pinRecord, attempts, currencyRaw] = await Promise.all([
+        const [
+          remindersRaw,
+          biometricRaw,
+          pinLockRaw,
+          pinRecord,
+          attempts,
+          currencyRaw,
+        ] = await Promise.all([
           AsyncStorage.getItem(REMINDERS_KEY),
           AsyncStorage.getItem(BIOMETRIC_KEY),
           AsyncStorage.getItem(PIN_LOCK_KEY),
@@ -214,7 +237,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const pinEnabled = pinLockRaw === "true";
         const configured = pinRecord !== null;
         const validCodes = SUPPORTED_CURRENCIES.map((c) => c.code);
-        const restoredCurrency: CurrencyCode = currencyRaw && validCodes.includes(currencyRaw as CurrencyCode) ? (currencyRaw as CurrencyCode) : "USD";
+        const restoredCurrency: CurrencyCode =
+          currencyRaw && validCodes.includes(currencyRaw as CurrencyCode)
+            ? (currencyRaw as CurrencyCode)
+            : "USD";
         setRemindersEnabledState(reminders);
         setBiometricLockEnabledState(biometricEnabled);
         // Only treat PIN lock as on when a PIN is actually configured, so the
@@ -222,7 +248,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setPinLockEnabledState(pinEnabled && configured);
         setHasPin(configured);
         setPinLengthState(pinLengthOf(pinRecord));
-        setPinLockedUntil(attempts.lockedUntil > Date.now() ? attempts.lockedUntil : null);
+        setPinLockedUntil(
+          attempts.lockedUntil > Date.now() ? attempts.lockedUntil : null,
+        );
         setCurrencyState(restoredCurrency);
       } catch {
         // Failed to read settings: keep defaults.
@@ -275,37 +303,40 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(PIN_LOCK_KEY, "false").catch(() => undefined);
   }, []);
 
-  const tryUnlock = useCallback(async (pin: string): Promise<"ok" | "wrong" | "locked"> => {
-    const now = Date.now();
-    const attempts = await readAttempts();
-    if (attempts.lockedUntil > now) {
-      setPinLockedUntil(attempts.lockedUntil);
-      return "locked";
-    }
+  const tryUnlock = useCallback(
+    async (pin: string): Promise<"ok" | "wrong" | "locked"> => {
+      const now = Date.now();
+      const attempts = await readAttempts();
+      if (attempts.lockedUntil > now) {
+        setPinLockedUntil(attempts.lockedUntil);
+        return "locked";
+      }
 
-    const record = await readPinRecord();
-    if (record === null) return "wrong";
+      const record = await readPinRecord();
+      if (record === null) return "wrong";
 
-    if (!(await verifyPinRecord(record, pin))) {
-      // Escalating backoff: a handful of honest mistakes costs nothing, but
-      // guessing is slowed to a crawl long before a 4-digit space is exhaustible.
-      const failures = attempts.failures + 1;
-      const lockMs = lockoutMsFor(failures);
-      const lockedUntil = lockMs > 0 ? now + lockMs : 0;
-      await writeAttempts({ failures, lockedUntil });
-      setPinLockedUntil(lockedUntil > now ? lockedUntil : null);
-      return lockedUntil > now ? "locked" : "wrong";
-    }
+      if (!(await verifyPinRecord(record, pin))) {
+        // Escalating backoff: a handful of honest mistakes costs nothing, but
+        // guessing is slowed to a crawl long before a 4-digit space is exhaustible.
+        const failures = attempts.failures + 1;
+        const lockMs = lockoutMsFor(failures);
+        const lockedUntil = lockMs > 0 ? now + lockMs : 0;
+        await writeAttempts({ failures, lockedUntil });
+        setPinLockedUntil(lockedUntil > now ? lockedUntil : null);
+        return lockedUntil > now ? "locked" : "wrong";
+      }
 
-    // Success: reset the throttle, and upgrade a legacy plaintext record to the
-    // hashed format so the PIN no longer sits readable in storage.
-    if (!record.startsWith("v1:")) {
-      await writePinRecord(await makePinRecord(pin)).catch(() => undefined);
-    }
-    await AsyncStorage.removeItem(PIN_ATTEMPTS_KEY).catch(() => undefined);
-    setPinLockedUntil(null);
-    return "ok";
-  }, []);
+      // Success: reset the throttle, and upgrade a legacy plaintext record to the
+      // hashed format so the PIN no longer sits readable in storage.
+      if (!record.startsWith("v1:")) {
+        await writePinRecord(await makePinRecord(pin)).catch(() => undefined);
+      }
+      await AsyncStorage.removeItem(PIN_ATTEMPTS_KEY).catch(() => undefined);
+      setPinLockedUntil(null);
+      return "ok";
+    },
+    [],
+  );
 
   const setCurrency = useCallback((next: CurrencyCode) => {
     setCurrencyState(next);
@@ -346,10 +377,32 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       currency,
       setCurrency,
     }),
-    [remindersEnabled, setRemindersEnabled, biometricAvailable, biometricLockEnabled, setBiometricLockEnabled, pinLockEnabled, hasPin, pinLength, pinLockedUntil, setPin, tryUnlock, enablePinLock, disablePinLock, authenticateWithBiometrics, ready, currency, setCurrency],
+    [
+      remindersEnabled,
+      setRemindersEnabled,
+      biometricAvailable,
+      biometricLockEnabled,
+      setBiometricLockEnabled,
+      pinLockEnabled,
+      hasPin,
+      pinLength,
+      pinLockedUntil,
+      setPin,
+      tryUnlock,
+      enablePinLock,
+      disablePinLock,
+      authenticateWithBiometrics,
+      ready,
+      currency,
+      setCurrency,
+    ],
   );
 
-  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
+  return (
+    <SettingsContext.Provider value={value}>
+      {children}
+    </SettingsContext.Provider>
+  );
 }
 
 export function useSettings(): SettingsContextValue {

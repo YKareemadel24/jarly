@@ -89,7 +89,9 @@ export async function authenticateRequest(req: Request): Promise<User> {
   const token = bearerToken(req);
   if (!token) throw UnauthorizedError("No session token was sent.");
 
-  const issuer = ENV.supabaseUrl ? `${ENV.supabaseUrl.replace(/\/+$/, "")}/auth/v1` : undefined;
+  const issuer = ENV.supabaseUrl
+    ? `${ENV.supabaseUrl.replace(/\/+$/, "")}/auth/v1`
+    : undefined;
 
   let claims: SupabaseClaims;
   try {
@@ -103,12 +105,16 @@ export async function authenticateRequest(req: Request): Promise<User> {
   } catch (error) {
     // The reason is logged but not returned: a caller learns only that the token
     // was not accepted, which keeps signature and expiry detail out of the API.
-    console.warn("[Auth] Rejected access token:", error instanceof Error ? error.message : error);
+    console.warn(
+      "[Auth] Rejected access token:",
+      error instanceof Error ? error.message : error,
+    );
     throw UnauthorizedError("That session token is not valid.");
   }
 
   const supabaseUserId = claims.sub;
-  if (!supabaseUserId) throw UnauthorizedError("That session token has no user id.");
+  if (!supabaseUserId)
+    throw UnauthorizedError("That session token has no user id.");
 
   const existing = await db.getUserBySupabaseId(supabaseUserId);
   if (existing) {
@@ -116,7 +122,10 @@ export async function authenticateRequest(req: Request): Promise<User> {
     // request would turn each API call into a database write. A coarse
     // granularity is plenty for "when was this account last around".
     const LAST_SEEN_GRANULARITY_MS = 15 * 60_000;
-    if (Date.now() - existing.lastSignedIn.getTime() > LAST_SEEN_GRANULARITY_MS) {
+    if (
+      Date.now() - existing.lastSignedIn.getTime() >
+      LAST_SEEN_GRANULARITY_MS
+    ) {
       await db.touchLastSignedIn(existing.id);
     }
     return existing;
@@ -133,6 +142,9 @@ export async function authenticateRequest(req: Request): Promise<User> {
     lastSignedIn: new Date(),
   });
 
-  if (!created) throw new Error("The account could not be stored. Is the database configured?");
+  if (!created)
+    throw new Error(
+      "The account could not be stored. Is the database configured?",
+    );
   return created;
 }

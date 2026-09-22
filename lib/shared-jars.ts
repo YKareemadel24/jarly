@@ -36,7 +36,9 @@ function toAccent(value: string): Accent {
 function toIso(value: Date | string): string {
   if (value instanceof Date) return value.toISOString();
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+  return Number.isNaN(parsed.getTime())
+    ? new Date().toISOString()
+    : parsed.toISOString();
 }
 
 /** A member row as the sharedJar router returns it. */
@@ -85,8 +87,13 @@ function toMembers(members: SharedJarMemberPayload[]): JarMember[] {
   }));
 }
 
-function toEntries(entries: SharedJarEntryPayload[], members: SharedJarMemberPayload[]): Entry[] {
-  const nameById = new Map(members.map((member) => [member.userId, member.displayName]));
+function toEntries(
+  entries: SharedJarEntryPayload[],
+  members: SharedJarMemberPayload[],
+): Entry[] {
+  const nameById = new Map(
+    members.map((member) => [member.userId, member.displayName]),
+  );
   return entries.map((entry) => ({
     id: `shared-entry-${entry.id}`,
     amount: entry.amount,

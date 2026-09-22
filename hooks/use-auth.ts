@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { isSupabaseConfigured } from "@/constants/oauth";
-import { getCurrentUser, signOut as endSession, toUser, type User } from "@/lib/_core/auth";
+import {
+  getCurrentUser,
+  signOut as endSession,
+  toUser,
+  type User,
+} from "@/lib/_core/auth";
 import { getSupabase } from "@/lib/supabase";
 
 type UseAuthOptions = {
@@ -36,7 +41,11 @@ export function useAuth(options?: UseAuthOptions) {
       setError(null);
       setUser(await getCurrentUser());
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error("Could not read the session"));
+      setError(
+        caught instanceof Error
+          ? caught
+          : new Error("Could not read the session"),
+      );
       setUser(null);
     } finally {
       setLoading(false);

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { type Jar } from "../lib/savings-core";
-import { openingAdjustment, personalSharePayload, personalShareSchema, replaceWithShared } from "../shared/personal-share";
+import {
+  openingAdjustment,
+  personalSharePayload,
+  personalShareSchema,
+  replaceWithShared,
+} from "../shared/personal-share";
 
 const jar = (overrides: Partial<Jar> = {}): Jar => ({
   id: "jar-1",
@@ -14,9 +19,26 @@ const jar = (overrides: Partial<Jar> = {}): Jar => ({
   createdAt: "2026-02-01T00:00:00.000Z",
   milestonesHit: [25],
   entries: [
-    { id: "e1", amount: 100_00, direction: "deposit", at: "2026-02-02T00:00:00.000Z", note: "start" },
-    { id: "e2", amount: 30_00, direction: "withdrawal", at: "2026-02-03T00:00:00.000Z" },
-    { id: "e3", amount: 50_00, direction: "deposit", at: "2026-02-04T00:00:00.000Z", source: "recurring" },
+    {
+      id: "e1",
+      amount: 100_00,
+      direction: "deposit",
+      at: "2026-02-02T00:00:00.000Z",
+      note: "start",
+    },
+    {
+      id: "e2",
+      amount: 30_00,
+      direction: "withdrawal",
+      at: "2026-02-03T00:00:00.000Z",
+    },
+    {
+      id: "e3",
+      amount: 50_00,
+      direction: "deposit",
+      at: "2026-02-04T00:00:00.000Z",
+      source: "recurring",
+    },
   ],
   ...overrides,
 });
@@ -34,7 +56,12 @@ describe("personalSharePayload", () => {
 
   it("keeps each entry's own timestamp and note", () => {
     const payload = personalSharePayload(jar());
-    expect(payload.entries[0]).toMatchObject({ amount: 100_00, direction: "deposit", at: "2026-02-02T00:00:00.000Z", note: "start" });
+    expect(payload.entries[0]).toMatchObject({
+      amount: 100_00,
+      direction: "deposit",
+      at: "2026-02-02T00:00:00.000Z",
+      note: "start",
+    });
     expect(payload.entries[2].source).toBe("recurring");
   });
 });
@@ -54,21 +81,38 @@ describe("openingAdjustment", () => {
 
 describe("personalShareSchema", () => {
   it("rejects history older than the database's date range", () => {
-    const result = personalShareSchema.safeParse(personalSharePayload(jar({
-      entries: [{ id: "e", amount: 1, direction: "deposit", at: "1969-01-01T00:00:00.000Z" }],
-    })));
+    const result = personalShareSchema.safeParse(
+      personalSharePayload(
+        jar({
+          entries: [
+            {
+              id: "e",
+              amount: 1,
+              direction: "deposit",
+              at: "1969-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+      ),
+    );
     expect(result.success).toBe(false);
   });
 
   it("rejects non-integer money", () => {
     const payload = personalSharePayload(jar());
-    const result = personalShareSchema.safeParse({ ...payload, balance: 120.5 });
+    const result = personalShareSchema.safeParse({
+      ...payload,
+      balance: 120.5,
+    });
     expect(result.success).toBe(false);
   });
 
   it("rejects an over-long history instead of silently truncating it", () => {
     const entries = Array.from({ length: 2001 }, (_, index) => ({
-      id: `e${index}`, amount: 1, direction: "deposit" as const, at: "2026-02-02T00:00:00.000Z",
+      id: `e${index}`,
+      amount: 1,
+      direction: "deposit" as const,
+      at: "2026-02-02T00:00:00.000Z",
     }));
     const payload = personalSharePayload(jar({ entries }));
     expect(personalShareSchema.safeParse(payload).success).toBe(false);

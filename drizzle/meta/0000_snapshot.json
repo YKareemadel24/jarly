@@ -164,9 +164,7 @@
         "shared_jar_invites_token_unique": {
           "name": "shared_jar_invites_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -459,9 +457,7 @@
         "users_supabaseUserId_unique": {
           "name": "users_supabaseUserId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "supabaseUserId"
-          ]
+          "columns": ["supabaseUserId"]
         }
       },
       "policies": {},
@@ -473,26 +469,17 @@
     "public.entry_direction": {
       "name": "entry_direction",
       "schema": "public",
-      "values": [
-        "deposit",
-        "withdrawal"
-      ]
+      "values": ["deposit", "withdrawal"]
     },
     "public.jar_kind": {
       "name": "jar_kind",
       "schema": "public",
-      "values": [
-        "goal",
-        "habit"
-      ]
+      "values": ["goal", "habit"]
     },
     "public.user_role": {
       "name": "user_role",
       "schema": "public",
-      "values": [
-        "user",
-        "admin"
-      ]
+      "values": ["user", "admin"]
     }
   },
   "schemas": {},

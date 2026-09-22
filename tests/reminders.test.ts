@@ -31,7 +31,12 @@ describe("nextReminder", () => {
 
   it("flags a recurring deposit that is due today as the top priority", () => {
     const scheduled = jar({
-      recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" },
+      recurring: {
+        amount: 2500,
+        cadence: "weekly",
+        paused: false,
+        nextDate: "2026-06-15T09:00:00.000Z",
+      },
     });
     const reminder = nextReminder([scheduled], new Date(at));
     expect(reminder).toBeDefined();
@@ -47,7 +52,12 @@ describe("nextReminder", () => {
 
   it("ignores a paused recurring rule", () => {
     const paused = jar({
-      recurring: { amount: 2500, cadence: "weekly", paused: true, nextDate: "2026-06-15T09:00:00.000Z" },
+      recurring: {
+        amount: 2500,
+        cadence: "weekly",
+        paused: true,
+        nextDate: "2026-06-15T09:00:00.000Z",
+      },
     });
     expect(nextReminder([paused], new Date(at))).toBeUndefined();
   });

@@ -12,6 +12,7 @@
     "check": "tsc --noEmit",
     "lint": "expo lint",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "android": "expo start --android",

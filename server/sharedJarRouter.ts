@@ -18,14 +18,21 @@ import { TRPCError } from "@trpc/server";
 
 import { z } from "zod";
 
-import { INVITE_ALPHABET, INVITE_TOKEN_LENGTH, INVITE_TTL_DAYS } from "../shared/invite-token";
+import {
+  INVITE_ALPHABET,
+  INVITE_TOKEN_LENGTH,
+  INVITE_TTL_DAYS,
+} from "../shared/invite-token";
 import {
   SHARED_JAR_ACCENTS,
   inviteStatus,
   inviteStatusMessage,
-  sharedJarTotals,
+  type SharedJarTotals,
 } from "../shared/shared-jar";
-import { openingAdjustment, personalShareSchema } from "../shared/personal-share";
+import {
+  openingAdjustment,
+  personalShareSchema,
+} from "../shared/personal-share";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   addMember,
@@ -57,7 +64,10 @@ const jarIdSchema = z.number().int().positive();
 
 function requireDb<T>(value: T | null | undefined): T {
   if (value === null || value === undefined) {
-    throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Shared jars need a database connection." });
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Shared jars need a database connection.",
+    });
   }
   return value;
 }
@@ -71,18 +81,27 @@ const inviteTokenSchema = z.string().trim().min(8).max(64);
 function newInviteToken(): string {
   const bytes = randomBytes(INVITE_TOKEN_LENGTH * 2);
   let token = "";
-  for (let index = 0; index < bytes.length && token.length < INVITE_TOKEN_LENGTH; index += 1) {
+  for (
+    let index = 0;
+    index < bytes.length && token.length < INVITE_TOKEN_LENGTH;
+    index += 1
+  ) {
     const byte = bytes[index];
     // Discard the bytes above the largest whole multiple of the alphabet that
     // still fits in a byte. Folding the rest with `%` would make the first few
     // characters slightly likelier than the others; throwing those bytes away
     // keeps every character equally probable.
-    if (byte >= INVITE_ALPHABET.length * Math.floor(256 / INVITE_ALPHABET.length)) continue;
+    if (
+      byte >=
+      INVITE_ALPHABET.length * Math.floor(256 / INVITE_ALPHABET.length)
+    )
+      continue;
     token += INVITE_ALPHABET[byte % INVITE_ALPHABET.length];
   }
   // Astronomically unlikely, but a short read must not produce a short token.
   while (token.length < INVITE_TOKEN_LENGTH) {
-    token += INVITE_ALPHABET[Math.floor(Math.random() * INVITE_ALPHABET.length)];
+    token +=
+      INVITE_ALPHABET[Math.floor(Math.random() * INVITE_ALPHABET.length)];
   }
   return token;
 }
@@ -91,12 +110,43 @@ function inviteExpiry(now: Date = new Date()): Date {
   return new Date(now.getTime() + INVITE_TTL_DAYS * 86_400_000);
 }
 
+/** Live member count and owner name, used by both the preview and the join reply. */
+/**
+ * Project a just-committed contribution onto already-derived totals. Used only
+ * when the post-write read-back fails, so the caller still gets exact headline
+ * figures; per-member shares are left as read.
+ */
+function adjustTotals(
+  totals: SharedJarTotals,
+  target: number,
+  direction: "deposit" | "withdrawal",
+  amount: number,
+): SharedJarTotals {
+  const balance = totals.balance + (direction === "deposit" ? amount : -amount);
+  return {
+    ...totals,
+    balance,
+    totalDeposited:
+      direction === "deposit"
+        ? totals.totalDeposited + amount
+        : totals.totalDeposited,
+    depositCount:
+      direction === "deposit" ? totals.depositCount + 1 : totals.depositCount,
+    progress:
+      target > 0
+        ? Math.max(0, Math.min(100, Math.round((balance / target) * 100)))
+        : 0,
+  };
+}
 
 /** Live member count and owner name, used by both the preview and the join reply. */
 async function jarSummary(jarId: number) {
   const jar = await findJarById(jarId);
   if (!jar) return undefined;
-  const [owner, members] = await Promise.all([findUserById(jar.ownerId), countMembers(jarId)]);
+  const [owner, members] = await Promise.all([
+    findUserById(jar.ownerId),
+    countMembers(jarId),
+  ]);
   return { jar, ownerName: owner?.name ?? null, members };
 }
 
@@ -106,22 +156,27 @@ export const sharedJarRouter = router({
     const views = await listSharedJars(ctx.user.id);
     return views.map((view) => ({
       ...view.jar,
-      ...sharedJarTotals(view.jar, view.members, view.entries, ctx.user.id),
+      ...view.totals,
     }));
   }),
 
   /** One jar, or NOT_FOUND when the caller is not a member. */
-  get: protectedProcedure.input(z.object({ jarId: jarIdSchema })).query(async ({ ctx, input }) => {
-    const view = await getSharedJar(input.jarId, ctx.user.id);
-    if (!view) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
-    }
-    return {
-      ...view.jar,
-      ...sharedJarTotals(view.jar, view.members, view.entries, ctx.user.id),
-      entries: view.entries,
-    };
-  }),
+  get: protectedProcedure
+    .input(z.object({ jarId: jarIdSchema }))
+    .query(async ({ ctx, input }) => {
+      const view = await getSharedJar(input.jarId, ctx.user.id);
+      if (!view) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
+      }
+      return {
+        ...view.jar,
+        ...view.totals,
+        entries: view.entries,
+      };
+    }),
 
   create: protectedProcedure
     .input(
@@ -135,7 +190,10 @@ export const sharedJarRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const created = requireDb(
-        await createSharedJar({ ...input, ownerId: ctx.user.id }, ctx.user.name ?? "You"),
+        await createSharedJar(
+          { ...input, ownerId: ctx.user.id },
+          ctx.user.name ?? "You",
+        ),
       );
       return created;
     }),
@@ -153,7 +211,23 @@ export const sharedJarRouter = router({
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
+      }
+
+      // Only the owner takes money out of a shared jar: a withdrawal moves
+      // everyone's contributions, not just the caller's. Deposits stay open to
+      // every member. (Enforced again inside the locked transaction below.)
+      if (
+        input.direction === "withdrawal" &&
+        view.jar.ownerId !== ctx.user.id
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can withdraw.",
+        });
       }
 
       // The balance is re-derived and the contribution validated inside a
@@ -167,23 +241,45 @@ export const sharedJarRouter = router({
         note: input.note,
       });
       if (!result) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Shared jars need a database connection." });
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Shared jars need a database connection.",
+        });
       }
       if (!result.ok) {
         if (result.reason === "jar-missing") {
-          throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "That shared jar is not available to you.",
+          });
         }
-        throw new TRPCError({ code: "BAD_REQUEST", message: result.message ?? "That contribution is not valid." });
+        if (result.reason === "not-owner") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only the jar's owner can withdraw.",
+          });
+        }
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: result.message ?? "That contribution is not valid.",
+        });
       }
 
       const refreshed = await getSharedJar(input.jarId, ctx.user.id);
       return {
         entry: result.entry,
         totals: refreshed
-          ? sharedJarTotals(refreshed.jar, refreshed.members, refreshed.entries, ctx.user.id)
-          : // The entry just committed, so projecting it onto the pre-write
-            // view yields the same totals without a second read.
-            sharedJarTotals(view.jar, view.members, [...view.entries, result.entry], ctx.user.id),
+          ? refreshed.totals
+          : // The entry just committed, so adjusting the pre-write totals by it
+            // yields the same headline figures without a second read. (The
+            // per-member share list is left as read; this path only runs when
+            // the read-back itself failed.)
+            adjustTotals(
+              view.totals,
+              view.jar.target,
+              input.direction,
+              input.amount,
+            ),
       };
     }),
 
@@ -202,10 +298,16 @@ export const sharedJarRouter = router({
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
       }
       if (view.jar.ownerId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can change it." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can change it.",
+        });
       }
       const { jarId, ...changes } = input;
       await updateSharedJar(jarId, changes);
@@ -214,56 +316,90 @@ export const sharedJarRouter = router({
 
   /** Owner-only: add a member by account id. */
   addMember: protectedProcedure
-    .input(z.object({ jarId: jarIdSchema, userId: z.number().int().positive() }))
+    .input(
+      z.object({ jarId: jarIdSchema, userId: z.number().int().positive() }),
+    )
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
       }
       if (view.jar.ownerId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can invite people." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can invite people.",
+        });
       }
       if (input.userId === ctx.user.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "You are already on this jar." });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You are already on this jar.",
+        });
       }
       if (!(await isMember(input.jarId, input.userId))) {
         const account = await findUserById(input.userId);
         if (!account) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "No account with that id." });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "No account with that id.",
+          });
         }
-        await addMember(input.jarId, input.userId, account.name ?? `Member ${account.id}`);
+        await addMember(
+          input.jarId,
+          input.userId,
+          account.name ?? `Member ${account.id}`,
+        );
       }
       return { success: true } as const;
     }),
 
   /** Owner-only: remove someone else; any member may remove themselves. */
   removeMember: protectedProcedure
-    .input(z.object({ jarId: jarIdSchema, userId: z.number().int().positive() }))
+    .input(
+      z.object({ jarId: jarIdSchema, userId: z.number().int().positive() }),
+    )
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
       }
       const removingSelf = input.userId === ctx.user.id;
       if (!removingSelf && view.jar.ownerId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can remove other people." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can remove other people.",
+        });
       }
       await removeMember(input.jarId, input.userId);
       return { success: true } as const;
     }),
 
   /** Owner-only, and destructive. */
-  remove: protectedProcedure.input(z.object({ jarId: jarIdSchema })).mutation(async ({ ctx, input }) => {
-    const view = await getSharedJar(input.jarId, ctx.user.id);
-    if (!view) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
-    }
-    if (view.jar.ownerId !== ctx.user.id) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can delete it." });
-    }
-    await deleteSharedJar(input.jarId);
-    return { success: true } as const;
-  }),
+  remove: protectedProcedure
+    .input(z.object({ jarId: jarIdSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const view = await getSharedJar(input.jarId, ctx.user.id);
+      if (!view) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
+      }
+      if (view.jar.ownerId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can delete it.",
+        });
+      }
+      await deleteSharedJar(input.jarId);
+      return { success: true } as const;
+    }),
 
   /* ---------------------------------------------------------------------- */
   /* Invites                                                                */
@@ -289,10 +425,16 @@ export const sharedJarRouter = router({
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
       }
       if (view.jar.ownerId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can invite people." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can invite people.",
+        });
       }
 
       const expiresAt = input.expiresInDays
@@ -318,28 +460,39 @@ export const sharedJarRouter = router({
           };
         }
       }
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not create an invite just now. Try again." });
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Could not create an invite just now. Try again.",
+      });
     }),
 
   /** Owner-only: every invite ever minted for this jar, newest first. */
-  listInvites: protectedProcedure.input(z.object({ jarId: jarIdSchema })).query(async ({ ctx, input }) => {
-    const view = await getSharedJar(input.jarId, ctx.user.id);
-    if (!view) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
-    }
-    if (view.jar.ownerId !== ctx.user.id) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can see its invites." });
-    }
-    const invites = await listInvites(input.jarId);
-    return invites.map((invite) => ({
-      token: invite.token,
-      status: inviteStatus(invite),
-      expiresAt: invite.expiresAt,
-      maxUses: invite.maxUses,
-      uses: invite.uses,
-      createdAt: invite.createdAt,
-    }));
-  }),
+  listInvites: protectedProcedure
+    .input(z.object({ jarId: jarIdSchema }))
+    .query(async ({ ctx, input }) => {
+      const view = await getSharedJar(input.jarId, ctx.user.id);
+      if (!view) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
+      }
+      if (view.jar.ownerId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can see its invites.",
+        });
+      }
+      const invites = await listInvites(input.jarId);
+      return invites.map((invite) => ({
+        token: invite.token,
+        status: inviteStatus(invite),
+        expiresAt: invite.expiresAt,
+        maxUses: invite.maxUses,
+        uses: invite.uses,
+        createdAt: invite.createdAt,
+      }));
+    }),
 
   /** Owner-only: cancel a link that has already been sent. */
   revokeInvite: protectedProcedure
@@ -347,14 +500,23 @@ export const sharedJarRouter = router({
     .mutation(async ({ ctx, input }) => {
       const view = await getSharedJar(input.jarId, ctx.user.id);
       if (!view) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That shared jar is not available to you." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That shared jar is not available to you.",
+        });
       }
       if (view.jar.ownerId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Only the jar's owner can cancel an invite." });
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the jar's owner can cancel an invite.",
+        });
       }
       const invite = await findInviteByToken(input.token);
       if (!invite || invite.jarId !== input.jarId) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That invite no longer exists." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "That invite no longer exists.",
+        });
       }
       await revokeInvite(invite.id);
       return { success: true } as const;
@@ -367,35 +529,49 @@ export const sharedJarRouter = router({
    * name. No balance, no entries, no member list. A leaked token should tell a
    * stranger almost nothing, and nothing at all about anyone's money.
    */
-  previewInvite: publicProcedure.input(z.object({ token: inviteTokenSchema })).query(async ({ input }) => {
-    const invite = await findInviteByToken(input.token);
-    if (!invite) {
-      return { ok: false as const, reason: "missing" as const, message: "That invite link is not valid." };
-    }
+  previewInvite: publicProcedure
+    .input(z.object({ token: inviteTokenSchema }))
+    .query(async ({ input }) => {
+      const invite = await findInviteByToken(input.token);
+      if (!invite) {
+        return {
+          ok: false as const,
+          reason: "missing" as const,
+          message: "That invite link is not valid.",
+        };
+      }
 
-    const status = inviteStatus(invite);
-    if (status !== "open") {
-      return { ok: false as const, reason: status, message: inviteStatusMessage(status) };
-    }
+      const status = inviteStatus(invite);
+      if (status !== "open") {
+        return {
+          ok: false as const,
+          reason: status,
+          message: inviteStatusMessage(status),
+        };
+      }
 
-    const summary = await jarSummary(invite.jarId);
-    if (!summary) {
-      return { ok: false as const, reason: "missing" as const, message: "That jar no longer exists." };
-    }
+      const summary = await jarSummary(invite.jarId);
+      if (!summary) {
+        return {
+          ok: false as const,
+          reason: "missing" as const,
+          message: "That jar no longer exists.",
+        };
+      }
 
-    return {
-      ok: true as const,
-      jar: {
-        name: summary.jar.name,
-        icon: summary.jar.icon,
-        accent: summary.jar.accent,
-        kind: summary.jar.kind,
-        target: summary.jar.target,
-      },
-      members: summary.members,
-      inviterName: summary.ownerName,
-    };
-  }),
+      return {
+        ok: true as const,
+        jar: {
+          name: summary.jar.name,
+          icon: summary.jar.icon,
+          accent: summary.jar.accent,
+          kind: summary.jar.kind,
+          target: summary.jar.target,
+        },
+        members: summary.members,
+        inviterName: summary.ownerName,
+      };
+    }),
 
   /**
    * Join a jar through an invite token.
@@ -404,33 +580,47 @@ export const sharedJarRouter = router({
    * already invited by account id, ends up a member rather than seeing an error.
    * Only a genuinely new membership consumes a use.
    */
-  joinInvite: protectedProcedure.input(z.object({ token: inviteTokenSchema })).mutation(async ({ ctx, input }) => {
-    // Idempotent by design: someone who taps the same link twice, or who was
-    // already invited by account id, ends up a member rather than seeing an
-    // error. The status check, membership insert, and use count run as one
-    // transaction holding a lock on the invite row, so a maxUses=1 link cannot
-    // admit two people at once, and only a genuinely new membership spends a use.
-    const result = await joinJarViaInvite({
-      token: input.token,
-      userId: ctx.user.id,
-      displayName: ctx.user.name ?? `Member ${ctx.user.id}`,
-    });
-    if (!result) {
-      throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Shared jars need a database connection." });
-    }
-    switch (result.outcome) {
-      case "invalid-token":
-        throw new TRPCError({ code: "NOT_FOUND", message: "That invite link is not valid." });
-      case "closed":
-        throw new TRPCError({ code: "BAD_REQUEST", message: inviteStatusMessage(result.status) });
-      case "jar-missing":
-        throw new TRPCError({ code: "NOT_FOUND", message: "That jar no longer exists." });
-      case "already-member":
-        return { jarId: result.jarId, alreadyMember: true } as const;
-      case "joined":
-        return { jarId: result.jarId, alreadyMember: false } as const;
-    }
-  }),
+  joinInvite: protectedProcedure
+    .input(z.object({ token: inviteTokenSchema }))
+    .mutation(async ({ ctx, input }) => {
+      // Idempotent by design: someone who taps the same link twice, or who was
+      // already invited by account id, ends up a member rather than seeing an
+      // error. The status check, membership insert, and use count run as one
+      // transaction holding a lock on the invite row, so a maxUses=1 link cannot
+      // admit two people at once, and only a genuinely new membership spends a use.
+      const result = await joinJarViaInvite({
+        token: input.token,
+        userId: ctx.user.id,
+        displayName: ctx.user.name ?? `Member ${ctx.user.id}`,
+      });
+      if (!result) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Shared jars need a database connection.",
+        });
+      }
+      switch (result.outcome) {
+        case "invalid-token":
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "That invite link is not valid.",
+          });
+        case "closed":
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: inviteStatusMessage(result.status),
+          });
+        case "jar-missing":
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "That jar no longer exists.",
+          });
+        case "already-member":
+          return { jarId: result.jarId, alreadyMember: true } as const;
+        case "joined":
+          return { jarId: result.jarId, alreadyMember: false } as const;
+      }
+    }),
 
   /**
    * Turn a device-local jar into a shared one, carrying its whole history.
@@ -445,42 +635,52 @@ export const sharedJarRouter = router({
    * remainder between the balance and the recorded history becomes an explicit
    * opening contribution, dated when the jar was created.
    */
-  importPersonal: protectedProcedure.input(personalShareSchema).mutation(async ({ ctx, input }) => {
-    if (input.balance > 0 && input.entries.length === 0 && openingAdjustment(input) <= 0) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "That jar has a balance but no history to import." });
-    }
+  importPersonal: protectedProcedure
+    .input(personalShareSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (
+        input.balance > 0 &&
+        input.entries.length === 0 &&
+        openingAdjustment(input) <= 0
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "That jar has a balance but no history to import.",
+        });
+      }
 
-    const adjustment = openingAdjustment(input);
-    if (adjustment < 0) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "This jar's history adds up to more than its balance, so it cannot be shared safely.",
+      const adjustment = openingAdjustment(input);
+      if (adjustment < 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "This jar's history adds up to more than its balance, so it cannot be shared safely.",
+        });
+      }
+
+      const result = await importPersonalJar({
+        ownerId: ctx.user.id,
+        ownerName: ctx.user.name ?? "You",
+        sourceLocalId: input.sourceLocalId,
+        name: input.name,
+        icon: input.icon,
+        accent: input.accent,
+        kind: input.kind,
+        target: input.target,
+        createdAt: new Date(input.createdAt),
+        deadline: input.deadline,
+        streak: input.streak,
+        lastDepositAt: input.lastDepositAt,
+        openingAdjustment: adjustment,
+        entries: input.entries.map((entry) => ({
+          amount: entry.amount,
+          direction: entry.direction,
+          at: new Date(entry.at),
+          note: entry.note,
+          source: entry.source,
+        })),
       });
-    }
 
-    const result = await importPersonalJar({
-      ownerId: ctx.user.id,
-      ownerName: ctx.user.name ?? "You",
-      sourceLocalId: input.sourceLocalId,
-      name: input.name,
-      icon: input.icon,
-      accent: input.accent,
-      kind: input.kind,
-      target: input.target,
-      createdAt: new Date(input.createdAt),
-      deadline: input.deadline,
-      streak: input.streak,
-      lastDepositAt: input.lastDepositAt,
-      openingAdjustment: adjustment,
-      entries: input.entries.map((entry) => ({
-        amount: entry.amount,
-        direction: entry.direction,
-        at: new Date(entry.at),
-        note: entry.note,
-        source: entry.source,
-      })),
-    });
-
-    return requireDb(result);
-  }),
+      return requireDb(result);
+    }),
 });

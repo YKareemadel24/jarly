@@ -21,7 +21,11 @@ import {
 import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
-import { isApiBaseUrlConfigured, isSupabaseConfigured } from "@/constants/oauth";
+import {
+  isApiBaseUrlConfigured,
+  isSupabaseConfigured,
+} from "@/constants/oauth";
+import { initErrorReporting } from "@/lib/error-reporting";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -61,6 +65,9 @@ export default function RootLayout() {
   );
   const [trpcClient] = useState(() => createTRPCClient());
 
+  // Install the global uncaught-error hook once (idempotent, dev-red-box safe).
+  useState(() => initErrorReporting());
+
   // Fail loudly, once, when a build is missing configuration it cannot recover
   // from at runtime — much easier to diagnose than a silent "no shared jars".
   useEffect(() => {
@@ -78,7 +85,10 @@ export default function RootLayout() {
 
   // Ensure minimum 8px padding for top and bottom on mobile
   const providerInitialMetrics = useMemo(() => {
-    const metrics = initialWindowMetrics ?? { insets: initialInsets, frame: initialFrame };
+    const metrics = initialWindowMetrics ?? {
+      insets: initialInsets,
+      frame: initialFrame,
+    };
     return {
       ...metrics,
       insets: {
@@ -136,7 +146,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider initialMetrics={providerInitialMetrics}><SavingsProvider><SettingsProvider>{content}</SettingsProvider></SavingsProvider></SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={providerInitialMetrics}>
+        <SavingsProvider>
+          <SettingsProvider>{content}</SettingsProvider>
+        </SavingsProvider>
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }

@@ -31,7 +31,10 @@ export async function apiFetch(
     // An unreachable server (or a browser-blocked request) produces no Response
     // at all. Keep intentional cancellations intact, but explain network failures
     // instead of exposing the browser's opaque "Failed to fetch" message.
-    if (init?.signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+    if (
+      init?.signal?.aborted ||
+      (error instanceof Error && error.name === "AbortError")
+    ) {
       throw error;
     }
     // Never retry here: the server may already have committed a mutation.

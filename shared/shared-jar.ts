@@ -63,6 +63,44 @@ function timeOf(value: Date | string): number {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function assembleTotals(
+  jar: Pick<SharedJarRow, "target" | "ownerId">,
+  members: SharedJarMemberRow[],
+  byUser: Map<number, number>,
+  balance: number,
+  totalDeposited: number,
+  depositCount: number,
+  viewerId?: number,
+): SharedJarTotals {
+  const memberTotals = members.map((member) => ({
+    userId: member.userId,
+    displayName: member.displayName,
+    contributed: byUser.get(member.userId) ?? 0,
+    you: viewerId !== undefined && member.userId === viewerId,
+    isOwner: member.userId === jar.ownerId,
+  }));
+
+  // Highest contributor first, then stable by name so the list never jitters.
+  memberTotals.sort(
+    (a, b) =>
+      b.contributed - a.contributed ||
+      a.displayName.localeCompare(b.displayName),
+  );
+
+  const progress =
+    jar.target > 0
+      ? Math.max(0, Math.min(100, Math.round((balance / jar.target) * 100)))
+      : 0;
+
+  return {
+    balance,
+    totalDeposited,
+    progress,
+    depositCount,
+    members: memberTotals,
+  };
+}
+
 /**
  * Derive a shared jar's balance and per-member totals from its append-only
  * entry log. Balances are summed rather than stored, so two devices reading the
@@ -95,32 +133,88 @@ export function sharedJarTotals(
     }
   }
 
-  const memberTotals = members.map((member) => ({
-    userId: member.userId,
-    displayName: member.displayName,
-    contributed: byUser.get(member.userId) ?? 0,
-    you: viewerId !== undefined && member.userId === viewerId,
-    isOwner: member.userId === jar.ownerId,
-  }));
+  return assembleTotals(
+    jar,
+    members,
+    byUser,
+    balance,
+    totalDeposited,
+    depositCount,
+    viewerId,
+  );
+}
 
-  // Highest contributor first, then stable by name so the list never jitters.
-  memberTotals.sort((a, b) => b.contributed - a.contributed || a.displayName.localeCompare(b.displayName));
+/** A per-(user, direction) sum over the entry log, as a SQL GROUP BY produces. */
+export type SharedJarAggregateRow = {
+  userId: number;
+  direction: "deposit" | "withdrawal";
+  /** Summed integer minor units for this (user, direction). */
+  total: number;
+  /** Number of entries in the group; only the deposit group's count is read. */
+  count: number;
+};
 
-  const progress = jar.target > 0 ? Math.max(0, Math.min(100, Math.round((balance / jar.target) * 100))) : 0;
+/**
+ * The same derivation as `sharedJarTotals`, but from pre-aggregated sums.
+ *
+ * Used where loading every entry row just to add it up would be wasteful —
+ * notably the jar list, which the client re-fetches on a foreground timer.
+ * Both paths end in `assembleTotals`, so their answers cannot drift apart.
+ */
+export function sharedJarTotalsFromAggregates(
+  jar: Pick<SharedJarRow, "target" | "ownerId">,
+  members: SharedJarMemberRow[],
+  aggregates: SharedJarAggregateRow[],
+  viewerId?: number,
+): SharedJarTotals {
+  const byUser = new Map<number, number>();
+  let balance = 0;
+  let totalDeposited = 0;
+  let depositCount = 0;
 
-  return { balance, totalDeposited, progress, depositCount, members: memberTotals };
+  for (const row of aggregates) {
+    if (!Number.isInteger(row.total)) continue;
+    if (row.direction === "deposit") {
+      balance += row.total;
+      totalDeposited += row.total;
+      depositCount += row.count;
+      byUser.set(row.userId, (byUser.get(row.userId) ?? 0) + row.total);
+    } else {
+      balance -= row.total;
+      byUser.set(row.userId, (byUser.get(row.userId) ?? 0) - row.total);
+    }
+  }
+
+  return assembleTotals(
+    jar,
+    members,
+    byUser,
+    balance,
+    totalDeposited,
+    depositCount,
+    viewerId,
+  );
 }
 
 /**
  * Newest-first entries for display. Timestamps come back from Postgres as Date and
  * from superjson as strings, so normalise before comparing.
  */
-export function orderEntriesNewestFirst<T extends { createdAt: Date | string }>(entries: T[]): T[] {
+export function orderEntriesNewestFirst<T extends { createdAt: Date | string }>(
+  entries: T[],
+): T[] {
   return [...entries].sort((a, b) => timeOf(b.createdAt) - timeOf(a.createdAt));
 }
 
 /** Accents a shared jar may use — mirrors the client palette. */
-export const SHARED_JAR_ACCENTS = ["coral", "amber", "mint", "ocean", "berry", "clay"] as const;
+export const SHARED_JAR_ACCENTS = [
+  "coral",
+  "amber",
+  "mint",
+  "ocean",
+  "berry",
+  "clay",
+] as const;
 
 export type SharedJarAccent = (typeof SHARED_JAR_ACCENTS)[number];
 
@@ -129,10 +223,16 @@ export type SharedJarAccent = (typeof SHARED_JAR_ACCENTS)[number];
  * request is acceptable. The amount is checked as an integer because the client
  * sends minor units and a float would silently round-trip badly.
  */
-export function validateContribution(amount: number, direction: "deposit" | "withdrawal", balance: number): string | null {
-  if (!Number.isInteger(amount)) return "Amount must be an integer number of minor units.";
+export function validateContribution(
+  amount: number,
+  direction: "deposit" | "withdrawal",
+  balance: number,
+): string | null {
+  if (!Number.isInteger(amount))
+    return "Amount must be an integer number of minor units.";
   if (amount <= 0) return "Amount must be greater than zero.";
-  if (direction === "withdrawal" && amount > balance) return "You cannot withdraw more than the jar holds.";
+  if (direction === "withdrawal" && amount > balance)
+    return "You cannot withdraw more than the jar holds.";
   return null;
 }
 
@@ -148,7 +248,10 @@ export type SharedJarInviteRow = {
 export type InviteStatus = "open" | "expired" | "used-up" | "revoked";
 
 /** Why an invite can no longer be joined, or "open" when it still can. */
-export function inviteStatus(invite: SharedJarInviteRow, now: Date = new Date()): InviteStatus {
+export function inviteStatus(
+  invite: SharedJarInviteRow,
+  now: Date = new Date(),
+): InviteStatus {
   if (invite.revoked) return "revoked";
   if (timeOf(invite.expiresAt) <= now.getTime()) return "expired";
   if (invite.maxUses > 0 && invite.uses >= invite.maxUses) return "used-up";
@@ -156,7 +259,9 @@ export function inviteStatus(invite: SharedJarInviteRow, now: Date = new Date())
 }
 
 /** Human explanation for a closed invite, so the join screen can be specific. */
-export function inviteStatusMessage(status: Exclude<InviteStatus, "open">): string {
+export function inviteStatusMessage(
+  status: Exclude<InviteStatus, "open">,
+): string {
   switch (status) {
     case "expired":
       return "This invite has expired. Ask for a new link.";

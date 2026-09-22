@@ -1,12 +1,40 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
 import { createSharedRefresh, isSharedAuthFailure } from "@/lib/shared-refresh";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { contributeToSharedJar, createSharedJar, fetchSharedJars, importPersonalJar, inviteToSharedJar, joinInvite } from "@/lib/shared-jar-api";
-import { mergeJars, remoteIdFromLocalId, sharedJarLocalId, sharedJarToJar } from "@/lib/shared-jars";
-import { personalSharePayload, replaceWithShared } from "@/shared/personal-share";
-import { TRANSFER_VERSION, decodeTransferFrames, encodeTransferFrames, type TransferSnapshot } from "@/shared/transfer";
+import {
+  contributeToSharedJar,
+  createSharedJar,
+  fetchSharedJars,
+  importPersonalJar,
+  inviteToSharedJar,
+  joinInvite,
+} from "@/lib/shared-jar-api";
+import {
+  mergeJars,
+  remoteIdFromLocalId,
+  sharedJarLocalId,
+  sharedJarToJar,
+} from "@/lib/shared-jars";
+import {
+  personalSharePayload,
+  replaceWithShared,
+} from "@/shared/personal-share";
+import {
+  TRANSFER_VERSION,
+  decodeTransferFrames,
+  encodeTransferFrames,
+  type TransferSnapshot,
+} from "@/shared/transfer";
 
 import {
   CADENCES,
@@ -37,8 +65,33 @@ import {
   toMinor,
 } from "@/lib/savings-core";
 
-export type { Accent, Badge, BadgeId, BadgeStats, Cadence, Entry, Jar, JarKind, JarMember, QuickPreset, QuickPresetId };
-export { CADENCES, badges, badgeStats, deadlineCountdown, jarAccent, jarAccentDark, money, newlyEarnedBadges, percent, quickPresets, sanitizeAmountInput, toMinor };
+export type {
+  Accent,
+  Badge,
+  BadgeId,
+  BadgeStats,
+  Cadence,
+  Entry,
+  Jar,
+  JarKind,
+  JarMember,
+  QuickPreset,
+  QuickPresetId,
+};
+export {
+  CADENCES,
+  badges,
+  badgeStats,
+  deadlineCountdown,
+  jarAccent,
+  jarAccentDark,
+  money,
+  newlyEarnedBadges,
+  percent,
+  quickPresets,
+  sanitizeAmountInput,
+  toMinor,
+};
 
 import { useSettings } from "@/lib/settings-store";
 
@@ -53,7 +106,10 @@ const BACKUP_KEY = "saving-jar:v3:backup";
 
 const StoreContext = createContext<Store | null>(null);
 
-type JarInput = Pick<Jar, "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak"> & {
+type JarInput = Pick<
+  Jar,
+  "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak"
+> & {
   recurring?: Jar["recurring"];
 };
 
@@ -70,14 +126,35 @@ type Store = {
   /** Refetch shared jars from the server. */
   refreshShared: () => Promise<void>;
   addJar: (input: JarInput) => string;
-  editJar: (id: string, input: Partial<Pick<Jar, "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak" | "recurring">>) => void;
+  editJar: (
+    id: string,
+    input: Partial<
+      Pick<
+        Jar,
+        | "name"
+        | "target"
+        | "accent"
+        | "icon"
+        | "kind"
+        | "deadline"
+        | "streak"
+        | "recurring"
+      >
+    >,
+  ) => void;
   archiveJar: (id: string) => void;
   /** Bring an archived jar back into the active list. */
   restoreJar: (id: string) => void;
   /** Permanently remove an archived jar and its history. */
   deleteJarPermanently: (id: string) => void;
   /** Returns the highest milestone newly reached, or undefined when rejected. */
-  addEntry: (id: string, amountMinor: number, direction: Entry["direction"], note?: string, source?: Entry["source"]) => number | undefined;
+  addEntry: (
+    id: string,
+    amountMinor: number,
+    direction: Entry["direction"],
+    note?: string,
+    source?: Entry["source"],
+  ) => number | undefined;
   /** Remote id backing a shared jar, or undefined for a device-local jar. */
   remoteIdOf: (id: string) => number | undefined;
   /**
@@ -90,7 +167,12 @@ type Store = {
    * Contribute to a shared jar through the server. The server recomputes the
    * balance, so this refreshes the jar list rather than mutating locally.
    */
-  contributeShared: (id: string, amountMinor: number, direction: Entry["direction"], note?: string) => Promise<void>;
+  contributeShared: (
+    id: string,
+    amountMinor: number,
+    direction: Entry["direction"],
+    note?: string,
+  ) => Promise<void>;
   /** Owner-only: invite an account to a shared jar by its user id. */
   inviteShared: (id: string, userId: number) => Promise<void>;
   /**
@@ -115,7 +197,12 @@ type Store = {
    * Fold a scanned transfer into this device. Returns the number of jars added
    * or updated, so the receiving screen can report something true.
    */
-  importTransfer: (frames: string[]) => { added: number; updated: number; skipped: number; error?: string };
+  importTransfer: (frames: string[]) => {
+    added: number;
+    updated: number;
+    skipped: number;
+    error?: string;
+  };
   total: number;
 };
 
@@ -125,7 +212,10 @@ function parseJars(raw: string | null): Jar[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((item) => item && typeof item === "object" && typeof item.id === "string")
+      .filter(
+        (item) =>
+          item && typeof item === "object" && typeof item.id === "string",
+      )
       .map((jar) => normaliseJar(jar));
   } catch {
     return [];
@@ -208,20 +298,39 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
     setLocalJars(next);
   };
 
-  const syncController = useRef<ReturnType<typeof createSharedRefresh<Awaited<ReturnType<typeof fetchSharedJars>>>> | undefined>(undefined);
-  const refreshShared = useCallback(() => syncController.current?.refresh() ?? Promise.resolve(), []);
+  const syncController = useRef<
+    | ReturnType<
+        typeof createSharedRefresh<Awaited<ReturnType<typeof fetchSharedJars>>>
+      >
+    | undefined
+  >(undefined);
+  const refreshShared = useCallback(
+    () => syncController.current?.refresh() ?? Promise.resolve(),
+    [],
+  );
 
   useEffect(() => {
-    let active = AppState.currentState == null || AppState.currentState === "active";
+    let active =
+      AppState.currentState == null || AppState.currentState === "active";
     const controller = createSharedRefresh({
       fetch: fetchSharedJars,
-      receive: (payloads) => { setSharedJars(payloads.map(sharedJarToJar)); setSyncError(null); },
+      receive: (payloads) => {
+        setSharedJars(payloads.map(sharedJarToJar));
+        setSyncError(null);
+      },
       failed: (error) => {
         if (isSharedAuthFailure(error)) setSharedJars([]);
-        setSyncError(error instanceof Error ? error.message : "Could not load shared jars.");
+        setSyncError(
+          error instanceof Error
+            ? error.message
+            : "Could not load shared jars.",
+        );
       },
       busy: setSyncing,
-      active: () => active && (typeof document === "undefined" || document.visibilityState !== "hidden"),
+      active: () =>
+        active &&
+        (typeof document === "undefined" ||
+          document.visibilityState !== "hidden"),
     });
     syncController.current = controller;
     const refreshIfActive = controller.foreground;
@@ -230,14 +339,18 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       active = state === "active";
       refreshIfActive();
     });
-    if (typeof window !== "undefined") window.addEventListener("online", refreshIfActive);
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", refreshIfActive);
+    if (typeof window !== "undefined")
+      window.addEventListener("online", refreshIfActive);
+    if (typeof document !== "undefined")
+      document.addEventListener("visibilitychange", refreshIfActive);
     return () => {
       controller.dispose();
       syncController.current = undefined;
       subscription.remove();
-      if (typeof window !== "undefined") window.removeEventListener("online", refreshIfActive);
-      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", refreshIfActive);
+      if (typeof window !== "undefined")
+        window.removeEventListener("online", refreshIfActive);
+      if (typeof document !== "undefined")
+        document.removeEventListener("visibilitychange", refreshIfActive);
     };
   }, [refreshShared]);
 
@@ -253,25 +366,49 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       syncing,
       syncError,
       refreshShared,
-      total: jars.filter((jar) => !jar.archived).reduce((sum, jar) => sum + jar.balance, 0),
+      total: jars
+        .filter((jar) => !jar.archived)
+        .reduce((sum, jar) => sum + jar.balance, 0),
       remoteIdOf,
       addJar: (input) => {
         const id = `jar-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        commit([...jarsRef.current, { ...input, id, balance: 0, createdAt: new Date().toISOString(), milestonesHit: [], entries: [] }]);
+        commit([
+          ...jarsRef.current,
+          {
+            ...input,
+            id,
+            balance: 0,
+            createdAt: new Date().toISOString(),
+            milestonesHit: [],
+            entries: [],
+          },
+        ]);
         return id;
       },
       editJar: (id, input) => {
         // A shared jar is edited through sharedJar.update, never locally.
         if (remoteIdOf(id) !== undefined) return;
-        commit(jarsRef.current.map((jar) => (jar.id === id ? { ...jar, ...input } : jar)));
+        commit(
+          jarsRef.current.map((jar) =>
+            jar.id === id ? { ...jar, ...input } : jar,
+          ),
+        );
       },
       archiveJar: (id) => {
         if (remoteIdOf(id) !== undefined) return;
-        commit(jarsRef.current.map((jar) => (jar.id === id ? { ...jar, archived: true } : jar)));
+        commit(
+          jarsRef.current.map((jar) =>
+            jar.id === id ? { ...jar, archived: true } : jar,
+          ),
+        );
       },
       restoreJar: (id) => {
         if (remoteIdOf(id) !== undefined) return;
-        commit(jarsRef.current.map((jar) => (jar.id === id ? { ...jar, archived: false } : jar)));
+        commit(
+          jarsRef.current.map((jar) =>
+            jar.id === id ? { ...jar, archived: false } : jar,
+          ),
+        );
       },
       deleteJarPermanently: (id) => {
         if (remoteIdOf(id) !== undefined) return;
@@ -293,15 +430,22 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       contributeShared: async (id, amountMinor, direction, note) => {
         const remoteId = remoteIdOf(id);
         if (remoteId === undefined) throw new Error("That jar is not shared.");
-        if (!Number.isInteger(amountMinor) || amountMinor <= 0) throw new Error("Amount must be greater than zero.");
-        await contributeToSharedJar({ jarId: remoteId, amount: amountMinor, direction, note });
+        if (!Number.isInteger(amountMinor) || amountMinor <= 0)
+          throw new Error("Amount must be greater than zero.");
+        await contributeToSharedJar({
+          jarId: remoteId,
+          amount: amountMinor,
+          direction,
+          note,
+        });
         // Re-read rather than patching: another member may have contributed too.
         await refreshShared();
       },
       inviteShared: async (id, userId) => {
         const remoteId = remoteIdOf(id);
         if (remoteId === undefined) throw new Error("That jar is not shared.");
-        if (!Number.isInteger(userId) || userId <= 0) throw new Error("Enter a valid account id.");
+        if (!Number.isInteger(userId) || userId <= 0)
+          throw new Error("Enter a valid account id.");
         await inviteToSharedJar(remoteId, userId);
         // Re-read so the new member (and their zero balance) appears immediately.
         await refreshShared();
@@ -316,7 +460,8 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       shareExisting: async (id) => {
         const source = jarsRef.current.find((jar) => jar.id === id);
         if (!source) throw new Error("That jar is no longer available.");
-        if (remoteIdOf(id) !== undefined) return sharedJarLocalId(remoteIdOf(id) as number);
+        if (remoteIdOf(id) !== undefined)
+          return sharedJarLocalId(remoteIdOf(id) as number);
 
         // One attempt per local jar: the server recognises this id on retry.
         const imported = await importPersonalJar(personalSharePayload(source));
@@ -324,7 +469,9 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
 
         // The server row may not have reached the refreshed list yet if the
         // fetch raced the import, so fall back to projecting the known shape.
-        const shared = jarsRef.current.find((jar) => jar.remoteId === String(imported.jarId));
+        const shared = jarsRef.current.find(
+          (jar) => jar.remoteId === String(imported.jarId),
+        );
         const authoritative =
           shared ??
           sharedJarToJar({
@@ -345,7 +492,13 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
 
         // Only now does the device-local copy go away. Until this line the
         // personal jar is untouched, so a failure above loses nothing.
-        commit(replaceWithShared(jarsRef.current, id, authoritative) as typeof jarsRef.current);
+        commit(
+          replaceWithShared(
+            jarsRef.current,
+            id,
+            authoritative,
+          ) as typeof jarsRef.current,
+        );
         return authoritative.id;
       },
       exportTransfer: (currency) => {
@@ -356,16 +509,30 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
           version: TRANSFER_VERSION,
           exportedAt: new Date().toISOString(),
           currency,
-          jars: jarsRef.current.filter((jar) => remoteIdOf(jar.id) === undefined),
+          jars: jarsRef.current.filter(
+            (jar) => remoteIdOf(jar.id) === undefined,
+          ),
         };
         return encodeTransferFrames(snapshot);
       },
       importTransfer: (frames) => {
         const assembly = decodeTransferFrames(frames);
-        if (!assembly) return { added: 0, updated: 0, skipped: 0, error: "That does not look like a Saving Jar code." };
-        if (assembly.error) return { added: 0, updated: 0, skipped: 0, error: assembly.error };
+        if (!assembly)
+          return {
+            added: 0,
+            updated: 0,
+            skipped: 0,
+            error: "That does not look like a Saving Jar code.",
+          };
+        if (assembly.error)
+          return { added: 0, updated: 0, skipped: 0, error: assembly.error };
         if (!assembly.snapshot) {
-          return { added: 0, updated: 0, skipped: 0, error: `Still missing ${assembly.missing.length} code${assembly.missing.length === 1 ? "" : "s"}.` };
+          return {
+            added: 0,
+            updated: 0,
+            skipped: 0,
+            error: `Still missing ${assembly.missing.length} code${assembly.missing.length === 1 ? "" : "s"}.`,
+          };
         }
 
         const incoming = assembly.snapshot.jars;
@@ -407,17 +574,25 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         // the server stays the single writer of their balance.
         if (remoteIdOf(id) !== undefined) return undefined;
         const jar = jarsRef.current.find((candidate) => candidate.id === id);
-        if (!jar || !Number.isInteger(amountMinor) || amountMinor <= 0) return undefined;
-        if (direction === "withdrawal" && amountMinor > jar.balance) return undefined;
+        if (!jar || !Number.isInteger(amountMinor) || amountMinor <= 0)
+          return undefined;
+        if (direction === "withdrawal" && amountMinor > jar.balance)
+          return undefined;
         const applied = applyEntry(jar, amountMinor, direction, note, source);
         if (!applied) return undefined;
-        commit(jarsRef.current.map((item) => (item.id === id ? applied.jar : item)));
-        return applied.reached.length ? Math.max(...applied.reached) : undefined;
+        commit(
+          jarsRef.current.map((item) => (item.id === id ? applied.jar : item)),
+        );
+        return applied.reached.length
+          ? Math.max(...applied.reached)
+          : undefined;
       },
     };
   }, [localJars, sharedJars, ready, syncing, syncError, refreshShared, commit]);
 
-  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+  );
 }
 
 export function useSavings() {

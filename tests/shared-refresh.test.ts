@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createSharedRefresh, isSharedAuthFailure } from "../lib/shared-refresh";
+import {
+  createSharedRefresh,
+  isSharedAuthFailure,
+} from "../lib/shared-refresh";
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => { resolve = done; });
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 };
 afterEach(() => vi.useRealTimers());
@@ -13,7 +18,13 @@ describe("shared refresh", () => {
     vi.useFakeTimers();
     let active = true;
     const fetch = vi.fn().mockResolvedValue([]);
-    const controller = createSharedRefresh({ fetch, active: () => active, receive: vi.fn(), failed: vi.fn(), busy: vi.fn() });
+    const controller = createSharedRefresh({
+      fetch,
+      active: () => active,
+      receive: vi.fn(),
+      failed: vi.fn(),
+      busy: vi.fn(),
+    });
     controller.foreground();
     await vi.advanceTimersByTimeAsync(10_000);
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -33,8 +44,17 @@ describe("shared refresh", () => {
     const newer = deferred<number>();
     const receive = vi.fn();
     const busy = vi.fn();
-    const fetch = vi.fn().mockReturnValueOnce(old.promise).mockReturnValueOnce(newer.promise);
-    const controller = createSharedRefresh({ fetch, receive, busy, failed: vi.fn(), active: () => true });
+    const fetch = vi
+      .fn()
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(newer.promise);
+    const controller = createSharedRefresh({
+      fetch,
+      receive,
+      busy,
+      failed: vi.fn(),
+      active: () => true,
+    });
     const first = controller.refresh();
     const second = controller.refresh();
     newer.resolve(50);
@@ -49,11 +69,21 @@ describe("shared refresh", () => {
 
   it("keeps cached data on network failure but clears it on auth rejection", async () => {
     let cache = [50];
-    const fetch = vi.fn().mockRejectedValueOnce(new Error("offline"))
-      .mockRejectedValueOnce({ data: { code: "UNAUTHORIZED" } }).mockResolvedValueOnce([70]);
-    const controller = createSharedRefresh({ fetch, active: () => true, busy: vi.fn(),
-      receive: (value: number[]) => { cache = value; },
-      failed: (error) => { if (isSharedAuthFailure(error)) cache = []; },
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce({ data: { code: "UNAUTHORIZED" } })
+      .mockResolvedValueOnce([70]);
+    const controller = createSharedRefresh({
+      fetch,
+      active: () => true,
+      busy: vi.fn(),
+      receive: (value: number[]) => {
+        cache = value;
+      },
+      failed: (error) => {
+        if (isSharedAuthFailure(error)) cache = [];
+      },
     });
     await controller.refresh();
     expect(cache).toEqual([50]);
@@ -67,7 +97,13 @@ describe("shared refresh", () => {
   it("does not update state after disposal", async () => {
     const pending = deferred<number>();
     const receive = vi.fn();
-    const controller = createSharedRefresh({ fetch: () => pending.promise, receive, failed: vi.fn(), busy: vi.fn(), active: () => true });
+    const controller = createSharedRefresh({
+      fetch: () => pending.promise,
+      receive,
+      failed: vi.fn(),
+      busy: vi.fn(),
+      active: () => true,
+    });
     const work = controller.refresh();
     controller.dispose();
     pending.resolve(42);

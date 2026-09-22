@@ -12,7 +12,10 @@
 // React Native bundle even if it is never called. This module is pure maths.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode/lib/core/qrcode") as {
-  create: (text: string, options?: { errorCorrectionLevel?: "L" | "M" | "Q" | "H" }) => {
+  create: (
+    text: string,
+    options?: { errorCorrectionLevel?: "L" | "M" | "Q" | "H" },
+  ) => {
     modules: { size: number; data: Uint8Array | number[] };
   };
 };

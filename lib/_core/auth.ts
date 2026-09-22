@@ -31,9 +31,12 @@ export type User = {
 export function toUser(account: SupabaseUser): User {
   const metadata = (account.user_metadata ?? {}) as Record<string, unknown>;
   const fullName = [metadata.full_name, metadata.name].find(
-    (value): value is string => typeof value === "string" && value.trim().length > 0,
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0,
   );
-  const provider = (account.app_metadata as { provider?: string } | undefined)?.provider ?? null;
+  const provider =
+    (account.app_metadata as { provider?: string } | undefined)?.provider ??
+    null;
 
   return {
     id: account.id,

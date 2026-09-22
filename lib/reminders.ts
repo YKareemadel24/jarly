@@ -16,8 +16,17 @@ const DAY_MS = 86_400_000;
  *   yields "Due in N days" for opening the deposit flow.
  * - Completed jars never remind.
  */
-export function nextReminder(jars: Jar[], now: Date = new Date(), currency: string = "USD"): { jar: Jar; title: string; detail: string } | undefined {
-  const candidates: { jar: Jar; priority: number; title: string; detail: string }[] = [];
+export function nextReminder(
+  jars: Jar[],
+  now: Date = new Date(),
+  currency: string = "USD",
+): { jar: Jar; title: string; detail: string } | undefined {
+  const candidates: {
+    jar: Jar;
+    priority: number;
+    title: string;
+    detail: string;
+  }[] = [];
 
   for (const jar of jars) {
     if (jar.archived) continue;
@@ -25,7 +34,9 @@ export function nextReminder(jars: Jar[], now: Date = new Date(), currency: stri
 
     const rule = jar.recurring;
     if (rule && !rule.paused && rule.amount > 0) {
-      const due = rule.nextDate ? new Date(rule.nextDate) : new Date(jar.createdAt);
+      const due = rule.nextDate
+        ? new Date(rule.nextDate)
+        : new Date(jar.createdAt);
       const days = Math.ceil((due.getTime() - now.getTime()) / DAY_MS);
       if (days >= 0 && days <= RECURRING_LOOKAHEAD_DAYS) {
         candidates.push({
@@ -41,17 +52,32 @@ export function nextReminder(jars: Jar[], now: Date = new Date(), currency: stri
     if (jar.deadline) {
       const label = deadlineCountdown(jar.deadline, now);
       if (label === "Due today" || label === "1 day left") {
-        candidates.push({ jar, priority: 1, title: `${jar.name} is due ${label.toLowerCase()}`, detail: "A little more today goes a long way." });
+        candidates.push({
+          jar,
+          priority: 1,
+          title: `${jar.name} is due ${label.toLowerCase()}`,
+          detail: "A little more today goes a long way.",
+        });
       } else if (label && label.endsWith("days left")) {
         const days = Number.parseInt(label, 10);
         if (!Number.isNaN(days) && days <= DEADLINE_LOOKAHEAD_DAYS) {
-          candidates.push({ jar, priority: 1, title: `${jar.name} deadline is near`, detail: label === "2 days left" || label === "3 days left" ? `Only ${days} days left.` : `${days} days left.` });
+          candidates.push({
+            jar,
+            priority: 1,
+            title: `${jar.name} deadline is near`,
+            detail:
+              label === "2 days left" || label === "3 days left"
+                ? `Only ${days} days left.`
+                : `${days} days left.`,
+          });
         }
       }
     }
   }
 
-  candidates.sort((a, b) => b.priority - a.priority || a.detail.length - b.detail.length);
+  candidates.sort(
+    (a, b) => b.priority - a.priority || a.detail.length - b.detail.length,
+  );
   const top = candidates[0];
   if (!top) return undefined;
   return { jar: top.jar, title: top.title, detail: top.detail };

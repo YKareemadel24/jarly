@@ -35,10 +35,12 @@
 ### Task 1: Install dependency + export deadline parser
 
 **Files:**
+
 - Modify: `lib/savings-core.ts` (one word: `function parseDeadline` → `export function parseDeadline`)
 - Install: `expo-notifications`
 
 **Interfaces:**
+
 - Consumes: nothing new.
 - Produces: `parseDeadline(deadline: string) => Date | undefined` for Task 2; installed `expo-notifications` package for Task 3.
 
@@ -77,14 +79,17 @@ git commit -m "Add expo-notifications dep, export parseDeadline"
 ### Task 2: Pure due-notification derivation with tests
 
 **Files:**
+
 - Create: `lib/notifications.ts` (pure part only in this task: types + `dueNotifications`)
 - Create: `tests/notifications.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Jar`, `money`, `parseDeadline` from `@/lib/savings-core`.
 - Produces: `DueNotification = { jarId: string; fireDate: string; title: string; detail: string }` and `dueNotifications(jars: Jar[], now?: Date, currency?: string) => DueNotification[]` for Task 3.
 
 Rules (mirror `nextReminder` guards so card and ping agree; max one notification per jar, recurring outranks deadline):
+
 - Skip jar when: archived, funded (`target > 0 && balance >= target`), no candidate below.
 - Recurring candidate: rule present, not paused, amount > 0; `due` = `nextDate` ?? `createdAt`; `days = ceil((due - now) / DAY_MS)`; candidate when `0 <= days <= 1`. `fireDate` = due day at 09:00 local; when that instant is past, `now + 60s`. Title `` `${jar.name} is scheduled` ``, detail `` `${money(rule.amount, currency)} due today.` ``
 - Deadline candidate (only when no recurring candidate): parseable deadline whose due day is today (`startOfDay(due) === startOfDay(now)`). `fireDate` = today 09:00 local, or `now + 60s` when past. Title `` `${jar.name} is due today` ``, detail `"A little more today goes a long way."`
@@ -121,7 +126,12 @@ describe("dueNotifications", () => {
 
   it("schedules a morning ping for a recurring deposit due today", () => {
     const scheduled = jar({
-      recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" },
+      recurring: {
+        amount: 2500,
+        cadence: "weekly",
+        paused: false,
+        nextDate: "2026-06-15T09:00:00.000Z",
+      },
     });
     const [ping] = dueNotifications([scheduled], new Date(at));
     expect(ping.jarId).toBe("trip");
@@ -133,7 +143,12 @@ describe("dueNotifications", () => {
   it("prefers the recurring ping over the deadline ping for the same jar", () => {
     const both = jar({
       deadline: "2026-06-15",
-      recurring: { amount: 2500, cadence: "weekly", paused: false, nextDate: "2026-06-15T09:00:00.000Z" },
+      recurring: {
+        amount: 2500,
+        cadence: "weekly",
+        paused: false,
+        nextDate: "2026-06-15T09:00:00.000Z",
+      },
     });
     expect(dueNotifications([both], new Date(at))).toHaveLength(1);
   });
@@ -142,13 +157,25 @@ describe("dueNotifications", () => {
     const jars = [
       jar({ id: "a", archived: true, deadline: "2026-06-15" }),
       jar({ id: "b", balance: 10000, deadline: "2026-06-15" }),
-      jar({ id: "c", deadline: "2026-06-15", recurring: { amount: 500, cadence: "weekly", paused: true, nextDate: "2026-06-15T09:00:00.000Z" } }),
+      jar({
+        id: "c",
+        deadline: "2026-06-15",
+        recurring: {
+          amount: 500,
+          cadence: "weekly",
+          paused: true,
+          nextDate: "2026-06-15T09:00:00.000Z",
+        },
+      }),
     ];
     expect(dueNotifications(jars, new Date(at))).toEqual([]);
   });
 
   it("schedules a due-day ping for a deadline with no schedule", () => {
-    const [ping] = dueNotifications([jar({ deadline: "2026-06-15" })], new Date(at));
+    const [ping] = dueNotifications(
+      [jar({ deadline: "2026-06-15" })],
+      new Date(at),
+    );
     expect(ping.title).toContain("due today");
   });
 });
@@ -164,23 +191,42 @@ Expected: FAIL with "Failed to resolve import ../lib/notifications" (file does n
 ```ts
 import { type Jar, money, parseDeadline } from "@/lib/savings-core";
 
-export type DueNotification = { jarId: string; fireDate: string; title: string; detail: string };
+export type DueNotification = {
+  jarId: string;
+  fireDate: string;
+  title: string;
+  detail: string;
+};
 
 const DAY_MS = 86_400_000;
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 /** 09:00 local on the due day, or one minute from now when that has passed. */
 function morningFire(due: Date, now: Date): string {
-  const fire = new Date(due.getFullYear(), due.getMonth(), due.getDate(), 9, 0, 0);
-  return (fire.getTime() > now.getTime() ? fire : new Date(now.getTime() + 60_000)).toISOString();
+  const fire = new Date(
+    due.getFullYear(),
+    due.getMonth(),
+    due.getDate(),
+    9,
+    0,
+    0,
+  );
+  return (
+    fire.getTime() > now.getTime() ? fire : new Date(now.getTime() + 60_000)
+  ).toISOString();
 }
 
 /**
  * Pure derivation of schedulable nudges. Mirrors nextReminder() guards so the
  * Home card and the OS ping can never disagree. Max one ping per jar.
  */
-export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: string = "USD"): DueNotification[] {
+export function dueNotifications(
+  jars: Jar[],
+  now: Date = new Date(),
+  currency: string = "USD",
+): DueNotification[] {
   const pings: DueNotification[] = [];
   for (const jar of jars) {
     if (jar.archived) continue;
@@ -188,7 +234,9 @@ export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: 
 
     const rule = jar.recurring;
     if (rule && !rule.paused && rule.amount > 0) {
-      const due = rule.nextDate ? new Date(rule.nextDate) : new Date(jar.createdAt);
+      const due = rule.nextDate
+        ? new Date(rule.nextDate)
+        : new Date(jar.createdAt);
       const days = Math.ceil((due.getTime() - now.getTime()) / DAY_MS);
       if (days >= 0 && days <= 1) {
         pings.push({
@@ -234,9 +282,11 @@ git commit -m "Add pure dueNotifications derivation with tests"
 ### Task 3: OS wrapper — schedule, permission, resync hook
 
 **Files:**
+
 - Modify: `lib/notifications.ts` (append OS section; pure part from Task 2 untouched)
 
 **Interfaces:**
+
 - Consumes: `dueNotifications` from Task 2; `Jar` type; `expo-notifications`, `react-native` (`Platform`, `AppState`), `react`.
 - Produces: `resyncNotifications(jars, opts)`, `requestPermissionAndEnable()`, `useNotificationResync()` for Task 4.
 
@@ -280,7 +330,10 @@ export async function resyncNotifications(
   for (const ping of dueNotifications(jars, now, opts.currency)) {
     await Notifications.scheduleNotificationAsync({
       content: { title: ping.title, body: ping.detail },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(ping.fireDate) },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(ping.fireDate),
+      },
     });
   }
 }
@@ -337,11 +390,13 @@ git commit -m "Add notification OS wrapper and resync hook"
 ### Task 4: Wire toggle + layout, verify end to end
 
 **Files:**
+
 - Create: `components/notification-resync.tsx`
 - Modify: `app/_layout.tsx` (render gate inside `SettingsProvider`)
 - Modify: `app/(tabs)/profile.tsx` (permission-on-toggle-on; denied path)
 
 **Interfaces:**
+
 - Consumes: `useNotificationResync`, `requestPermissionAndEnable`, `resyncNotifications` from `@/lib/notifications`; `useSavings`, `useSettings`.
 
 - [ ] **Step 1: Create the null-rendering gate component**
@@ -359,7 +414,7 @@ export function NotificationResync() {
 }
 ```
 
-- [ ] **Step 2: Mount it inside the providers in app/_layout.tsx**
+- [ ] **Step 2: Mount it inside the providers in app/\_layout.tsx**
 
 Inside the `content` tree, within `SettingsProvider` (both web and native return branches use the same `content`), add next to `<LockScreen />`:
 
@@ -387,7 +442,15 @@ import { requestPermissionAndEnable } from "@/lib/notifications";
 Replace the reminders `Preference` line:
 
 ```tsx
-<Preference icon="notifications-none" title="Saving reminders" detail="Nudges for due deposits and deadlines" value={remindersEnabled} onChange={onRemindersChange} styles={styles} colors={colors} />
+<Preference
+  icon="notifications-none"
+  title="Saving reminders"
+  detail="Nudges for due deposits and deadlines"
+  value={remindersEnabled}
+  onChange={onRemindersChange}
+  styles={styles}
+  colors={colors}
+/>
 ```
 
 And add the handler above the `return` (next to `onPinLockChange`):
@@ -422,7 +485,6 @@ Run: `pnpm check`
 Expected: PASS (exit 0)
 
 - [ ] **Step 5: Manual device pass (dev-client build required — Expo Go lacks the native module)**
-
   - Fresh install → Profile → toggle Saving reminders on → OS prompt appears → Allow → toggle on.
   - Create jar with weekly recurring due tomorrow → background the app → notification fires tomorrow 09:00 local.
   - Toggle off → no further notifications fire.

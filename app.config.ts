@@ -55,10 +55,10 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "Unlock your private Saving Jar with Face ID."
-      }
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+      NSFaceIDUsageDescription: "Unlock your private Saving Jar with Face ID.",
+    },
   },
   android: {
     adaptiveIcon: {

@@ -34,7 +34,14 @@ describe("Saving Jar progress helpers", () => {
   });
 
   it("provides a visual accent for every selectable jar color", () => {
-    expect(Object.keys(jarAccent)).toEqual(["coral", "amber", "mint", "ocean", "berry", "clay"]);
+    expect(Object.keys(jarAccent)).toEqual([
+      "coral",
+      "amber",
+      "mint",
+      "ocean",
+      "berry",
+      "clay",
+    ]);
     expect(jarAccent.ocean).toMatch(/^#/);
   });
 });

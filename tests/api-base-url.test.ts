@@ -7,7 +7,9 @@ import { DEFAULT_API_PORT, getApiBaseUrl } from "../constants/oauth";
 
 /** Pretend the app is being served from this origin by stubbing window.location. */
 const servedFrom = (protocol: string, hostname: string, port: string) =>
-  vi.stubGlobal("window", { location: { protocol, hostname, port, origin: `${protocol}//${hostname}` } });
+  vi.stubGlobal("window", {
+    location: { protocol, hostname, port, origin: `${protocol}//${hostname}` },
+  });
 
 afterEach(() => vi.unstubAllGlobals());
 

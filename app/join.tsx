@@ -1,7 +1,13 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
@@ -32,7 +38,9 @@ export default function JoinScreen() {
   const format = useMoney();
   const params = useLocalSearchParams<{ token?: string; t?: string }>();
   const { joinShared } = useSavings();
-  const { isAuthenticated, loading: authLoading } = useAuth({ autoFetch: true });
+  const { isAuthenticated, loading: authLoading } = useAuth({
+    autoFetch: true,
+  });
 
   // The token arrives as `?t=` from a web link, but a `/join/CODE` path reaches
   // expo-router as `token` instead. Parse either, and go through the shared
@@ -66,7 +74,9 @@ export default function JoinScreen() {
       })
       .catch(() => {
         setPhase("error");
-        setMessage("Could not reach the server. Check your connection and try again.");
+        setMessage(
+          "Could not reach the server. Check your connection and try again.",
+        );
       });
   }, [token]);
 
@@ -88,7 +98,9 @@ export default function JoinScreen() {
     } catch (error) {
       feedback.error();
       setPhase("error");
-      setMessage(error instanceof Error ? error.message : "Could not join this jar.");
+      setMessage(
+        error instanceof Error ? error.message : "Could not join this jar.",
+      );
     } finally {
       setBusy(false);
     }
@@ -103,12 +115,18 @@ export default function JoinScreen() {
     router.push("/login" as never);
   };
 
-  const accent = preview?.ok ? (accents[preview.jar.accent as keyof typeof accents] ?? accents.ocean) : accents.ocean;
+  const accent = preview?.ok
+    ? (accents[preview.jar.accent as keyof typeof accents] ?? accents.ocean)
+    : accents.ocean;
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} className="p-5">
       <View style={styles.header}>
-        <Pressable accessibilityLabel="Go back" onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.circle, pressed && styles.pressed]}>
+        <Pressable
+          accessibilityLabel="Go back"
+          onPress={() => router.replace("/(tabs)" as never)}
+          style={({ pressed }) => [styles.circle, pressed && styles.pressed]}
+        >
           <MaterialIcons name="close" size={20} color={colors.foreground} />
         </Pressable>
       </View>
@@ -126,52 +144,98 @@ export default function JoinScreen() {
             <MaterialIcons name="link-off" size={26} color={colors.error} />
           </View>
           <Text style={styles.title}>This link did not work.</Text>
-          <Text style={styles.copy}>{message ?? "Ask the person who sent it for a new one."}</Text>
-          <Pressable onPress={() => router.replace("/(tabs)" as never)} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          <Text style={styles.copy}>
+            {message ?? "Ask the person who sent it for a new one."}
+          </Text>
+          <Pressable
+            onPress={() => router.replace("/(tabs)" as never)}
+            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+          >
             <Text style={styles.primaryText}>Back to my jars</Text>
           </Pressable>
         </View>
       ) : null}
 
-      {preview?.ok && (phase === "preview" || phase === "joining" || phase === "joined") ? (
+      {preview?.ok &&
+      (phase === "preview" || phase === "joining" || phase === "joined") ? (
         <View style={styles.body}>
           <Text style={styles.eyebrow}>YOU ARE INVITED</Text>
           <Text style={styles.title}>Save it together.</Text>
           <Text style={styles.copy}>
-            {preview.inviterName ? `${preview.inviterName} added you to a shared jar.` : "You have been added to a shared jar."}
+            {preview.inviterName
+              ? `${preview.inviterName} added you to a shared jar.`
+              : "You have been added to a shared jar."}
           </Text>
 
-          <View style={[styles.card, { backgroundColor: `${accent}12`, borderColor: `${accent}44` }]}>
-            <JarVessel accent={accent} icon={preview.jar.icon} progress={0} size="medium" />
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: `${accent}12`, borderColor: `${accent}44` },
+            ]}
+          >
+            <JarVessel
+              accent={accent}
+              icon={preview.jar.icon}
+              progress={0}
+              size="medium"
+            />
             <Text style={styles.jarName}>{preview.jar.name}</Text>
             <Text style={styles.jarMeta}>
-              {format(preview.jar.target)} goal · {preview.members} {preview.members === 1 ? "person" : "people"} saving
+              {format(preview.jar.target)} goal · {preview.members}{" "}
+              {preview.members === 1 ? "person" : "people"} saving
             </Text>
           </View>
 
           <Text style={styles.note}>
-            Everyone on this jar adds to the same balance, and it stays in step on every device they sign in on.
+            Everyone on this jar adds to the same balance, and it stays in step
+            on every device they sign in on.
           </Text>
 
           {phase === "joined" ? (
             <View style={styles.done}>
               <MaterialIcons name="check-circle" size={19} color={accent} />
-              <Text style={[styles.doneText, { color: accent }]}>Joined. Opening the jar…</Text>
+              <Text style={[styles.doneText, { color: accent }]}>
+                Joined. Opening the jar…
+              </Text>
             </View>
           ) : !isAuthenticated && !authLoading ? (
             <>
-              <Pressable onPress={openSignIn} style={({ pressed }) => [styles.primary, { backgroundColor: colors.primary }, pressed && styles.pressed]}>
+              <Pressable
+                onPress={openSignIn}
+                style={({ pressed }) => [
+                  styles.primary,
+                  { backgroundColor: colors.primary },
+                  pressed && styles.pressed,
+                ]}
+              >
                 <Text style={styles.primaryText}>Sign in to join</Text>
               </Pressable>
-              <Text style={styles.fine}>A shared jar lives on your account, so it needs a sign-in. Personal jars do not.</Text>
+              <Text style={styles.fine}>
+                A shared jar lives on your account, so it needs a sign-in.
+                Personal jars do not.
+              </Text>
             </>
           ) : (
-            <Pressable disabled={busy || authLoading} onPress={accept} style={({ pressed }) => [styles.primary, { backgroundColor: accent }, (busy || authLoading) && styles.disabled, pressed && !busy && styles.pressed]}>
-              <Text style={styles.primaryText}>{phase === "joining" ? "Joining…" : "Join this jar"}</Text>
+            <Pressable
+              disabled={busy || authLoading}
+              onPress={accept}
+              style={({ pressed }) => [
+                styles.primary,
+                { backgroundColor: accent },
+                (busy || authLoading) && styles.disabled,
+                pressed && !busy && styles.pressed,
+              ]}
+            >
+              <Text style={styles.primaryText}>
+                {phase === "joining" ? "Joining…" : "Join this jar"}
+              </Text>
             </Pressable>
           )}
 
-          <Pressable onPress={() => router.replace("/(tabs)" as never)} style={styles.secondary}>
+          <Pressable
+            onPress={() => router.replace("/(tabs)" as never)}
+            style={styles.secondary}
+          >
             <Text style={styles.secondaryText}>Not now</Text>
           </Pressable>
         </View>
@@ -183,24 +247,92 @@ export default function JoinScreen() {
 const makeStyles = (c: ThemeColorPalette) =>
   StyleSheet.create({
     header: { flexDirection: "row", justifyContent: "flex-end" },
-    circle: { width: 38, height: 38, borderRadius: 999, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, alignItems: "center", justifyContent: "center" },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingBottom: 40 },
+    circle: {
+      width: 38,
+      height: 38,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      paddingBottom: 40,
+    },
     body: { flex: 1, paddingTop: 8 },
-    eyebrow: { color: c.muted, fontSize: 10, letterSpacing: 1.4, fontWeight: "800" },
-    title: { color: c.foreground, fontFamily: "Georgia", fontSize: 30, lineHeight: 35, marginTop: 8 },
-    copy: { color: c.muted, fontSize: 13.5, lineHeight: 20, marginTop: 8, maxWidth: 320, textAlign: "center" },
+    eyebrow: {
+      color: c.muted,
+      fontSize: 10,
+      letterSpacing: 1.4,
+      fontWeight: "800",
+    },
+    title: {
+      color: c.foreground,
+      fontFamily: "Georgia",
+      fontSize: 30,
+      lineHeight: 35,
+      marginTop: 8,
+    },
+    copy: {
+      color: c.muted,
+      fontSize: 13.5,
+      lineHeight: 20,
+      marginTop: 8,
+      maxWidth: 320,
+      textAlign: "center",
+    },
     quiet: { color: c.muted, fontSize: 13 },
-    card: { marginTop: 24, borderRadius: 26, borderWidth: 1, padding: 20, alignItems: "center" },
-    jarName: { color: c.foreground, fontFamily: "Georgia", fontSize: 21, marginTop: 14, textAlign: "center" },
+    card: {
+      marginTop: 24,
+      borderRadius: 26,
+      borderWidth: 1,
+      padding: 20,
+      alignItems: "center",
+    },
+    jarName: {
+      color: c.foreground,
+      fontFamily: "Georgia",
+      fontSize: 21,
+      marginTop: 14,
+      textAlign: "center",
+    },
     jarMeta: { color: c.muted, fontSize: 12, marginTop: 6, fontWeight: "700" },
     note: { color: c.muted, fontSize: 12, lineHeight: 18, marginTop: 18 },
-    icon: { width: 58, height: 58, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-    primary: { minHeight: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 20 },
+    icon: {
+      width: 58,
+      height: 58,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    primary: {
+      minHeight: 52,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 20,
+    },
     primaryText: { color: "#FFFDF9", fontSize: 15, fontWeight: "800" },
     disabled: { opacity: 0.55 },
-    secondary: { minHeight: 46, alignItems: "center", justifyContent: "center", marginTop: 6 },
+    secondary: {
+      minHeight: 46,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 6,
+    },
     secondaryText: { color: c.muted, fontSize: 13, fontWeight: "700" },
-    done: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 22 },
+    done: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginTop: 22,
+    },
     doneText: { fontSize: 14, fontWeight: "800" },
     fine: { color: c.muted, fontSize: 11, lineHeight: 16, marginTop: 10 },
     pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },

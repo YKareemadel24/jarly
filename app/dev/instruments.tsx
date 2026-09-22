@@ -75,12 +75,18 @@ function InstrumentsInner() {
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} className="p-5">
-      <Text className="text-[10px] font-extrabold tracking-widest text-muted">DEV CHECK</Text>
-      <Text className="mt-2 text-3xl leading-9 text-foreground" style={{ fontFamily: "Georgia" }}>
+      <Text className="text-[10px] font-extrabold tracking-widest text-muted">
+        DEV CHECK
+      </Text>
+      <Text
+        className="mt-2 text-3xl leading-9 text-foreground"
+        style={{ fontFamily: "Georgia" }}
+      >
         Instruments
       </Text>
       <Text className="mt-2 text-sm leading-5 text-muted">
-        Rows read live from the <Text className="font-bold">instruments</Text> table through the publishable key.
+        Rows read live from the <Text className="font-bold">instruments</Text>{" "}
+        table through the publishable key.
       </Text>
 
       <ThemedView className="mt-5 flex-1">
@@ -93,18 +99,24 @@ function InstrumentsInner() {
 
         {status === "error" ? (
           <View className="mt-4 rounded-2xl border border-border bg-surface p-4">
-            <Text className="text-xs font-extrabold tracking-wider text-error">COULD NOT LOAD</Text>
-            <Text className="mt-2 text-sm leading-5 text-foreground">{error}</Text>
+            <Text className="text-xs font-extrabold tracking-wider text-error">
+              COULD NOT LOAD
+            </Text>
+            <Text className="mt-2 text-sm leading-5 text-foreground">
+              {error}
+            </Text>
             <Text className="mt-3 text-xs leading-4 text-muted">
-              If the table is missing, run the instruments SQL in the Supabase SQL editor. If the build has no keys,
-              set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in .env and restart Expo.
+              If the table is missing, run the instruments SQL in the Supabase
+              SQL editor. If the build has no keys, set SUPABASE_URL and
+              SUPABASE_PUBLISHABLE_KEY in .env and restart Expo.
             </Text>
           </View>
         ) : null}
 
         {status === "ready" && instruments.length === 0 ? (
           <Text className="mt-4 text-sm text-muted">
-            The table is reachable but empty. Insert a row — the policy allows reads only.
+            The table is reachable but empty. Insert a row — the policy allows
+            reads only.
           </Text>
         ) : null}
 

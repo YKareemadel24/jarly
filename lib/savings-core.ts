@@ -110,30 +110,61 @@ export function percent(jar: Pick<Jar, "balance" | "target">): number {
 
 export type MonthTotal = { label: string; total: number };
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** Deposit totals per calendar month for the last `count` months, oldest first. */
-export function monthlyDeposits(jars: Pick<Jar, "entries">[], now: Date = new Date(), count = 6): MonthTotal[] {
+export function monthlyDeposits(
+  jars: Pick<Jar, "entries">[],
+  now: Date = new Date(),
+  count = 6,
+): MonthTotal[] {
   const buckets: MonthTotal[] = [];
   for (let i = count - 1; i >= 0; i--) {
-    buckets.push({ label: MONTH_LABELS[new Date(now.getFullYear(), now.getMonth() - i, 1).getMonth()], total: 0 });
+    buckets.push({
+      label:
+        MONTH_LABELS[
+          new Date(now.getFullYear(), now.getMonth() - i, 1).getMonth()
+        ],
+      total: 0,
+    });
   }
   for (const jar of jars) {
     for (const entry of jar.entries) {
       if (entry.direction !== "deposit") continue;
       const at = new Date(entry.at);
-      const ago = (now.getFullYear() - at.getFullYear()) * 12 + (now.getMonth() - at.getMonth());
-      if (ago >= 0 && ago < buckets.length) buckets[buckets.length - 1 - ago].total += entry.amount;
+      const ago =
+        (now.getFullYear() - at.getFullYear()) * 12 +
+        (now.getMonth() - at.getMonth());
+      if (ago >= 0 && ago < buckets.length)
+        buckets[buckets.length - 1 - ago].total += entry.amount;
     }
   }
   return buckets;
 }
 
 /** All milestone levels newly crossed when balance moves to `nextBalance`. */
-export function crossedMilestones(jar: Pick<Jar, "target" | "milestonesHit">, nextBalance: number): number[] {
+export function crossedMilestones(
+  jar: Pick<Jar, "target" | "milestonesHit">,
+  nextBalance: number,
+): number[] {
   if (jar.target <= 0) return [];
   return MILESTONE_LEVELS.filter(
-    (level) => !jar.milestonesHit.includes(level) && (nextBalance / jar.target) * 100 >= level,
+    (level) =>
+      !jar.milestonesHit.includes(level) &&
+      (nextBalance / jar.target) * 100 >= level,
   );
 }
 
@@ -149,7 +180,9 @@ function previousDayKey(key: string): string {
 }
 
 /** Local-day keys with at least one deposit — backing for the habit rhythm view. */
-export function depositDayKeys(entries: Pick<Entry, "at" | "direction">[]): Set<string> {
+export function depositDayKeys(
+  entries: Pick<Entry, "at" | "direction">[],
+): Set<string> {
   const keys = new Set<string>();
   for (const entry of entries) {
     if (entry.direction !== "deposit") continue;
@@ -176,8 +209,10 @@ export function applyEntry(
   if (!Number.isInteger(amountMinor) || amountMinor <= 0) return null;
   if (direction === "withdrawal" && amountMinor > jar.balance) return null;
 
-  const nextBalance = jar.balance + (direction === "deposit" ? amountMinor : -amountMinor);
-  const reached = direction === "deposit" ? crossedMilestones(jar, nextBalance) : [];
+  const nextBalance =
+    jar.balance + (direction === "deposit" ? amountMinor : -amountMinor);
+  const reached =
+    direction === "deposit" ? crossedMilestones(jar, nextBalance) : [];
 
   let streak = jar.streak;
   let lastDepositAt = jar.lastDepositAt;
@@ -204,7 +239,9 @@ export function applyEntry(
     jar: {
       ...jar,
       balance: nextBalance,
-      milestonesHit: reached.length ? [...jar.milestonesHit, ...reached] : jar.milestonesHit,
+      milestonesHit: reached.length
+        ? [...jar.milestonesHit, ...reached]
+        : jar.milestonesHit,
       streak,
       lastDepositAt,
       entries: [entry, ...jar.entries],
@@ -239,19 +276,31 @@ export type RecurringRunResult = { jar: Jar; applied: number };
  * advance nextDate past `now`. Bounded so a long-dormant schedule cannot loop
  * forever; at most 366 occurrences are applied per call.
  */
-export function runDueRecurring(jar: Jar, now: Date = new Date()): RecurringRunResult {
+export function runDueRecurring(
+  jar: Jar,
+  now: Date = new Date(),
+): RecurringRunResult {
   const rule = jar.recurring;
   if (!rule || rule.paused || !(rule.amount > 0)) return { jar, applied: 0 };
 
   let current = jar;
-  let cursor = rule.nextDate ? new Date(rule.nextDate) : new Date(current.createdAt);
+  let cursor = rule.nextDate
+    ? new Date(rule.nextDate)
+    : new Date(current.createdAt);
   // Never look back further than the jar existed plus one occurrence.
   const created = new Date(current.createdAt);
   if (cursor < created) cursor = created;
 
   let applied = 0;
   while (cursor.getTime() <= now.getTime() && applied < 366) {
-    const result = applyEntry(current, rule.amount, "deposit", "Scheduled deposit", "recurring", cursor);
+    const result = applyEntry(
+      current,
+      rule.amount,
+      "deposit",
+      "Scheduled deposit",
+      "recurring",
+      cursor,
+    );
     if (!result) break;
     current = result.jar;
     applied += 1;
@@ -260,7 +309,10 @@ export function runDueRecurring(jar: Jar, now: Date = new Date()): RecurringRunR
 
   if (applied === 0) return { jar, applied: 0 };
 
-  const nextDate = cursor.getTime() > now.getTime() ? cursor.toISOString() : addCadence(cursor, rule.cadence).toISOString();
+  const nextDate =
+    cursor.getTime() > now.getTime()
+      ? cursor.toISOString()
+      : addCadence(cursor, rule.cadence).toISOString();
   return {
     jar: { ...current, recurring: { ...rule, nextDate } },
     applied,
@@ -306,7 +358,20 @@ export const jarAccentDark: Record<Accent, string> = {
   clay: "#C79A78",
 };
 
-const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+const MONTH_NAMES = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
 
 /** Parse an ISO or "Month Year" (end of that month) deadline. Undefined when unparseable. */
 export function parseDeadline(deadline: string): Date | undefined {
@@ -324,7 +389,10 @@ export function parseDeadline(deadline: string): Date | undefined {
  * is parseable (ISO or "December 2026"), the original text otherwise.
  * Never relies on color alone — callers pair this with an icon.
  */
-export function deadlineCountdown(deadline: string | undefined, now: Date = new Date()): string | undefined {
+export function deadlineCountdown(
+  deadline: string | undefined,
+  now: Date = new Date(),
+): string | undefined {
   if (!deadline) return undefined;
   const date = parseDeadline(deadline);
   if (!date) return deadline;
@@ -353,7 +421,12 @@ function recurringPerWeek(rule: RecurringRule | undefined): number {
   }
 }
 
-export type PaceStatus = "funded" | "no-deadline" | "no-pace" | "on-track" | "behind";
+export type PaceStatus =
+  | "funded"
+  | "no-deadline"
+  | "no-pace"
+  | "on-track"
+  | "behind";
 
 export type PaceProjection = {
   status: PaceStatus;
@@ -375,12 +448,26 @@ export function paceProjection(
   now: Date = new Date(),
 ): PaceProjection {
   const remaining = jar.target - jar.balance;
-  if (remaining <= 0) return { status: "funded", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
-  if (!jar.deadline) return { status: "no-deadline", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+  if (remaining <= 0)
+    return { status: "funded", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+  if (!jar.deadline)
+    return {
+      status: "no-deadline",
+      requiredPerWeekMinor: 0,
+      pacePerWeekMinor: 0,
+    };
   const date = parseDeadline(jar.deadline);
-  if (!date) return { status: "no-deadline", requiredPerWeekMinor: 0, pacePerWeekMinor: 0 };
+  if (!date)
+    return {
+      status: "no-deadline",
+      requiredPerWeekMinor: 0,
+      pacePerWeekMinor: 0,
+    };
 
-  const weeksLeft = Math.max(1, Math.ceil((date.getTime() - now.getTime()) / WEEK_MS));
+  const weeksLeft = Math.max(
+    1,
+    Math.ceil((date.getTime() - now.getTime()) / WEEK_MS),
+  );
   const requiredPerWeekMinor = Math.ceil(remaining / weeksLeft);
 
   const cutoff = now.getTime() - 28 * 86_400_000;
@@ -390,15 +477,25 @@ export function paceProjection(
     const at = new Date(entry.at).getTime();
     if (at >= cutoff && at <= now.getTime()) recent += entry.amount;
   }
-  const pacePerWeekMinor = Math.max(Math.round(recent / 4), recurringPerWeek(jar.recurring));
-  if (pacePerWeekMinor <= 0) return { status: "no-pace", requiredPerWeekMinor, pacePerWeekMinor: 0 };
+  const pacePerWeekMinor = Math.max(
+    Math.round(recent / 4),
+    recurringPerWeek(jar.recurring),
+  );
+  if (pacePerWeekMinor <= 0)
+    return { status: "no-pace", requiredPerWeekMinor, pacePerWeekMinor: 0 };
 
-  const projectedDate = new Date(now.getTime() + (remaining / pacePerWeekMinor) * WEEK_MS).toISOString();
+  const projectedDate = new Date(
+    now.getTime() + (remaining / pacePerWeekMinor) * WEEK_MS,
+  ).toISOString();
   // Day granularity: finishing on the deadline day itself counts as on-track,
   // so intraday clock time never flips the verdict.
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   return {
-    status: startOfDay(new Date(projectedDate)) <= startOfDay(date) ? "on-track" : "behind",
+    status:
+      startOfDay(new Date(projectedDate)) <= startOfDay(date)
+        ? "on-track"
+        : "behind",
     requiredPerWeekMinor,
     pacePerWeekMinor,
     projectedDate,
@@ -406,7 +503,11 @@ export function paceProjection(
 }
 
 /** Identity for a one-tap deposit suggestion. */
-export type QuickPresetId = "round-up" | "next-milestone" | "weekly-pace" | "repeat-last";
+export type QuickPresetId =
+  | "round-up"
+  | "next-milestone"
+  | "weekly-pace"
+  | "repeat-last";
 
 export type QuickPreset = {
   id: QuickPresetId;
@@ -433,7 +534,10 @@ const PACE_WINDOW_MS = 28 * 86_400_000;
  * so a jar never shows two chips that would deposit the same money.
  */
 export function quickPresets(
-  jar: Pick<Jar, "target" | "balance" | "milestonesHit" | "entries" | "recurring">,
+  jar: Pick<
+    Jar,
+    "target" | "balance" | "milestonesHit" | "entries" | "recurring"
+  >,
   now: Date = new Date(),
   currency: string = "USD",
 ): QuickPreset[] {
@@ -474,9 +578,13 @@ export function quickPresets(
   for (const entry of jar.entries) {
     if (entry.direction !== "deposit") continue;
     const at = new Date(entry.at).getTime();
-    if (at >= now.getTime() - PACE_WINDOW_MS && at <= now.getTime()) recent += entry.amount;
+    if (at >= now.getTime() - PACE_WINDOW_MS && at <= now.getTime())
+      recent += entry.amount;
   }
-  const pace = Math.max(Math.round(recent / 4), recurringPerWeek(jar.recurring));
+  const pace = Math.max(
+    Math.round(recent / 4),
+    recurringPerWeek(jar.recurring),
+  );
   if (pace > 0) {
     suggestions.push({
       id: "weekly-pace",
@@ -489,7 +597,12 @@ export function quickPresets(
   // 4. Repeat whatever was last added. Newest entries come first.
   for (const entry of jar.entries) {
     if (entry.direction !== "deposit") continue;
-    suggestions.push({ id: "repeat-last", label: "Repeat last", hint: money(entry.amount, currency), amount: entry.amount });
+    suggestions.push({
+      id: "repeat-last",
+      label: "Repeat last",
+      hint: money(entry.amount, currency),
+      amount: entry.amount,
+    });
     break;
   }
 
@@ -548,23 +661,104 @@ export type Badge = {
 };
 
 /** The full badge catalogue, in display order. */
-const BADGE_CATALOGUE: { id: BadgeId; glyph: string; name: string; description: string; of: (stats: BadgeStats) => [number, number] }[] = [
-  { id: "first-deposit", glyph: "🌱", name: "First Light", description: "Log your first deposit", of: (s) => [s.deposits, 1] },
-  { id: "ten-deposits", glyph: "✨", name: "Getting Going", description: "Log 10 deposits", of: (s) => [s.deposits, 10] },
-  { id: "fifty-deposits", glyph: "🧱", name: "Brick by Brick", description: "Log 50 deposits", of: (s) => [s.deposits, 50] },
-  { id: "hundred-deposits", glyph: "🏛️", name: "Centurion", description: "Log 100 deposits", of: (s) => [s.deposits, 100] },
-  { id: "streak-3", glyph: "🔥", name: "Three in a Row", description: "Reach a 3-day streak", of: (s) => [s.maxStreak, 3] },
-  { id: "streak-7", glyph: "📅", name: "Week Strong", description: "Reach a 7-day streak", of: (s) => [s.maxStreak, 7] },
-  { id: "streak-30", glyph: "🛡️", name: "Iron Jar", description: "Reach a 30-day streak", of: (s) => [s.maxStreak, 30] },
-  { id: "saved-100", glyph: "💯", name: "First Hundred", description: "Save 100.00 in total", of: (s) => [s.totalDeposited, 10_000] },
-  { id: "saved-1000", glyph: "🏔️", name: "Four Figures", description: "Save 1,000.00 in total", of: (s) => [s.totalDeposited, 100_000] },
-  { id: "first-goal", glyph: "🎯", name: "Goal Smasher", description: "Complete a jar", of: (s) => [s.completed, 1] },
-  { id: "steady-months", glyph: "🗓️", name: "Steady Hand", description: "Save in 4 different months", of: (s) => [s.months, 4] },
-  { id: "shared-jar", glyph: "🤝", name: "Better Together", description: "Fill a shared jar", of: (s) => [s.sharedJars, 1] },
+const BADGE_CATALOGUE: {
+  id: BadgeId;
+  glyph: string;
+  name: string;
+  description: string;
+  of: (stats: BadgeStats) => [number, number];
+}[] = [
+  {
+    id: "first-deposit",
+    glyph: "🌱",
+    name: "First Light",
+    description: "Log your first deposit",
+    of: (s) => [s.deposits, 1],
+  },
+  {
+    id: "ten-deposits",
+    glyph: "✨",
+    name: "Getting Going",
+    description: "Log 10 deposits",
+    of: (s) => [s.deposits, 10],
+  },
+  {
+    id: "fifty-deposits",
+    glyph: "🧱",
+    name: "Brick by Brick",
+    description: "Log 50 deposits",
+    of: (s) => [s.deposits, 50],
+  },
+  {
+    id: "hundred-deposits",
+    glyph: "🏛️",
+    name: "Centurion",
+    description: "Log 100 deposits",
+    of: (s) => [s.deposits, 100],
+  },
+  {
+    id: "streak-3",
+    glyph: "🔥",
+    name: "Three in a Row",
+    description: "Reach a 3-day streak",
+    of: (s) => [s.maxStreak, 3],
+  },
+  {
+    id: "streak-7",
+    glyph: "📅",
+    name: "Week Strong",
+    description: "Reach a 7-day streak",
+    of: (s) => [s.maxStreak, 7],
+  },
+  {
+    id: "streak-30",
+    glyph: "🛡️",
+    name: "Iron Jar",
+    description: "Reach a 30-day streak",
+    of: (s) => [s.maxStreak, 30],
+  },
+  {
+    id: "saved-100",
+    glyph: "💯",
+    name: "First Hundred",
+    description: "Save 100.00 in total",
+    of: (s) => [s.totalDeposited, 10_000],
+  },
+  {
+    id: "saved-1000",
+    glyph: "🏔️",
+    name: "Four Figures",
+    description: "Save 1,000.00 in total",
+    of: (s) => [s.totalDeposited, 100_000],
+  },
+  {
+    id: "first-goal",
+    glyph: "🎯",
+    name: "Goal Smasher",
+    description: "Complete a jar",
+    of: (s) => [s.completed, 1],
+  },
+  {
+    id: "steady-months",
+    glyph: "🗓️",
+    name: "Steady Hand",
+    description: "Save in 4 different months",
+    of: (s) => [s.months, 4],
+  },
+  {
+    id: "shared-jar",
+    glyph: "🤝",
+    name: "Better Together",
+    description: "Fill a shared jar",
+    of: (s) => [s.sharedJars, 1],
+  },
 ];
 
 /** Roll a jar list up into the counters badges are earned from. */
-export function badgeStats(jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[], now: Date = new Date()): BadgeStats {
+export function badgeStats(
+  jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[],
+  now: Date = new Date(),
+): BadgeStats {
   const months = new Set<string>();
   let deposits = 0;
   let totalDeposited = 0;
@@ -587,11 +781,21 @@ export function badgeStats(jars: Pick<Jar, "target" | "balance" | "streak" | "en
     if (jar.members && jar.members.length > 1) sharedJars += 1;
   }
 
-  return { deposits, totalDeposited, maxStreak, completed, months: months.size, sharedJars };
+  return {
+    deposits,
+    totalDeposited,
+    maxStreak,
+    completed,
+    months: months.size,
+    sharedJars,
+  };
 }
 
 /** Every badge with its live progress, earned flags included. `now` is accepted for symmetry and future time-boxed badges. */
-export function badges(jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[], now: Date = new Date()): Badge[] {
+export function badges(
+  jars: Pick<Jar, "target" | "balance" | "streak" | "entries" | "members">[],
+  now: Date = new Date(),
+): Badge[] {
   const stats = badgeStats(jars, now);
   return BADGE_CATALOGUE.map((badge) => {
     const [value, target] = badge.of(stats);
@@ -611,7 +815,10 @@ export function badges(jars: Pick<Jar, "target" | "balance" | "streak" | "entrie
  * Badge ids present in `current` but absent from `previous` — the ones worth
  * celebrating. Pass the ids the user has already been shown as `previous`.
  */
-export function newlyEarnedBadges(previous: Iterable<BadgeId>, current: Badge[]): Badge[] {
+export function newlyEarnedBadges(
+  previous: Iterable<BadgeId>,
+  current: Badge[],
+): Badge[] {
   const known = new Set(previous);
   return current.filter((badge) => badge.earned && !known.has(badge.id));
 }
@@ -626,7 +833,14 @@ const accentAliases: Record<string, Accent> = {
   clay: "clay",
 };
 
-type LegacyJar = Partial<Jar> & { id: string; name: string; target: number; balance: number; accent: string; icon: string };
+type LegacyJar = Partial<Jar> & {
+  id: string;
+  name: string;
+  target: number;
+  balance: number;
+  accent: string;
+  icon: string;
+};
 
 /**
  * Normalise a persisted jar into the current shape. When `scaleToMinor` is set,
@@ -634,7 +848,7 @@ type LegacyJar = Partial<Jar> & { id: string; name: string; target: number; bala
  */
 export function normaliseJar(jar: LegacyJar, scaleToMinor = false): Jar {
   const scale = (value: number | undefined, fallback = 0) =>
-    scaleToMinor ? Math.round((value ?? fallback) * 100) : value ?? fallback;
+    scaleToMinor ? Math.round((value ?? fallback) * 100) : (value ?? fallback);
   const scaledRecurring =
     jar.recurring && typeof jar.recurring === "object"
       ? { ...jar.recurring, amount: scale(jar.recurring.amount) }

@@ -26,13 +26,27 @@ type Props = {
  * The quiet zone is part of the symbol: scanners need the margin, so it is drawn
  * here rather than left to whatever padding the caller happens to apply.
  */
-export function QrCode({ value, size, color = "#2D2722", background = "#FFFDF9" }: Props) {
+export function QrCode({
+  value,
+  size,
+  color = "#2D2722",
+  background = "#FFFDF9",
+}: Props) {
   const matrix = useMemo(() => qrMatrix(value), [value]);
 
   if (!matrix) {
     // An empty or unencodable value gets a blank tile rather than a broken one,
     // so a layout never jumps when the value finally arrives.
-    return <View style={{ width: size, height: size, backgroundColor: background, borderRadius: 8 }} />;
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          backgroundColor: background,
+          borderRadius: 8,
+        }}
+      />
+    );
   }
 
   // Four modules of quiet zone on every side, per the spec's minimum.
@@ -52,7 +66,12 @@ export function QrCode({ value, size, color = "#2D2722", background = "#FFFDF9" 
   }
 
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel="QR code" style={{ width: size, height: size }}>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="QR code"
+      style={{ width: size, height: size }}
+    >
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Rect x={0} y={0} width={size} height={size} fill={background} />
         <Path d={d} fill={color} />

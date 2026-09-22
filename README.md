@@ -2,7 +2,7 @@
 
 A warm, tactile savings companion for mobile and web. Saving Jar turns everyday goals into colorful, glass "jars" you fill with deposits — making financial progress feel physical, clear, and rewarding.
 
-> **Note:** Saving Jar is a *progress tracker*. It records your savings goals and habits; it never moves or touches your real money.
+> **Note:** Saving Jar is a _progress tracker_. It records your savings goals and habits; it never moves or touches your real money.
 
 ![Expo SDK 54](https://img.shields.io/badge/Expo_SDK-54-4630EB?logo=expo)
 ![React Native 0.81](https://img.shields.io/badge/React_Native-0.81-61DAFB)
@@ -60,27 +60,27 @@ The primary loop is intentionally short:
 - **Light / dark / system theming** — a white-first modern palette with warm, complete dark-mode tokens, persisted per user.
 - **Tactile feedback** — haptics on success/error and confirmation for destructive actions.
 - **Accessibility** — descriptive labels, explicit numeric progress, and large touch targets.
-- **Account sign-in** — Supabase Auth (email + password). Only jars you *share* need an account; personal jars never do.
+- **Account sign-in** — Supabase Auth (email + password). Only jars you _share_ need an account; personal jars never do.
 - **Type-safe API** — end-to-end typed tRPC with `superjson` serialization.
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| App framework | [Expo](https://expo.dev) SDK 54 (React Native 0.81, React 19) |
-| Routing | [Expo Router](https://docs.expo.dev/router/introduction/) v6 (file-based, typed routes) |
-| Styling | [NativeWind](https://www.nativewind.dev/) v4 (Tailwind CSS 3) + custom design tokens |
-| Animation | `react-native-reanimated`, `react-native-gesture-handler`, `expo-haptics` |
-| Client state | React Context + `AsyncStorage` (savings), [TanStack Query](https://tanstack.com/query) (API) |
-| API | [tRPC](https://trpc.io) v11 + [Express](https://expressjs.com) 4, `superjson` transformer |
-| Database | [Supabase](https://supabase.com) Postgres via [Drizzle ORM](https://orm.drizzle.team) (`postgres-js`), `drizzle-kit` |
-| Auth | [Supabase Auth](https://supabase.com/docs/guides/auth), verified server-side with [jose](https://github.com/panva/jose) against the project JWKS |
-| Validation | [Zod](https://zod.dev) v4 |
-| Testing | [Vitest](https://vitest.dev) |
-| Tooling | TypeScript, ESLint (Expo config), Prettier, `esbuild`, `tsx`, `concurrently` |
-| Package manager | pnpm 9.12 |
+| Layer           | Technology                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| App framework   | [Expo](https://expo.dev) SDK 54 (React Native 0.81, React 19)                                                                                    |
+| Routing         | [Expo Router](https://docs.expo.dev/router/introduction/) v6 (file-based, typed routes)                                                          |
+| Styling         | [NativeWind](https://www.nativewind.dev/) v4 (Tailwind CSS 3) + custom design tokens                                                             |
+| Animation       | `react-native-reanimated`, `react-native-gesture-handler`, `expo-haptics`                                                                        |
+| Client state    | React Context + `AsyncStorage` (savings), [TanStack Query](https://tanstack.com/query) (API)                                                     |
+| API             | [tRPC](https://trpc.io) v11 + [Express](https://expressjs.com) 4, `superjson` transformer                                                        |
+| Database        | [Supabase](https://supabase.com) Postgres via [Drizzle ORM](https://orm.drizzle.team) (`postgres-js`), `drizzle-kit`                             |
+| Auth            | [Supabase Auth](https://supabase.com/docs/guides/auth), verified server-side with [jose](https://github.com/panva/jose) against the project JWKS |
+| Validation      | [Zod](https://zod.dev) v4                                                                                                                        |
+| Testing         | [Vitest](https://vitest.dev)                                                                                                                     |
+| Tooling         | TypeScript, ESLint (Expo config), Prettier, `esbuild`, `tsx`, `concurrently`                                                                     |
+| Package manager | pnpm 9.12                                                                                                                                        |
 
 ---
 
@@ -174,8 +174,8 @@ jarly/
 ### 1. Create a Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com) (the free tier is enough).
-2. Copy **Project URL** and the **publishable key** from *Project Settings → API Keys*.
-3. Copy the **Shared Pooler** connection string from *Connect*, and replace the
+2. Copy **Project URL** and the **publishable key** from _Project Settings → API Keys_.
+3. Copy the **Shared Pooler** connection string from _Connect_, and replace the
    password placeholder with your database password.
 4. Apply the schema:
 
@@ -187,7 +187,7 @@ jarly/
    The generated migration also lives in `drizzle/` if you would rather paste it
    into the dashboard's SQL editor.
 
-5. Under *Authentication → Sign In / Providers → Email*, decide whether to require
+5. Under _Authentication → Sign In / Providers → Email_, decide whether to require
    email confirmation. With it **on**, sign-up returns no session and the person
    must open the emailed link before signing in — the app says so rather than
    appearing to do nothing. For local development, turning it **off** is simpler.
@@ -244,28 +244,28 @@ Everything accounts and shared jars need comes from a single Supabase project. K
 
 ### Server (`server/_core/env.ts`)
 
-| Variable | Required | Description |
-|---|---|---|
-| `SUPABASE_URL` | Yes | Project URL, e.g. `https://abcdefgh.supabase.co`. The token issuer and JWKS endpoint are derived from it. |
-| `DATABASE_URL` | Yes | Postgres connection string. Use the **Shared Pooler** URI — the direct connection is IPv6-only unless the project has the IPv4 add-on. |
-| `SUPABASE_PUBLISHABLE_KEY` | No | `sb_publishable_…`; only needed server-side if the server itself calls Supabase. |
-| `SUPABASE_SECRET_KEY` | No | `sb_secret_…`. Server-only; bypasses RLS, so it must never be given an `EXPO_PUBLIC_` name. |
-| `SUPABASE_JWKS_URL` | No | Override the derived JWKS endpoint (self-hosted project or custom auth domain). |
-| `OWNER_EMAIL` | No | Address granted the `admin` role. |
-| `ALLOWED_ORIGINS` | No | Comma-separated extra CORS origins for the API (e.g. the deployed web build). Loopback dev origins are always allowed; native apps send no `Origin` header. |
-| `PORT` | No | API server port (defaults to `3000`; auto-increments if busy). |
-| `NODE_ENV` | No | `development` / `production`. |
+| Variable                   | Required | Description                                                                                                                                                 |
+| -------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`             | Yes      | Project URL, e.g. `https://abcdefgh.supabase.co`. The token issuer and JWKS endpoint are derived from it.                                                   |
+| `DATABASE_URL`             | Yes      | Postgres connection string. Use the **Shared Pooler** URI — the direct connection is IPv6-only unless the project has the IPv4 add-on.                      |
+| `SUPABASE_PUBLISHABLE_KEY` | No       | `sb_publishable_…`; only needed server-side if the server itself calls Supabase.                                                                            |
+| `SUPABASE_SECRET_KEY`      | No       | `sb_secret_…`. Server-only; bypasses RLS, so it must never be given an `EXPO_PUBLIC_` name.                                                                 |
+| `SUPABASE_JWKS_URL`        | No       | Override the derived JWKS endpoint (self-hosted project or custom auth domain).                                                                             |
+| `OWNER_EMAIL`              | No       | Address granted the `admin` role.                                                                                                                           |
+| `ALLOWED_ORIGINS`          | No       | Comma-separated extra CORS origins for the API (e.g. the deployed web build). Loopback dev origins are always allowed; native apps send no `Origin` header. |
+| `PORT`                     | No       | API server port (defaults to `3000`; auto-increments if busy).                                                                                              |
+| `NODE_ENV`                 | No       | `development` / `production`.                                                                                                                               |
 
 ### Client (`EXPO_PUBLIC_*`)
 
 `EXPO_PUBLIC_*` values are inlined into the app bundle, so **never put a secret key in one** — anything here is public by definition.
 
-| Variable | Required | Description |
-|---|---|---|
-| `EXPO_PUBLIC_SUPABASE_URL` | For accounts | Project URL. Without it the app runs local-only and the sign-in screen says so. |
-| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | For accounts | `sb_publishable_…`. Safe to ship: it can only reach what row level security allows. |
-| `EXPO_PUBLIC_API_BASE_URL` | Production native | Override the API base URL. When unset, it is derived from the current hostname (Metro `8081` → API `3000`) — which only works on web/dev, so release native builds must set it. |
-| `EXPO_PUBLIC_APP_URL` | No | Public origin an invite link should point at, so it opens for someone who does not have the app. Defaults to the API origin. |
+| Variable                               | Required          | Description                                                                                                                                                                     |
+| -------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_SUPABASE_URL`             | For accounts      | Project URL. Without it the app runs local-only and the sign-in screen says so.                                                                                                 |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | For accounts      | `sb_publishable_…`. Safe to ship: it can only reach what row level security allows.                                                                                             |
+| `EXPO_PUBLIC_API_BASE_URL`             | Production native | Override the API base URL. When unset, it is derived from the current hostname (Metro `8081` → API `3000`) — which only works on web/dev, so release native builds must set it. |
+| `EXPO_PUBLIC_APP_URL`                  | No                | Public origin an invite link should point at, so it opens for someone who does not have the app. Defaults to the API origin.                                                    |
 
 > `scripts/load-env.js` maps `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` onto their `EXPO_PUBLIC_*` counterparts when those are not already set, so a project only has to be configured once.
 
@@ -273,21 +273,21 @@ Everything accounts and shared jars need comes from a single Supabase project. K
 
 ## Available scripts
 
-| Command | Description |
-|---|---|
-| `pnpm dev` | Run API server (`tsx watch`) + Expo web (`metro`) concurrently. |
-| `pnpm dev:server` | Run the Express/tRPC server in watch mode. |
-| `pnpm dev:metro` | Start Expo for web on port 8081. |
-| `pnpm android` / `pnpm ios` | Start Expo for the respective native platform. |
-| `pnpm build` | Bundle the server to `dist/` with `esbuild`. |
-| `pnpm start` | Run the bundled production server (`node dist/index.js`). |
-| `pnpm check` | Type-check the whole project (`tsc --noEmit`). |
-| `pnpm lint` | Run ESLint via Expo. |
-| `pnpm format` | Format the codebase with Prettier. |
-| `pnpm test` | Run the Vitest suite. |
-| `pnpm db:push` | Generate and apply Drizzle migrations (`drizzle-kit generate && migrate`). |
-| `pnpm qr` | Generate a QR code for the dev server. |
-| `eas build` | Build with [EAS](https://docs.expo.dev/build/introduction/) using the profiles in `eas.json` (`development`, `preview` → Android APK, `production` with auto-increment). |
+| Command                     | Description                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`                  | Run API server (`tsx watch`) + Expo web (`metro`) concurrently.                                                                                                          |
+| `pnpm dev:server`           | Run the Express/tRPC server in watch mode.                                                                                                                               |
+| `pnpm dev:metro`            | Start Expo for web on port 8081.                                                                                                                                         |
+| `pnpm android` / `pnpm ios` | Start Expo for the respective native platform.                                                                                                                           |
+| `pnpm build`                | Bundle the server to `dist/` with `esbuild`.                                                                                                                             |
+| `pnpm start`                | Run the bundled production server (`node dist/index.js`).                                                                                                                |
+| `pnpm check`                | Type-check the whole project (`tsc --noEmit`).                                                                                                                           |
+| `pnpm lint`                 | Run ESLint via Expo.                                                                                                                                                     |
+| `pnpm format`               | Format the codebase with Prettier.                                                                                                                                       |
+| `pnpm test`                 | Run the Vitest suite.                                                                                                                                                    |
+| `pnpm db:push`              | Generate and apply Drizzle migrations (`drizzle-kit generate && migrate`).                                                                                               |
+| `pnpm qr`                   | Generate a QR code for the dev server.                                                                                                                                   |
+| `eas build`                 | Build with [EAS](https://docs.expo.dev/build/introduction/) using the profiles in `eas.json` (`development`, `preview` → Android APK, `production` with auto-increment). |
 
 ---
 
@@ -311,7 +311,7 @@ A `Jar` has a `target`, `balance`, `accent` color, `icon`, `kind`, and optional 
 ### Milestones
 
 - Levels: **25, 50, 75, 100%**.
-- `crossedMilestones(...)` records *every* level crossed by a single deposit, but skips levels already hit.
+- `crossedMilestones(...)` records _every_ level crossed by a single deposit, but skips levels already hit.
 - Withdrawals never roll back milestones or streaks.
 
 ### Recurring deposits
@@ -329,18 +329,18 @@ A `Jar` has a `target`, `balance`, `accent` color, `icon`, `kind`, and optional 
 
 ### tRPC (client → server)
 
-| Router / procedure | Type | Access | Description |
-|---|---|---|---|
-| `auth.me` | query | public | Returns the account behind the request's Supabase token (or `null`). |
-| `system.health` | query | public | Health check (`{ ok: true }`). |
-| `system.notifyOwner` | mutation | admin | Sends an owner notification. |
+| Router / procedure   | Type     | Access | Description                                                          |
+| -------------------- | -------- | ------ | -------------------------------------------------------------------- |
+| `auth.me`            | query    | public | Returns the account behind the request's Supabase token (or `null`). |
+| `system.health`      | query    | public | Health check (`{ ok: true }`).                                       |
+| `system.notifyOwner` | mutation | admin  | Sends an owner notification.                                         |
 
 > Add feature routers in `server/routers.ts`. `protectedProcedure` and `adminProcedure` are exported from `server/_core/trpc.ts`.
 
 ### REST
 
-| Method & path | Description |
-|---|---|
+| Method & path     | Description          |
+| ----------------- | -------------------- |
 | `GET /api/health` | Server health check. |
 
 > There are no auth endpoints any more. Supabase Auth issues and refreshes the
@@ -360,17 +360,17 @@ Theme tokens are defined in `theme.config.js` and consumed by both NativeWind an
 
 Design tokens (`theme.config.js`):
 
-| Token | Light | Dark |
-|---|---|---|
-| `primary` | `#3B2D24` | `#9C6C53` |
+| Token        | Light     | Dark      |
+| ------------ | --------- | --------- |
+| `primary`    | `#3B2D24` | `#9C6C53` |
 | `background` | `#F6F1E8` | `#201B18` |
-| `surface` | `#FFFDF9` | `#2D2722` |
+| `surface`    | `#FFFDF9` | `#2D2722` |
 | `foreground` | `#2C231D` | `#F6EDE2` |
-| `muted` | `#7E7167` | `#C5B7AA` |
-| `border` | `#E6DCD0` | `#4A4039` |
-| `success` | `#4A9579` | `#7BC6A7` |
-| `warning` | `#B88322` | `#E4BD61` |
-| `error` | `#B5534D` | `#E98C85` |
+| `muted`      | `#7E7167` | `#C5B7AA` |
+| `border`     | `#E6DCD0` | `#4A4039` |
+| `success`    | `#4A9579` | `#7BC6A7` |
+| `warning`    | `#B88322` | `#E4BD61` |
+| `error`      | `#B5534D` | `#E98C85` |
 
 ---
 

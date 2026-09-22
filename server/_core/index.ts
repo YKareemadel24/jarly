@@ -41,7 +41,8 @@ async function startServer() {
     .map((origin) => origin.trim())
     .filter(Boolean);
   const devOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-  const isAllowedOrigin = (origin: string) => devOrigin.test(origin) || extraOrigins.includes(origin);
+  const isAllowedOrigin = (origin: string) =>
+    devOrigin.test(origin) || extraOrigins.includes(origin);
 
   app.use((req, res, next) => {
     const origin = req.headers.origin;

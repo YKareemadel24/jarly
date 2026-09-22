@@ -9,5 +9,8 @@ import { useColorScheme } from "./use-color-scheme";
  */
 export function useJarAccents(): Record<Accent, string> {
   const scheme = useColorScheme();
-  return useMemo(() => (scheme === "dark" ? jarAccentDark : jarAccent), [scheme]);
+  return useMemo(
+    () => (scheme === "dark" ? jarAccentDark : jarAccent),
+    [scheme],
+  );
 }

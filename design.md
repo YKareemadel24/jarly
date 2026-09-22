@@ -8,15 +8,15 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 ## Screen list
 
-| Screen | Primary content | Core actions |
-|---|---|---|
-| Home | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point | Open a jar, add money, create a jar, inspect the overview |
-| Jar detail | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity |
-| Create jar sheet | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview | Create a goal jar |
-| Deposit sheet | Selected jar, amount entry, balance impact, confirmation | Add a manual contribution and trigger progress feedback |
-| Activity view | Recent contributions and withdrawals grouped by jar | Review transaction history |
-| Insights | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight | Review progress patterns |
-| Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, archived jars | Change personal preferences, lock the app, restore or permanently delete archived jars |
+| Screen             | Primary content                                                                                                                                         | Core actions                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Home               | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point                                        | Open a jar, add money, create a jar, inspect the overview                              |
+| Jar detail         | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity                            |
+| Create jar sheet   | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview                                                                    | Create a goal jar                                                                      |
+| Deposit sheet      | Selected jar, amount entry, balance impact, confirmation                                                                                                | Add a manual contribution and trigger progress feedback                                |
+| Activity view      | Recent contributions and withdrawals grouped by jar                                                                                                     | Review transaction history                                                             |
+| Insights           | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight                                                       | Review progress patterns                                                               |
+| Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, archived jars                                             | Change personal preferences, lock the app, restore or permanently delete archived jars |
 
 ## Core user flows
 

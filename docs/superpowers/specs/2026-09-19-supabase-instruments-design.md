@@ -3,9 +3,11 @@
 Approved: reuse `jarly`, no `my-app` scaffold.
 
 ## Goal
+
 Verify existing Supabase wiring and show `instruments` table read in Expo Router app.
 
 ## Context (existing)
+
 - `lib/supabase.ts:getSupabase()` — lazy `createClient` with `AsyncStorage`, `persistSession`, `autoRefreshToken`, `detectSessionInUrl: Platform.OS === 'web'`, `flowType: pkce`.
 - `constants/oauth.ts:isSupabaseConfigured()` guards unconfigured builds.
 - `scripts/load-env.js` maps `SUPABASE_URL` → `EXPO_PUBLIC_SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` → `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
@@ -13,6 +15,7 @@ Verify existing Supabase wiring and show `instruments` table read in Expo Router
 - Expo Router, no `App.tsx`. Demo goes at `app/dev/instruments.tsx`.
 
 ## SQL to paste (Supabase dashboard → SQL Editor → Run)
+
 ```sql
 -- Create the table
 create table instruments (
@@ -41,15 +44,18 @@ using (true);
 ```
 
 ## Env
+
 `cp .env.example .env`, fill `SUPABASE_URL=https://<ref>.supabase.co` and `SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`.
 `EXPO_PUBLIC_*` derived automatically if unset.
 
 ## Demo route (`app/dev/instruments.tsx`)
+
 - `useEffect` → `getSupabase().from('instruments').select()` → `useState<Instrument[]>`, `error` state.
 - `FlatList` with `keyExtractor id`, unconfigured + error states via `isSupabaseConfigured()` / `SUPABASE_NOT_CONFIGURED`.
 - No new deps, no change to `lib/supabase.ts`.
 
 ## Run
+
 ```bash
 pnpm dev:server
 pnpm dev:metro
@@ -57,8 +63,10 @@ pnpm dev:metro
 ```
 
 ## Skipped
+
 `npx create-expo-app my-app`, `npx expo install ... expo-sqlite react-native-url-polyfill`, `.env` with secrets, `App.tsx` overwrite, `npx expo start`.
 Add when: offline SQLite needed, URL polyfill error on Hermes, or standalone blank demo required.
 
 ## Self-review
+
 - No TBDs. No contradictions. Single-plan scope. No ambiguity: user runs SQL, implementation only adds demo route + env verify.

@@ -63,7 +63,9 @@ describe("crossedMilestones", () => {
 
   it("skips already-hit levels", () => {
     // 80 of a 100.00 target: 75 is newly crossed, 25/50 were already recorded.
-    expect(crossedMilestones(jar({ milestonesHit: [25, 50] }), 8000)).toEqual([75]);
+    expect(crossedMilestones(jar({ milestonesHit: [25, 50] }), 8000)).toEqual([
+      75,
+    ]);
     expect(crossedMilestones(jar(), 2000)).toEqual([]);
   });
 
@@ -107,26 +109,77 @@ describe("habit streaks", () => {
   const day = (iso: string) => new Date(iso);
 
   it("starts at 1 on the first deposit", () => {
-    const result = applyEntry(jar({ kind: "habit" }), 1000, "deposit", undefined, "manual", day("2026-03-10T10:00:00Z"));
+    const result = applyEntry(
+      jar({ kind: "habit" }),
+      1000,
+      "deposit",
+      undefined,
+      "manual",
+      day("2026-03-10T10:00:00Z"),
+    );
     expect(result?.jar.streak).toBe(1);
   });
 
   it("does not grow within the same day", () => {
-    const base = jar({ kind: "habit", streak: 3, lastDepositAt: "2026-03-10T08:00:00Z" });
-    const result = applyEntry(base, 1000, "deposit", undefined, "manual", day("2026-03-10T20:00:00Z"));
+    const base = jar({
+      kind: "habit",
+      streak: 3,
+      lastDepositAt: "2026-03-10T08:00:00Z",
+    });
+    const result = applyEntry(
+      base,
+      1000,
+      "deposit",
+      undefined,
+      "manual",
+      day("2026-03-10T20:00:00Z"),
+    );
     expect(result?.jar.streak).toBe(3);
   });
 
   it("grows on consecutive days and resets after a gap", () => {
-    const yesterday = jar({ kind: "habit", streak: 3, lastDepositAt: "2026-03-09T20:00:00Z" });
-    expect(applyEntry(yesterday, 1000, "deposit", undefined, "manual", day("2026-03-10T09:00:00Z"))?.jar.streak).toBe(4);
+    const yesterday = jar({
+      kind: "habit",
+      streak: 3,
+      lastDepositAt: "2026-03-09T20:00:00Z",
+    });
+    expect(
+      applyEntry(
+        yesterday,
+        1000,
+        "deposit",
+        undefined,
+        "manual",
+        day("2026-03-10T09:00:00Z"),
+      )?.jar.streak,
+    ).toBe(4);
 
-    const stale = jar({ kind: "habit", streak: 9, lastDepositAt: "2026-03-01T20:00:00Z" });
-    expect(applyEntry(stale, 1000, "deposit", undefined, "manual", day("2026-03-10T09:00:00Z"))?.jar.streak).toBe(1);
+    const stale = jar({
+      kind: "habit",
+      streak: 9,
+      lastDepositAt: "2026-03-01T20:00:00Z",
+    });
+    expect(
+      applyEntry(
+        stale,
+        1000,
+        "deposit",
+        undefined,
+        "manual",
+        day("2026-03-10T09:00:00Z"),
+      )?.jar.streak,
+    ).toBe(1);
   });
 
   it("ignores goal jars entirely", () => {
-    const result = applyEntry(jar({ kind: "goal", streak: 2 }), 1000, "deposit", undefined, "manual", day("2026-03-10T10:00:00Z"));
+    const result = applyEntry(
+      jar({ kind: "goal", streak: 2 }),
+      1000,
+      "deposit",
+      undefined,
+      "manual",
+      day("2026-03-10T10:00:00Z"),
+    );
     expect(result?.jar.streak).toBe(2);
     expect(result?.jar.lastDepositAt).toBeUndefined();
   });
@@ -143,19 +196,34 @@ describe("runDueRecurring", () => {
     // Due on Jun 1, 8, 15 -> three deposits; next due Jun 22.
     expect(result.applied).toBe(3);
     expect(result.jar.balance).toBe(1500);
-    expect(new Date(result.jar.recurring?.nextDate ?? "").toISOString()).toBe("2026-06-22T00:00:00.000Z");
-    expect(result.jar.entries.filter((entry) => entry.source === "recurring")).toHaveLength(3);
+    expect(new Date(result.jar.recurring?.nextDate ?? "").toISOString()).toBe(
+      "2026-06-22T00:00:00.000Z",
+    );
+    expect(
+      result.jar.entries.filter((entry) => entry.source === "recurring"),
+    ).toHaveLength(3);
   });
 
   it("does nothing when paused or when nothing is due", () => {
-    const paused = jar({ recurring: { amount: 500, cadence: "daily", paused: true } });
-    expect(runDueRecurring(paused, new Date("2027-01-01T00:00:00.000Z")).applied).toBe(0);
+    const paused = jar({
+      recurring: { amount: 500, cadence: "daily", paused: true },
+    });
+    expect(
+      runDueRecurring(paused, new Date("2027-01-01T00:00:00.000Z")).applied,
+    ).toBe(0);
 
     const future = jar({
       createdAt: "2026-01-01T00:00:00.000Z",
-      recurring: { amount: 500, cadence: "weekly", paused: false, nextDate: "2099-01-01T00:00:00.000Z" },
+      recurring: {
+        amount: 500,
+        cadence: "weekly",
+        paused: false,
+        nextDate: "2099-01-01T00:00:00.000Z",
+      },
     });
-    expect(runDueRecurring(future, new Date("2026-06-01T00:00:00.000Z")).applied).toBe(0);
+    expect(
+      runDueRecurring(future, new Date("2026-06-01T00:00:00.000Z")).applied,
+    ).toBe(0);
   });
 
   it("advances monthly schedules by calendar month", () => {
@@ -163,7 +231,10 @@ describe("runDueRecurring", () => {
       createdAt: "2026-01-31T00:00:00.000Z",
       recurring: { amount: 1200, cadence: "monthly", paused: false },
     });
-    const result = runDueRecurring(monthly, new Date("2026-03-15T00:00:00.000Z"));
+    const result = runDueRecurring(
+      monthly,
+      new Date("2026-03-15T00:00:00.000Z"),
+    );
     // Jan 31 and Feb 28 (clamped) are both due by Mar 15.
     expect(result.applied).toBe(2);
     expect(result.jar.balance).toBe(2400);
@@ -193,15 +264,29 @@ describe("deadlineCountdown", () => {
 
 describe("monthlyDeposits", () => {
   const now = new Date(2026, 7, 15); // Aug 15, 2026
-  const dep = (amount: number, date: Date) => ({ id: `e-${amount}-${date.getTime()}`, amount, direction: "deposit" as const, source: "manual" as const, at: date.toISOString() });
+  const dep = (amount: number, date: Date) => ({
+    id: `e-${amount}-${date.getTime()}`,
+    amount,
+    direction: "deposit" as const,
+    source: "manual" as const,
+    at: date.toISOString(),
+  });
 
   it("buckets deposits into the last 6 months, oldest first, ignoring withdrawals and older entries", () => {
-    const j = jar({ entries: [
-      dep(1000, new Date(2026, 7, 2)),
-      { id: "w1", amount: 500, direction: "withdrawal" as const, source: "manual" as const, at: new Date(2026, 7, 3).toISOString() },
-      dep(2000, new Date(2026, 5, 20)),
-      dep(9999, new Date(2026, 1, 28)),
-    ]});
+    const j = jar({
+      entries: [
+        dep(1000, new Date(2026, 7, 2)),
+        {
+          id: "w1",
+          amount: 500,
+          direction: "withdrawal" as const,
+          source: "manual" as const,
+          at: new Date(2026, 7, 3).toISOString(),
+        },
+        dep(2000, new Date(2026, 5, 20)),
+        dep(9999, new Date(2026, 1, 28)),
+      ],
+    });
     const months = monthlyDeposits([j], now);
     expect(months).toHaveLength(6);
     expect(months[5]).toEqual({ label: "Aug", total: 1000 });
@@ -214,6 +299,9 @@ describe("monthlyDeposits", () => {
   it("aggregates deposits across multiple jars", () => {
     const a = jar({ entries: [dep(100, new Date(2026, 7, 1))] });
     const b = jar({ entries: [dep(250, new Date(2026, 7, 10))] });
-    expect(monthlyDeposits([a, b], now).at(-1)).toEqual({ label: "Aug", total: 350 });
+    expect(monthlyDeposits([a, b], now).at(-1)).toEqual({
+      label: "Aug",
+      total: 350,
+    });
   });
 });

@@ -8,9 +8,16 @@
  * All money is integer minor units (cents), matching the client domain layer.
  */
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { inviteStatus, validateContribution, type InviteStatus } from "../shared/shared-jar";
+import {
+  inviteStatus,
+  sharedJarTotalsFromAggregates,
+  validateContribution,
+  type InviteStatus,
+  type SharedJarAggregateRow,
+  type SharedJarTotals,
+} from "../shared/shared-jar";
 import {
   sharedJarEntries,
   sharedJarInvites,
@@ -25,72 +32,180 @@ import {
 } from "../drizzle/schema";
 import { getDb } from "./db";
 
-export type SharedJarView = {
+/**
+ * A shared jar as a viewer sees it in the list: the row, its members, and
+ * totals derived by SQL aggregation — the entry log itself is never loaded
+ * just to be added up.
+ */
+export type SharedJarSummary = {
   jar: SharedJar;
   members: SharedJarMember[];
+  totals: SharedJarTotals;
+};
+
+/** The detail view adds the recent entry history for display. */
+export type SharedJarDetail = SharedJarSummary & {
   entries: SharedJarEntry[];
 };
 
+/** Kept for callers that reference the pre-aggregation view shape. */
+export type SharedJarView = SharedJarDetail;
+
+/**
+ * How much history the detail view returns. Totals are aggregate-derived, so
+ * capping the displayed log never skews the balance.
+ */
+export const ENTRY_HISTORY_LIMIT = 500;
+
+/** Per-(jar, user, direction) sums over the entry log, in one grouped query. */
+async function aggregateEntries(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  jarIds: number[],
+): Promise<(SharedJarAggregateRow & { jarId: number })[]> {
+  if (jarIds.length === 0) return [];
+  return db
+    .select({
+      jarId: sharedJarEntries.jarId,
+      userId: sharedJarEntries.userId,
+      direction: sharedJarEntries.direction,
+      // sum()/count() come back as bigint strings from postgres-js; the casts
+      // keep them plain numbers (amounts are capped far below int4 range).
+      total: sql<number>`sum(${sharedJarEntries.amount})::int`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(sharedJarEntries)
+    .where(inArray(sharedJarEntries.jarId, jarIds))
+    .groupBy(
+      sharedJarEntries.jarId,
+      sharedJarEntries.userId,
+      sharedJarEntries.direction,
+    );
+}
+
 /** True when `userId` is a member of `jarId`. */
-export async function isMember(jarId: number, userId: number): Promise<boolean> {
+export async function isMember(
+  jarId: number,
+  userId: number,
+): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   const rows = await db
     .select({ id: sharedJarMembers.id })
     .from(sharedJarMembers)
-    .where(and(eq(sharedJarMembers.jarId, jarId), eq(sharedJarMembers.userId, userId)))
+    .where(
+      and(
+        eq(sharedJarMembers.jarId, jarId),
+        eq(sharedJarMembers.userId, userId),
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }
 
-/** Load one jar with its members and entries, or null when the viewer has no access. */
-export async function getSharedJar(jarId: number, viewerId: number): Promise<SharedJarView | null> {
+/**
+ * Load one jar with its members, derived totals, and recent history — or null
+ * when the viewer has no access.
+ */
+export async function getSharedJar(
+  jarId: number,
+  viewerId: number,
+): Promise<SharedJarDetail | null> {
   const db = await getDb();
   if (!db) return null;
 
-  const jars = await db.select().from(sharedJars).where(eq(sharedJars.id, jarId)).limit(1);
+  const jars = await db
+    .select()
+    .from(sharedJars)
+    .where(eq(sharedJars.id, jarId))
+    .limit(1);
   const jar = jars[0];
   if (!jar) return null;
 
-  const members = await db.select().from(sharedJarMembers).where(eq(sharedJarMembers.jarId, jarId));
+  const members = await db
+    .select()
+    .from(sharedJarMembers)
+    .where(eq(sharedJarMembers.jarId, jarId));
   // Access is membership-based, not ownership-based: a member who did not create
   // the jar still reads it, a stranger never does.
   if (!members.some((member) => member.userId === viewerId)) return null;
 
-  const entries = await db.select().from(sharedJarEntries).where(eq(sharedJarEntries.jarId, jarId));
-  return { jar, members, entries };
+  const [aggregates, entries] = await Promise.all([
+    aggregateEntries(db, [jarId]),
+    // Display history is capped; totals come from the full log via the
+    // aggregate, so a long-lived jar's balance is always exact.
+    db
+      .select()
+      .from(sharedJarEntries)
+      .where(eq(sharedJarEntries.jarId, jarId))
+      .orderBy(desc(sharedJarEntries.createdAt), desc(sharedJarEntries.id))
+      .limit(ENTRY_HISTORY_LIMIT),
+  ]);
+  return {
+    jar,
+    members,
+    entries,
+    totals: sharedJarTotalsFromAggregates(jar, members, aggregates, viewerId),
+  };
 }
 
-/** Every shared jar the viewer belongs to. */
-export async function listSharedJars(viewerId: number): Promise<SharedJarView[]> {
+/**
+ * Every shared jar the viewer belongs to.
+ *
+ * Totals come from a single grouped aggregation rather than from loading every
+ * entry of every jar: the client re-fetches this on a foreground timer, so the
+ * query cost must not grow with history.
+ */
+export async function listSharedJars(
+  viewerId: number,
+): Promise<SharedJarSummary[]> {
   const db = await getDb();
   if (!db) return [];
 
-  const mine = await db.select({ jarId: sharedJarMembers.jarId }).from(sharedJarMembers).where(eq(sharedJarMembers.userId, viewerId));
+  const mine = await db
+    .select({ jarId: sharedJarMembers.jarId })
+    .from(sharedJarMembers)
+    .where(eq(sharedJarMembers.userId, viewerId));
   const ids = mine.map((row) => row.jarId);
   if (ids.length === 0) return [];
 
-  const [jars, members, entries] = await Promise.all([
+  const [jars, members, aggregates] = await Promise.all([
     db.select().from(sharedJars).where(inArray(sharedJars.id, ids)),
-    db.select().from(sharedJarMembers).where(inArray(sharedJarMembers.jarId, ids)),
-    db.select().from(sharedJarEntries).where(inArray(sharedJarEntries.jarId, ids)),
+    db
+      .select()
+      .from(sharedJarMembers)
+      .where(inArray(sharedJarMembers.jarId, ids)),
+    aggregateEntries(db, ids),
   ]);
 
-  return jars.map((jar) => ({
-    jar,
-    members: members.filter((member) => member.jarId === jar.id),
-    entries: entries.filter((entry) => entry.jarId === jar.id),
-  }));
+  return jars.map((jar) => {
+    const jarMembers = members.filter((member) => member.jarId === jar.id);
+    return {
+      jar,
+      members: jarMembers,
+      totals: sharedJarTotalsFromAggregates(
+        jar,
+        jarMembers,
+        aggregates.filter((row) => row.jarId === jar.id),
+        viewerId,
+      ),
+    };
+  });
 }
 
 /** Create a jar and make the creator its first, owning member. */
-export async function createSharedJar(input: InsertSharedJar, ownerName: string): Promise<SharedJar | null> {
+export async function createSharedJar(
+  input: InsertSharedJar,
+  ownerName: string,
+): Promise<SharedJar | null> {
   const db = await getDb();
   if (!db) return null;
 
   // `RETURNING` hands back the generated id in the same round trip. Postgres
   // does not expose MySQL's `insertId` on the driver result.
-  const inserted = await db.insert(sharedJars).values(input).returning({ id: sharedJars.id });
+  const inserted = await db
+    .insert(sharedJars)
+    .values(input)
+    .returning({ id: sharedJars.id });
   const insertedId = inserted[0]?.id;
   if (!insertedId) return null;
 
@@ -100,12 +215,20 @@ export async function createSharedJar(input: InsertSharedJar, ownerName: string)
     displayName: ownerName,
   });
 
-  const created = await db.select().from(sharedJars).where(eq(sharedJars.id, insertedId)).limit(1);
+  const created = await db
+    .select()
+    .from(sharedJars)
+    .where(eq(sharedJars.id, insertedId))
+    .limit(1);
   return created[0] ?? null;
 }
 
 /** Add a member by account id. Returns false when the account does not exist or is already in. */
-export async function addMember(jarId: number, userId: number, displayName: string): Promise<boolean> {
+export async function addMember(
+  jarId: number,
+  userId: number,
+  displayName: string,
+): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
   // The (jarId, userId) unique index turns a duplicate invite into a no-op. That
@@ -115,21 +238,37 @@ export async function addMember(jarId: number, userId: number, displayName: stri
   const inserted = await db
     .insert(sharedJarMembers)
     .values({ jarId, userId, displayName })
-    .onConflictDoNothing({ target: [sharedJarMembers.jarId, sharedJarMembers.userId] })
+    .onConflictDoNothing({
+      target: [sharedJarMembers.jarId, sharedJarMembers.userId],
+    })
     .returning({ id: sharedJarMembers.id });
   return inserted.length > 0;
 }
 
-export async function removeMember(jarId: number, userId: number): Promise<void> {
+export async function removeMember(
+  jarId: number,
+  userId: number,
+): Promise<void> {
   const db = await getDb();
   if (!db) return;
-  await db.delete(sharedJarMembers).where(and(eq(sharedJarMembers.jarId, jarId), eq(sharedJarMembers.userId, userId)));
+  await db
+    .delete(sharedJarMembers)
+    .where(
+      and(
+        eq(sharedJarMembers.jarId, jarId),
+        eq(sharedJarMembers.userId, userId),
+      ),
+    );
 }
 
 /** The result of a validated, atomically-applied contribution. */
 export type ContributionOutcome =
   | { ok: true; entry: SharedJarEntry }
-  | { ok: false; reason: "jar-missing" | "invalid"; message?: string };
+  | {
+      ok: false;
+      reason: "jar-missing" | "not-owner" | "invalid";
+      message?: string;
+    };
 
 /**
  * Append a contribution, validating it against the live balance atomically.
@@ -152,10 +291,25 @@ export async function contributeToJar(input: {
   if (!db) return null;
 
   return db.transaction(async (tx) => {
-    const locked = await tx.select({ id: sharedJars.id }).from(sharedJars).where(eq(sharedJars.id, input.jarId)).for("update");
-    if (!locked[0]) return { ok: false as const, reason: "jar-missing" as const };
+    const locked = await tx
+      .select({ id: sharedJars.id, ownerId: sharedJars.ownerId })
+      .from(sharedJars)
+      .where(eq(sharedJars.id, input.jarId))
+      .for("update");
+    const jar = locked[0];
+    if (!jar) return { ok: false as const, reason: "jar-missing" as const };
 
-    const entries = await tx.select().from(sharedJarEntries).where(eq(sharedJarEntries.jarId, input.jarId));
+    // Defence in depth, matching the router's FORBIDDEN: a withdrawal moves
+    // everyone's money, so only the owner may make one — even if a caller
+    // reaches this function without the router's pre-check.
+    if (input.direction === "withdrawal" && jar.ownerId !== input.userId) {
+      return { ok: false as const, reason: "not-owner" as const };
+    }
+
+    const entries = await tx
+      .select()
+      .from(sharedJarEntries)
+      .where(eq(sharedJarEntries.jarId, input.jarId));
     let balance = 0;
     for (const entry of entries) {
       // Defensive, mirroring the shared aggregation: one bad row must not
@@ -164,8 +318,17 @@ export async function contributeToJar(input: {
       balance += entry.direction === "deposit" ? entry.amount : -entry.amount;
     }
 
-    const problem = validateContribution(input.amount, input.direction, balance);
-    if (problem) return { ok: false as const, reason: "invalid" as const, message: problem };
+    const problem = validateContribution(
+      input.amount,
+      input.direction,
+      balance,
+    );
+    if (problem)
+      return {
+        ok: false as const,
+        reason: "invalid" as const,
+        message: problem,
+      };
 
     // The row comes straight back rather than being re-read: `RETURNING` makes
     // the insert and the read a single statement.
@@ -187,13 +350,18 @@ export async function contributeToJar(input: {
 
 export async function updateSharedJar(
   jarId: number,
-  input: Partial<Pick<SharedJar, "name" | "icon" | "accent" | "kind" | "target">>,
+  input: Partial<
+    Pick<SharedJar, "name" | "icon" | "accent" | "kind" | "target">
+  >,
 ): Promise<void> {
   const db = await getDb();
   if (!db) return;
   if (Object.keys(input).length === 0) return;
   // Postgres has no `ON UPDATE CURRENT_TIMESTAMP`, so the stamp is written here.
-  await db.update(sharedJars).set({ ...input, updatedAt: new Date() }).where(eq(sharedJars.id, jarId));
+  await db
+    .update(sharedJars)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(sharedJars.id, jarId));
 }
 
 /** Delete a jar and everything hanging off it. Entries and members go first. */
@@ -239,10 +407,16 @@ export async function createInvite(input: {
 }
 
 /** Point-read an invite by its token, regardless of whether it is still usable. */
-export async function findInviteByToken(token: string): Promise<SharedJarInvite | undefined> {
+export async function findInviteByToken(
+  token: string,
+): Promise<SharedJarInvite | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  const rows = await db.select().from(sharedJarInvites).where(eq(sharedJarInvites.token, token)).limit(1);
+  const rows = await db
+    .select()
+    .from(sharedJarInvites)
+    .where(eq(sharedJarInvites.token, token))
+    .limit(1);
   return rows[0];
 }
 
@@ -250,7 +424,10 @@ export async function findInviteByToken(token: string): Promise<SharedJarInvite 
 export async function listInvites(jarId: number): Promise<SharedJarInvite[]> {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db.select().from(sharedJarInvites).where(eq(sharedJarInvites.jarId, jarId));
+  const rows = await db
+    .select()
+    .from(sharedJarInvites)
+    .where(eq(sharedJarInvites.jarId, jarId));
   return rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
@@ -281,7 +458,11 @@ export async function joinJarViaInvite(input: {
   if (!db) return null;
 
   return db.transaction(async (tx) => {
-    const invites = await tx.select().from(sharedJarInvites).where(eq(sharedJarInvites.token, input.token)).for("update");
+    const invites = await tx
+      .select()
+      .from(sharedJarInvites)
+      .where(eq(sharedJarInvites.token, input.token))
+      .for("update");
     const invite = invites[0];
     if (!invite) return { outcome: "invalid-token" } as const;
 
@@ -290,20 +471,36 @@ export async function joinJarViaInvite(input: {
     const membership = await tx
       .select({ id: sharedJarMembers.id })
       .from(sharedJarMembers)
-      .where(and(eq(sharedJarMembers.jarId, invite.jarId), eq(sharedJarMembers.userId, input.userId)))
+      .where(
+        and(
+          eq(sharedJarMembers.jarId, invite.jarId),
+          eq(sharedJarMembers.userId, input.userId),
+        ),
+      )
       .limit(1);
-    if (membership[0]) return { outcome: "already-member", jarId: invite.jarId } as const;
+    if (membership[0])
+      return { outcome: "already-member", jarId: invite.jarId } as const;
 
     const status = inviteStatus(invite);
     if (status !== "open") return { outcome: "closed", status } as const;
 
-    const jar = await tx.select({ id: sharedJars.id }).from(sharedJars).where(eq(sharedJars.id, invite.jarId)).limit(1);
+    const jar = await tx
+      .select({ id: sharedJars.id })
+      .from(sharedJars)
+      .where(eq(sharedJars.id, invite.jarId))
+      .limit(1);
     if (!jar[0]) return { outcome: "jar-missing" } as const;
 
     await tx
       .insert(sharedJarMembers)
-      .values({ jarId: invite.jarId, userId: input.userId, displayName: input.displayName })
-      .onConflictDoNothing({ target: [sharedJarMembers.jarId, sharedJarMembers.userId] });
+      .values({
+        jarId: invite.jarId,
+        userId: input.userId,
+        displayName: input.displayName,
+      })
+      .onConflictDoNothing({
+        target: [sharedJarMembers.jarId, sharedJarMembers.userId],
+      });
 
     // Atomic increment rather than read-modify-write; with the row lock above
     // there is no interleaving to fear, but the SQL form keeps it honest.
@@ -319,14 +516,23 @@ export async function joinJarViaInvite(input: {
 export async function revokeInvite(inviteId: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
-  await db.update(sharedJarInvites).set({ revoked: true }).where(eq(sharedJarInvites.id, inviteId));
+  await db
+    .update(sharedJarInvites)
+    .set({ revoked: true })
+    .where(eq(sharedJarInvites.id, inviteId));
 }
 
 /** Read a jar row directly, for the public invite preview. No membership check. */
-export async function findJarById(jarId: number): Promise<SharedJar | undefined> {
+export async function findJarById(
+  jarId: number,
+): Promise<SharedJar | undefined> {
   const db = await getDb();
   if (!db) return undefined;
-  const rows = await db.select().from(sharedJars).where(eq(sharedJars.id, jarId)).limit(1);
+  const rows = await db
+    .select()
+    .from(sharedJars)
+    .where(eq(sharedJars.id, jarId))
+    .limit(1);
   return rows[0];
 }
 
@@ -334,17 +540,26 @@ export async function findJarById(jarId: number): Promise<SharedJar | undefined>
 export async function countMembers(jarId: number): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
-  const rows = await db.select({ id: sharedJarMembers.id }).from(sharedJarMembers).where(eq(sharedJarMembers.jarId, jarId));
+  const rows = await db
+    .select({ id: sharedJarMembers.id })
+    .from(sharedJarMembers)
+    .where(eq(sharedJarMembers.jarId, jarId));
   return rows.length;
 }
 
 /** Look up an account by id so an invite can attach a display name. */
-export async function findUserById(userId: number): Promise<{ id: number; name: string | null } | undefined> {
+export async function findUserById(
+  userId: number,
+): Promise<{ id: number; name: string | null } | undefined> {
   const db = await getDb();
   if (!db) return undefined;
   // Built through the query builder rather than raw SQL: `db.execute` returns a
   // driver-specific shape, and the query builder's row array is portable.
-  const rows = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
+  const rows = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
   return rows[0];
 }
 
@@ -395,7 +610,9 @@ export type ImportedPersonalJar = {
  * `sourceLocalId` returns the existing jar instead of duplicating history, so a
  * client that retries after a lost response is safe.
  */
-export async function importPersonalJar(input: ImportPersonalJarInput): Promise<ImportedPersonalJar | null> {
+export async function importPersonalJar(
+  input: ImportPersonalJarInput,
+): Promise<ImportedPersonalJar | null> {
   const db = await getDb();
   if (!db) return null;
 
@@ -404,7 +621,12 @@ export async function importPersonalJar(input: ImportPersonalJarInput): Promise<
     const existing = await tx
       .select({ id: sharedJars.id })
       .from(sharedJars)
-      .where(and(eq(sharedJars.ownerId, input.ownerId), eq(sharedJars.sourceLocalId, input.sourceLocalId)))
+      .where(
+        and(
+          eq(sharedJars.ownerId, input.ownerId),
+          eq(sharedJars.sourceLocalId, input.sourceLocalId),
+        ),
+      )
       .limit(1);
     if (existing[0]) {
       return { jarId: existing[0].id, created: false, entryCount: 0 };
@@ -429,7 +651,9 @@ export async function importPersonalJar(input: ImportPersonalJarInput): Promise<
         lastDepositAt: input.lastDepositAt,
         createdAt: input.createdAt,
       })
-      .onConflictDoNothing({ target: [sharedJars.ownerId, sharedJars.sourceLocalId] })
+      .onConflictDoNothing({
+        target: [sharedJars.ownerId, sharedJars.sourceLocalId],
+      })
       .returning({ id: sharedJars.id });
 
     const jarId = created[0]?.id;
@@ -439,30 +663,52 @@ export async function importPersonalJar(input: ImportPersonalJarInput): Promise<
       const raced = await tx
         .select({ id: sharedJars.id })
         .from(sharedJars)
-        .where(and(eq(sharedJars.ownerId, input.ownerId), eq(sharedJars.sourceLocalId, input.sourceLocalId)))
+        .where(
+          and(
+            eq(sharedJars.ownerId, input.ownerId),
+            eq(sharedJars.sourceLocalId, input.sourceLocalId),
+          ),
+        )
         .limit(1);
       if (!raced[0]) return null;
       return { jarId: raced[0].id, created: false, entryCount: 0 };
     }
 
-    await tx.insert(sharedJarMembers).values({ jarId, userId: input.ownerId, displayName: input.ownerName });
+    await tx
+      .insert(sharedJarMembers)
+      .values({ jarId, userId: input.ownerId, displayName: input.ownerName });
 
     // The opening adjustment keeps the derived total equal to the balance the
     // owner actually has, even when early deposits were never logged.
     const rows: {
-      jarId: number; userId: number; amount: number; direction: "deposit" | "withdrawal";
-      note?: string; source?: "manual" | "recurring"; createdAt: Date;
+      jarId: number;
+      userId: number;
+      amount: number;
+      direction: "deposit" | "withdrawal";
+      note?: string;
+      source?: "manual" | "recurring";
+      createdAt: Date;
     }[] = [];
     if (input.openingAdjustment > 0) {
       rows.push({
-        jarId, userId: input.ownerId, amount: input.openingAdjustment, direction: "deposit",
-        note: "Opening balance", source: "manual", createdAt: input.createdAt,
+        jarId,
+        userId: input.ownerId,
+        amount: input.openingAdjustment,
+        direction: "deposit",
+        note: "Opening balance",
+        source: "manual",
+        createdAt: input.createdAt,
       });
     }
     for (const entry of input.entries) {
       rows.push({
-        jarId, userId: input.ownerId, amount: entry.amount, direction: entry.direction,
-        note: entry.note, source: entry.source ?? "manual", createdAt: entry.at,
+        jarId,
+        userId: input.ownerId,
+        amount: entry.amount,
+        direction: entry.direction,
+        note: entry.note,
+        source: entry.source ?? "manual",
+        createdAt: entry.at,
       });
     }
     if (rows.length > 0) await tx.insert(sharedJarEntries).values(rows);

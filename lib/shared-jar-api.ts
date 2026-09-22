@@ -81,7 +81,10 @@ export async function contributeToSharedJar(input: {
 }
 
 /** Owner-only: invite a member by account id. */
-export async function inviteToSharedJar(jarId: number, userId: number): Promise<void> {
+export async function inviteToSharedJar(
+  jarId: number,
+  userId: number,
+): Promise<void> {
   await getClient().sharedJar.addMember.mutate({ jarId, userId });
 }
 
@@ -108,7 +111,9 @@ export async function deleteSharedJar(jarId: number): Promise<void> {
 export async function importPersonalJar(
   snapshot: PersonalShareInput,
 ): Promise<{ jarId: number; created: boolean; entryCount: number }> {
-  return (await getClient().sharedJar.importPersonal.mutate(snapshot)) as unknown as {
+  return (await getClient().sharedJar.importPersonal.mutate(
+    snapshot,
+  )) as unknown as {
     jarId: number;
     created: boolean;
     entryCount: number;
@@ -121,16 +126,31 @@ export async function importPersonalJar(
 
 /** What an invite link looks like to the person holding it. */
 export type InvitePreview =
-  | { ok: false; reason: "missing" | "expired" | "used-up" | "revoked"; message: string }
+  | {
+      ok: false;
+      reason: "missing" | "expired" | "used-up" | "revoked";
+      message: string;
+    }
   | {
       ok: true;
-      jar: { name: string; icon: string; accent: string; kind: "goal" | "habit"; target: number };
+      jar: {
+        name: string;
+        icon: string;
+        accent: string;
+        kind: "goal" | "habit";
+        target: number;
+      };
       members: number;
       inviterName: string | null;
     };
 
 /** A minted invite, as the owner sees it in the share sheet. */
-export type MintedInvite = { token: string; expiresAt: Date; maxUses: number; uses: number };
+export type MintedInvite = {
+  token: string;
+  expiresAt: Date;
+  maxUses: number;
+  uses: number;
+};
 
 /** An invite the owner has already sent, for the management list. */
 export type ListedInvite = {
@@ -143,7 +163,10 @@ export type ListedInvite = {
 };
 
 /** Owner-only: mint a new invite link for a jar. */
-export async function createInvite(jarId: number, options?: { maxUses?: number; expiresInDays?: number }): Promise<MintedInvite> {
+export async function createInvite(
+  jarId: number,
+  options?: { maxUses?: number; expiresInDays?: number },
+): Promise<MintedInvite> {
   const created = await getClient().sharedJar.createInvite.mutate({
     jarId,
     maxUses: options?.maxUses ?? 0,
@@ -154,11 +177,16 @@ export async function createInvite(jarId: number, options?: { maxUses?: number; 
 
 /** Owner-only: every invite minted for this jar. */
 export async function listInvites(jarId: number): Promise<ListedInvite[]> {
-  return (await getClient().sharedJar.listInvites.query({ jarId })) as unknown as ListedInvite[];
+  return (await getClient().sharedJar.listInvites.query({
+    jarId,
+  })) as unknown as ListedInvite[];
 }
 
 /** Owner-only: cancel an invite that has already been sent. */
-export async function revokeInvite(jarId: number, token: string): Promise<void> {
+export async function revokeInvite(
+  jarId: number,
+  token: string,
+): Promise<void> {
   await getClient().sharedJar.revokeInvite.mutate({ jarId, token });
 }
 
@@ -169,14 +197,19 @@ export async function revokeInvite(jarId: number, token: string): Promise<void> 
  * recipient signs in, which is usually the moment they decide to.
  */
 export async function previewInvite(token: string): Promise<InvitePreview> {
-  return (await getClient().sharedJar.previewInvite.query({ token })) as unknown as InvitePreview;
+  return (await getClient().sharedJar.previewInvite.query({
+    token,
+  })) as unknown as InvitePreview;
 }
 
 /** Join a jar through an invite token. Idempotent for existing members. */
-export async function joinInvite(token: string): Promise<{ jarId: number; alreadyMember: boolean }> {
-  return (await getClient().sharedJar.joinInvite.mutate({ token })) as unknown as {
+export async function joinInvite(
+  token: string,
+): Promise<{ jarId: number; alreadyMember: boolean }> {
+  return (await getClient().sharedJar.joinInvite.mutate({
+    token,
+  })) as unknown as {
     jarId: number;
     alreadyMember: boolean;
   };
 }
-

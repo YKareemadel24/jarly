@@ -69,7 +69,13 @@ export type TransferAssembly = {
  */
 // Optional tuple slots have to be spelled `T | undefined` rather than `T?`: a
 // trailing `?` is not valid TypeScript when the element type is a union.
-type WireEntry = [number, 0 | 1, string, (string | undefined)?, (0 | 1 | undefined)?];
+type WireEntry = [
+  number,
+  0 | 1,
+  string,
+  (string | undefined)?,
+  (0 | 1 | undefined)?,
+];
 
 type WireRecurring = { am: number; cd: Cadence; pa: 0 | 1; nd?: string };
 
@@ -109,7 +115,11 @@ type WireSnapshot = {
 function entryToWire(entry: Entry): WireEntry {
   // Built as a plain array first: annotating a literal this long as a tuple
   // makes every trailing optional slot a separate assignability complaint.
-  const wire: (number | string | undefined)[] = [entry.amount, entry.direction === "deposit" ? 1 : 0, entry.at];
+  const wire: (number | string | undefined)[] = [
+    entry.amount,
+    entry.direction === "deposit" ? 1 : 0,
+    entry.at,
+  ];
   if (entry.note) wire[3] = entry.note;
   if (entry.source === "recurring") wire[4] = 1;
   return wire as WireEntry;
@@ -172,9 +182,16 @@ function jarFromWire(wire: WireJar): Jar {
     milestonesHit: wire.h ?? [],
     archived: wire.x === true,
     recurring: wire.r
-      ? { amount: wire.r.am, cadence: wire.r.cd, paused: wire.r.pa === 1, nextDate: wire.r.nd }
+      ? {
+          amount: wire.r.am,
+          cadence: wire.r.cd,
+          paused: wire.r.pa === 1,
+          nextDate: wire.r.nd,
+        }
       : undefined,
-    entries: (wire.e ?? []).map((entry, index) => entryFromWire(entry, wire.i, index)),
+    entries: (wire.e ?? []).map((entry, index) =>
+      entryFromWire(entry, wire.i, index),
+    ),
   };
 }
 
@@ -193,7 +210,11 @@ export function encodeTransferFrames(snapshot: TransferSnapshot): string[] {
   const payload = bytesToBase64Url(utf8Encode(JSON.stringify(wire)));
 
   const chunks: string[] = [];
-  for (let offset = 0; offset < payload.length; offset += TRANSFER_CHUNK_CHARS) {
+  for (
+    let offset = 0;
+    offset < payload.length;
+    offset += TRANSFER_CHUNK_CHARS
+  ) {
     chunks.push(payload.slice(offset, offset + TRANSFER_CHUNK_CHARS));
   }
   // A snapshot with no jars still produces one frame, so a receiver always has
@@ -211,7 +232,9 @@ export function encodeTransferFrames(snapshot: TransferSnapshot): string[] {
 /* Decoding                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function parseFrame(frame: string): { index: number; total: number; payload: string } | undefined {
+function parseFrame(
+  frame: string,
+): { index: number; total: number; payload: string } | undefined {
   const text = frame.trim();
   if (!text.startsWith(`${TRANSFER_PREFIX}.`)) return undefined;
   const parts = text.split(".");
@@ -229,7 +252,9 @@ function parseFrame(frame: string): { index: number; total: number; payload: str
  * when none of the input was a frame at all; a partial transfer comes back as
  * an assembly with `missing` populated, which is what the scan screen shows.
  */
-export function decodeTransferFrames(frames: string[]): TransferAssembly | undefined {
+export function decodeTransferFrames(
+  frames: string[],
+): TransferAssembly | undefined {
   const collected = new Map<number, string>();
   let total = 0;
   let duplicates = 0;
@@ -290,7 +315,8 @@ export function decodeTransferFrames(frames: string[]): TransferAssembly | undef
 /* Byte plumbing                                                               */
 /* -------------------------------------------------------------------------- */
 
-const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const B64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 const B64_LOOKUP: Record<string, number> = (() => {
   const table: Record<string, number> = {};
@@ -342,7 +368,11 @@ function utf8Encode(text: string): number[] {
     } else if (code < 0x800) {
       bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
     } else if (code < 0x10000) {
-      bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+      bytes.push(
+        0xe0 | (code >> 12),
+        0x80 | ((code >> 6) & 0x3f),
+        0x80 | (code & 0x3f),
+      );
     } else {
       bytes.push(
         0xf0 | (code >> 18),

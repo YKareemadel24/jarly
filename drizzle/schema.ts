@@ -19,7 +19,10 @@ import {
  */
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
 export const jarKindEnum = pgEnum("jar_kind", ["goal", "habit"]);
-export const entryDirectionEnum = pgEnum("entry_direction", ["deposit", "withdrawal"]);
+export const entryDirectionEnum = pgEnum("entry_direction", [
+  "deposit",
+  "withdrawal",
+]);
 
 /**
  * Application identity, distinct from the account that authenticates.
@@ -42,13 +45,19 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: userRoleEnum("role").default("user").notNull(),
-  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   /**
    * Stamped by the application rather than the database: Postgres has no
    * `ON UPDATE CURRENT_TIMESTAMP`, so writers set this explicitly.
    */
-  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  lastSignedIn: timestamp("lastSignedIn", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -88,8 +97,12 @@ export const sharedJars = pgTable(
     streak: integer("streak"),
     /** ISO timestamp of the newest deposit, for client-side ordering. */
     lastDepositAt: varchar("lastDepositAt", { length: 40 }),
-    createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => ({
     ownerIdx: index("shared_jars_owner_idx").on(table.ownerId),
@@ -99,7 +112,10 @@ export const sharedJars = pgTable(
      * no-op rather than an error that would abort the enclosing transaction —
      * which is how Postgres behaves and how MySQL did not.
      */
-    ownerSourceUnique: uniqueIndex("shared_jars_owner_source_unique").on(table.ownerId, table.sourceLocalId),
+    ownerSourceUnique: uniqueIndex("shared_jars_owner_source_unique").on(
+      table.ownerId,
+      table.sourceLocalId,
+    ),
   }),
 );
 
@@ -118,10 +134,15 @@ export const sharedJarMembers = pgTable(
     userId: integer("userId").notNull(),
     /** Display name snapshot, so a jar still reads correctly if a user is renamed. */
     displayName: varchar("displayName", { length: 80 }).notNull(),
-    joinedAt: timestamp("joinedAt", { withTimezone: true }).defaultNow().notNull(),
+    joinedAt: timestamp("joinedAt", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => ({
-    jarUserUnique: uniqueIndex("shared_jar_members_jar_user_unique").on(table.jarId, table.userId),
+    jarUserUnique: uniqueIndex("shared_jar_members_jar_user_unique").on(
+      table.jarId,
+      table.userId,
+    ),
     userIdx: index("shared_jar_members_user_idx").on(table.userId),
   }),
 );
@@ -147,7 +168,9 @@ export const sharedJarEntries = pgTable(
     /** Manual deposit or scheduled recurring one; preserved on personal-jar import. */
     source: varchar("source", { length: 16 }).notNull().default("manual"),
     note: varchar("note", { length: 200 }),
-    createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => ({
     jarIdx: index("shared_jar_entries_jar_idx").on(table.jarId),
@@ -180,7 +203,9 @@ export const sharedJarInvites = pgTable(
     maxUses: integer("maxUses").notNull().default(0),
     uses: integer("uses").notNull().default(0),
     revoked: boolean("revoked").notNull().default(false),
-    createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => ({
     jarIdx: index("shared_jar_invites_jar_idx").on(table.jarId),

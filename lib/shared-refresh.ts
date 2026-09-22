@@ -24,12 +24,18 @@ export function createSharedRefresh<T>(options: {
       if (!disposed && request === generation) options.busy(false);
     }
   };
-  const foreground = () => { if (options.active()) void refresh(); };
+  const foreground = () => {
+    if (options.active()) void refresh();
+  };
   const timer = setInterval(foreground, options.intervalMs ?? 10_000);
   return {
     refresh,
     foreground,
-    dispose: () => { disposed = true; ++generation; clearInterval(timer); },
+    dispose: () => {
+      disposed = true;
+      ++generation;
+      clearInterval(timer);
+    },
   };
 }
 

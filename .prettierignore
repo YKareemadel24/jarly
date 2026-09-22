@@ -1,0 +1,7 @@
+﻿node_modules
+dist
+.expo
+.pnpm-store
+*.log
+pnpm-lock.yaml
+drizzle/meta

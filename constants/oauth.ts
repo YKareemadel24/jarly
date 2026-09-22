@@ -12,7 +12,8 @@ import * as ReactNative from "react-native";
 
 const env = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
-  supabasePublishableKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
+  supabasePublishableKey:
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
 };
 
@@ -59,7 +60,11 @@ export function getApiBaseUrl(): string {
   }
 
   // On web, derive from current hostname by replacing port 8081 with 3000
-  if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+  if (
+    ReactNative.Platform.OS === "web" &&
+    typeof window !== "undefined" &&
+    window.location
+  ) {
     const { protocol, hostname, port } = window.location;
     // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
     const apiHostname = hostname.replace(/^8081-/, "3000-");
@@ -90,7 +95,11 @@ export function getApiBaseUrl(): string {
  * Configuration in the Supabase dashboard or the redirect is refused.
  */
 export function getAuthRedirectUrl(path = "/oauth/callback"): string {
-  if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+  if (
+    ReactNative.Platform.OS === "web" &&
+    typeof window !== "undefined" &&
+    window.location?.origin
+  ) {
     return `${window.location.origin}${path}`;
   }
   return Linking.createURL(path, { scheme: deepLinkScheme });

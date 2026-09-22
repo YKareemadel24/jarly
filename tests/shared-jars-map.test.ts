@@ -14,7 +14,9 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem: vi.fn(), setItem: vi.fn(), multiGet: vi.fn() },
 }));
 
-const payload = (overrides: Partial<SharedJarPayload> = {}): SharedJarPayload => ({
+const payload = (
+  overrides: Partial<SharedJarPayload> = {},
+): SharedJarPayload => ({
   id: 7,
   name: "Japan 2027",
   icon: "🗾",
@@ -27,7 +29,13 @@ const payload = (overrides: Partial<SharedJarPayload> = {}): SharedJarPayload =>
   progress: 36,
   depositCount: 2,
   members: [
-    { userId: 1, displayName: "You", contributed: 124_000, you: true, isOwner: true },
+    {
+      userId: 1,
+      displayName: "You",
+      contributed: 124_000,
+      you: true,
+      isOwner: true,
+    },
     { userId: 2, displayName: "Mia", contributed: 94_000, you: false },
   ],
   ...overrides,
@@ -80,7 +88,13 @@ describe("sharedJarToJar", () => {
   it("maps members with their shares and the viewer flag", () => {
     const jar = sharedJarToJar(payload());
     expect(jar.members).toHaveLength(2);
-    expect(jar.members?.[0]).toEqual({ id: "1", name: "You", contributed: 124_000, you: true, isOwner: true });
+    expect(jar.members?.[0]).toEqual({
+      id: "1",
+      name: "You",
+      contributed: 124_000,
+      you: true,
+      isOwner: true,
+    });
     expect(jar.members?.[1]?.you).toBe(false);
     expect(jar.members?.[1]?.isOwner).toBeFalsy();
   });
@@ -89,23 +103,50 @@ describe("sharedJarToJar", () => {
     const jar = sharedJarToJar(
       payload({
         entries: [
-          { id: 1, userId: 2, amount: 50_000, direction: "deposit", note: "Bonus", createdAt: "2026-02-01T00:00:00.000Z" },
-          { id: 2, userId: 1, amount: 10_000, direction: "withdrawal", note: null, createdAt: new Date("2026-03-01T00:00:00.000Z") },
+          {
+            id: 1,
+            userId: 2,
+            amount: 50_000,
+            direction: "deposit",
+            note: "Bonus",
+            createdAt: "2026-02-01T00:00:00.000Z",
+          },
+          {
+            id: 2,
+            userId: 1,
+            amount: 10_000,
+            direction: "withdrawal",
+            note: null,
+            createdAt: new Date("2026-03-01T00:00:00.000Z"),
+          },
         ],
       }),
     );
-    expect(jar.entries[0]).toMatchObject({ id: "shared-entry-1", amount: 50_000, direction: "deposit", who: "Mia", note: "Bonus" });
-    expect(jar.entries[1]).toMatchObject({ direction: "withdrawal", who: "You" });
+    expect(jar.entries[0]).toMatchObject({
+      id: "shared-entry-1",
+      amount: 50_000,
+      direction: "deposit",
+      who: "Mia",
+      note: "Bonus",
+    });
+    expect(jar.entries[1]).toMatchObject({
+      direction: "withdrawal",
+      who: "You",
+    });
     expect(jar.entries[1]?.note).toBeUndefined();
   });
 
   it("normalises Date timestamps to ISO strings", () => {
-    const jar = sharedJarToJar(payload({ createdAt: new Date("2026-01-05T00:00:00.000Z") }));
+    const jar = sharedJarToJar(
+      payload({ createdAt: new Date("2026-01-05T00:00:00.000Z") }),
+    );
     expect(jar.createdAt).toBe("2026-01-05T00:00:00.000Z");
   });
 
   it("falls back to a valid accent when the server sends an unknown one", () => {
-    expect(sharedJarToJar(payload({ accent: "chartreuse" })).accent).toBe("ocean");
+    expect(sharedJarToJar(payload({ accent: "chartreuse" })).accent).toBe(
+      "ocean",
+    );
     expect(sharedJarToJar(payload({ accent: "coral" })).accent).toBe("coral");
   });
 
@@ -118,7 +159,9 @@ describe("sharedJarToJar", () => {
   });
 
   it("keeps a zero-balance shared jar representable", () => {
-    const jar = sharedJarToJar(payload({ balance: 0, progress: 0, depositCount: 0 }));
+    const jar = sharedJarToJar(
+      payload({ balance: 0, progress: 0, depositCount: 0 }),
+    );
     expect(jar.balance).toBe(0);
     expect(jar.entries).toEqual([]);
   });
@@ -136,6 +179,11 @@ describe("mergeJars", () => {
   });
 
   it("never drops a jar when both lists are populated", () => {
-    expect(mergeJars([localJar("a"), localJar("b")], [sharedJarToJar(payload()), sharedJarToJar(payload({ id: 8 }))])).toHaveLength(4);
+    expect(
+      mergeJars(
+        [localJar("a"), localJar("b")],
+        [sharedJarToJar(payload()), sharedJarToJar(payload({ id: 8 }))],
+      ),
+    ).toHaveLength(4);
   });
 });

@@ -3,16 +3,31 @@ import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 
-export type DueNotification = { jarId: string; fireDate: string; title: string; detail: string };
+export type DueNotification = {
+  jarId: string;
+  fireDate: string;
+  title: string;
+  detail: string;
+};
 
 const DAY_MS = 86_400_000;
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 /** 09:00 local on the due day, or one minute from now when that has passed. */
 function morningFire(due: Date, now: Date): string {
-  const fire = new Date(due.getFullYear(), due.getMonth(), due.getDate(), 9, 0, 0);
-  return (fire.getTime() > now.getTime() ? fire : new Date(now.getTime() + 60_000)).toISOString();
+  const fire = new Date(
+    due.getFullYear(),
+    due.getMonth(),
+    due.getDate(),
+    9,
+    0,
+    0,
+  );
+  return (
+    fire.getTime() > now.getTime() ? fire : new Date(now.getTime() + 60_000)
+  ).toISOString();
 }
 
 /**
@@ -21,7 +36,11 @@ function morningFire(due: Date, now: Date): string {
  * without a ping (deadline pings are due-day-only; the card window is 3 days).
  * Max one ping per jar.
  */
-export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: string = "USD"): DueNotification[] {
+export function dueNotifications(
+  jars: Jar[],
+  now: Date = new Date(),
+  currency: string = "USD",
+): DueNotification[] {
   const pings: DueNotification[] = [];
   for (const jar of jars) {
     if (jar.archived) continue;
@@ -29,7 +48,9 @@ export function dueNotifications(jars: Jar[], now: Date = new Date(), currency: 
 
     const rule = jar.recurring;
     if (rule && !rule.paused && rule.amount > 0) {
-      const due = rule.nextDate ? new Date(rule.nextDate) : new Date(jar.createdAt);
+      const due = rule.nextDate
+        ? new Date(rule.nextDate)
+        : new Date(jar.createdAt);
       const days = Math.ceil((due.getTime() - now.getTime()) / DAY_MS);
       if (days >= 0 && days <= 1) {
         pings.push({

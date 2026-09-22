@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type BadgeId, badges, badgeStats, newlyEarnedBadges, type Jar } from "../lib/savings-core";
+import {
+  type BadgeId,
+  badges,
+  badgeStats,
+  newlyEarnedBadges,
+  type Jar,
+} from "../lib/savings-core";
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
@@ -32,13 +38,20 @@ const dep = (amount: number, at: string, id = `e-${amount}-${at}`) => ({
   at,
 });
 
-const earnedIds = (list: ReturnType<typeof badges>) => list.filter((badge) => badge.earned).map((badge) => badge.id);
-const find = (list: ReturnType<typeof badges>, id: BadgeId) => list.find((badge) => badge.id === id)!;
+const earnedIds = (list: ReturnType<typeof badges>) =>
+  list.filter((badge) => badge.earned).map((badge) => badge.id);
+const find = (list: ReturnType<typeof badges>, id: BadgeId) =>
+  list.find((badge) => badge.id === id)!;
 
 describe("badgeStats", () => {
   it("counts deposits and minor units across every jar", () => {
     const stats = badgeStats([
-      jar({ entries: [dep(1000, "2026-03-01T00:00:00Z"), dep(2500, "2026-03-02T00:00:00Z")] }),
+      jar({
+        entries: [
+          dep(1000, "2026-03-01T00:00:00Z"),
+          dep(2500, "2026-03-02T00:00:00Z"),
+        ],
+      }),
       jar({ id: "b", entries: [dep(500, "2026-04-01T00:00:00Z")] }),
     ]);
     expect(stats.deposits).toBe(3);
@@ -50,7 +63,13 @@ describe("badgeStats", () => {
       jar({
         entries: [
           dep(1000, "2026-03-01T00:00:00Z"),
-          { id: "w1", amount: 400, direction: "withdrawal", source: "manual", at: "2026-05-01T00:00:00Z" },
+          {
+            id: "w1",
+            amount: 400,
+            direction: "withdrawal",
+            source: "manual",
+            at: "2026-05-01T00:00:00Z",
+          },
         ],
       }),
     ]);
@@ -73,7 +92,13 @@ describe("badgeStats", () => {
   });
 
   it("takes the best streak across jars", () => {
-    expect(badgeStats([jar({ streak: 3 }), jar({ id: "b", streak: 11 }), jar({ id: "c" })]).maxStreak).toBe(11);
+    expect(
+      badgeStats([
+        jar({ streak: 3 }),
+        jar({ id: "b", streak: 11 }),
+        jar({ id: "c" }),
+      ]).maxStreak,
+    ).toBe(11);
   });
 
   it("counts only funded jars as completed", () => {
@@ -86,7 +111,9 @@ describe("badgeStats", () => {
   });
 
   it("counts a jar as shared only when it has more than one member", () => {
-    const solo = jar({ members: [{ id: "1", name: "You", contributed: 100, you: true }] });
+    const solo = jar({
+      members: [{ id: "1", name: "You", contributed: 100, you: true }],
+    });
     const pair = jar({
       id: "b",
       members: [
@@ -104,7 +131,14 @@ describe("badgeStats", () => {
   });
 
   it("returns zeroed stats for an empty list", () => {
-    expect(badgeStats([])).toEqual({ deposits: 0, totalDeposited: 0, maxStreak: 0, completed: 0, months: 0, sharedJars: 0 });
+    expect(badgeStats([])).toEqual({
+      deposits: 0,
+      totalDeposited: 0,
+      maxStreak: 0,
+      completed: 0,
+      months: 0,
+      sharedJars: 0,
+    });
   });
 });
 
@@ -137,39 +171,70 @@ describe("badges", () => {
   });
 
   it("earns the first-deposit badge on a single contribution", () => {
-    const list = badges([jar({ entries: [dep(1000, "2026-03-01T00:00:00Z")] })]);
+    const list = badges([
+      jar({ entries: [dep(1000, "2026-03-01T00:00:00Z")] }),
+    ]);
     expect(find(list, "first-deposit").earned).toBe(true);
     expect(find(list, "ten-deposits").earned).toBe(false);
     expect(find(list, "ten-deposits").value).toBe(1);
   });
 
   it("earns money badges at the exact minor-unit threshold", () => {
-    const under = badges([jar({ entries: [dep(9999, "2026-03-01T00:00:00Z")] })]);
+    const under = badges([
+      jar({ entries: [dep(9999, "2026-03-01T00:00:00Z")] }),
+    ]);
     expect(find(under, "saved-100").earned).toBe(false);
 
-    const exact = badges([jar({ entries: [dep(10_000, "2026-03-01T00:00:00Z")] })]);
+    const exact = badges([
+      jar({ entries: [dep(10_000, "2026-03-01T00:00:00Z")] }),
+    ]);
     expect(find(exact, "saved-100").earned).toBe(true);
     expect(find(exact, "saved-1000").earned).toBe(false);
   });
 
   it("earns streak badges from the best streak", () => {
     const list = badges([jar({ kind: "habit", streak: 7 })]);
-    expect(earnedIds(list)).toEqual(expect.arrayContaining(["streak-3", "streak-7"]));
+    expect(earnedIds(list)).toEqual(
+      expect.arrayContaining(["streak-3", "streak-7"]),
+    );
     expect(find(list, "streak-30").earned).toBe(false);
     expect(find(list, "streak-30").value).toBe(7);
   });
 
   it("earns the completion badge only when a jar is fully funded", () => {
-    expect(find(badges([jar({ balance: 9999, target: 10_000 })]), "first-goal").earned).toBe(false);
-    expect(find(badges([jar({ balance: 10_000, target: 10_000 })]), "first-goal").earned).toBe(true);
+    expect(
+      find(badges([jar({ balance: 9999, target: 10_000 })]), "first-goal")
+        .earned,
+    ).toBe(false);
+    expect(
+      find(badges([jar({ balance: 10_000, target: 10_000 })]), "first-goal")
+        .earned,
+    ).toBe(true);
   });
 
   it("earns the months badge at four distinct months", () => {
-    const three = badges([jar({ entries: [dep(1, "2026-01-01T00:00:00Z"), dep(1, "2026-02-01T00:00:00Z"), dep(1, "2026-03-01T00:00:00Z")] })]);
+    const three = badges([
+      jar({
+        entries: [
+          dep(1, "2026-01-01T00:00:00Z"),
+          dep(1, "2026-02-01T00:00:00Z"),
+          dep(1, "2026-03-01T00:00:00Z"),
+        ],
+      }),
+    ]);
     expect(find(three, "steady-months").earned).toBe(false);
     expect(find(three, "steady-months").value).toBe(3);
 
-    const four = badges([jar({ entries: [dep(1, "2026-01-01T00:00:00Z"), dep(1, "2026-02-01T00:00:00Z"), dep(1, "2026-03-01T00:00:00Z"), dep(1, "2026-04-01T00:00:00Z")] })]);
+    const four = badges([
+      jar({
+        entries: [
+          dep(1, "2026-01-01T00:00:00Z"),
+          dep(1, "2026-02-01T00:00:00Z"),
+          dep(1, "2026-03-01T00:00:00Z"),
+          dep(1, "2026-04-01T00:00:00Z"),
+        ],
+      }),
+    ]);
     expect(find(four, "steady-months").earned).toBe(true);
   });
 
@@ -192,9 +257,13 @@ describe("badges", () => {
 
 describe("newlyEarnedBadges", () => {
   it("returns only badges absent from the seen list", () => {
-    const list = badges([jar({ entries: [dep(10_000, "2026-03-01T00:00:00Z")] })]);
+    const list = badges([
+      jar({ entries: [dep(10_000, "2026-03-01T00:00:00Z")] }),
+    ]);
     const fresh = newlyEarnedBadges([], list).map((badge) => badge.id);
-    expect(fresh).toEqual(expect.arrayContaining(["first-deposit", "saved-100"]));
+    expect(fresh).toEqual(
+      expect.arrayContaining(["first-deposit", "saved-100"]),
+    );
 
     const seen: BadgeId[] = ["first-deposit", "saved-100"];
     expect(newlyEarnedBadges(seen, list)).toEqual([]);

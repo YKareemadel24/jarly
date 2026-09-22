@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Redirect } from "expo-router";
@@ -11,13 +18,18 @@ import { useThemeContext } from "@/lib/theme-provider";
 
 type PaletteName = keyof typeof SchemeColors.light;
 
-const paletteNames: PaletteName[] = Object.keys(SchemeColors.light) as PaletteName[];
+const paletteNames: PaletteName[] = Object.keys(
+  SchemeColors.light,
+) as PaletteName[];
 
 function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
   return (
     <View className="flex-row items-center justify-between rounded-xl border border-border px-3 py-2">
       <View className="flex-row items-center gap-3">
-        <View className="h-6 w-6 rounded-full border border-border" style={{ backgroundColor: value }} />
+        <View
+          className="h-6 w-6 rounded-full border border-border"
+          style={{ backgroundColor: value }}
+        />
         <Text className="text-sm font-semibold text-foreground">{name}</Text>
       </View>
       <Text className="text-xs font-mono text-muted">{value}</Text>
@@ -134,7 +146,9 @@ function ThemeLabInner() {
                   setLastAction("Pressed Primary token");
                 }}
               >
-                <Text className="text-sm font-semibold text-background">Primary</Text>
+                <Text className="text-sm font-semibold text-background">
+                  Primary
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="rounded-full px-4 py-2 border border-border"
@@ -191,10 +205,12 @@ function ThemeLabInner() {
                 useColors()
               </Text>
               <Text className="mt-1 text-sm text-muted">
-                Background: {colors.background} • Text: {colors.text} • Tint: {colors.tint}
+                Background: {colors.background} • Text: {colors.text} • Tint:{" "}
+                {colors.tint}
               </Text>
               <Text className="text-xs text-muted">
-                (Pressable uses style; Tailwind on Pressable is disabled via remap)
+                (Pressable uses style; Tailwind on Pressable is disabled via
+                remap)
               </Text>
               <View className="mt-3 gap-2">
                 <View className="flex-row items-center gap-2">
@@ -219,7 +235,11 @@ function ThemeLabInner() {
             </Text>
             <View className="mt-3 gap-2">
               {swatches.map((item) => (
-                <ColorSwatch key={item.name} name={item.name} value={item.value} />
+                <ColorSwatch
+                  key={item.name}
+                  name={item.name}
+                  value={item.value}
+                />
               ))}
             </View>
           </ThemedView>

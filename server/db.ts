@@ -28,7 +28,12 @@ export async function getDb() {
 }
 
 /** Columns a sign-in may refresh. Kept narrow so a caller cannot widen its own role. */
-type UserPatch = Partial<Pick<InsertUser, "name" | "email" | "loginMethod" | "role" | "lastSignedIn" | "updatedAt">>;
+type UserPatch = Partial<
+  Pick<
+    InsertUser,
+    "name" | "email" | "loginMethod" | "role" | "lastSignedIn" | "updatedAt"
+  >
+>;
 
 /**
  * Insert the account behind a Supabase user id, or update the row it already has.
@@ -109,14 +114,20 @@ function isOwnerEmail(email: string | null | undefined): boolean {
   return email.trim().toLowerCase() === ENV.ownerEmail.trim().toLowerCase();
 }
 
-export async function getUserBySupabaseId(supabaseUserId: string): Promise<User | undefined> {
+export async function getUserBySupabaseId(
+  supabaseUserId: string,
+): Promise<User | undefined> {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot get user: database not available");
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.supabaseUserId, supabaseUserId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.supabaseUserId, supabaseUserId))
+    .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
@@ -132,7 +143,10 @@ export async function touchLastSignedIn(userId: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
   try {
-    await db.update(users).set({ lastSignedIn: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+    await db
+      .update(users)
+      .set({ lastSignedIn: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId));
   } catch (error) {
     console.warn("[Database] Failed to record sign-in:", error);
   }
