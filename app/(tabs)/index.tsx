@@ -5,50 +5,29 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
+import { makeStyles } from "@/app/(tabs)/home.styles";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import {
+  activeJars,
   deadlineCountdown,
+  isUrgentDeadline,
+  nextMilestoneNudge,
   percent,
   type Accent,
   type Jar,
   useMoney,
   useSavings,
 } from "@/lib/savings-store";
+import { weeklyDelta } from "@/lib/domain/insights";
 import { useSettings } from "@/lib/settings-store";
 import { nextReminder } from "@/lib/reminders";
-
-const WEEK_MS = 7 * 86_400_000;
-
-/** Deadlines within two weeks read as urgent; meaning stays textual either way. */
-function isUrgentDeadline(text: string | undefined): boolean {
-  if (!text) return false;
-  return /^(Due today|Past deadline|([1-9]|1[0-4]) days left)$/.test(text);
-}
-
-/** Smallest next-milestone money gap across jars, for the nudge row. */
-function nextMilestoneNudge(
-  jars: Jar[],
-): { jar: Jar; level: number; gapMinor: number } | undefined {
-  let best: { jar: Jar; level: number; gapMinor: number } | undefined;
-  for (const jar of jars) {
-    if (jar.target <= 0) continue;
-    const ratio = (jar.balance / jar.target) * 100;
-    const level = [25, 50, 75, 100].find((candidate) => ratio < candidate);
-    if (!level) continue;
-    const gapMinor = Math.round((jar.target * level) / 100) - jar.balance;
-    if (gapMinor <= 0) continue;
-    if (!best || gapMinor < best.gapMinor) best = { jar, level, gapMinor };
-  }
-  return best;
-}
 
 function GoalCard({
   jar,
@@ -157,7 +136,7 @@ export default function HomeScreen() {
   const { jars, ready, total } = useSavings();
   const { remindersEnabled, currency } = useSettings();
   const format = useMoney();
-  const active = useMemo(() => jars.filter((jar) => !jar.archived), [jars]);
+  const active = useMemo(() => activeJars(jars), [jars]);
   const inProgress = useMemo(
     () => active.filter((jar) => percent(jar) < 100),
     [active],
@@ -173,22 +152,7 @@ export default function HomeScreen() {
     [remindersEnabled, active, currency],
   );
 
-  const weeklyDelta = useMemo(() => {
-    const since = Date.now() - WEEK_MS;
-    return active.reduce(
-      (sum, jar) =>
-        sum +
-        jar.entries.reduce(
-          (subtotal, entry) =>
-            entry.direction === "deposit" &&
-            new Date(entry.at).getTime() >= since
-              ? subtotal + entry.amount
-              : subtotal,
-          0,
-        ),
-      0,
-    );
-  }, [active]);
+  const weeklyDeltaValue = useMemo(() => weeklyDelta(active), [active]);
 
   const nudge = useMemo(() => nextMilestoneNudge(active), [active]);
 
@@ -253,8 +217,8 @@ export default function HomeScreen() {
                 </Text>
                 {active.length ? (
                   <Text style={styles.balanceMomentum}>
-                    {weeklyDelta > 0
-                      ? `+${format(weeklyDelta)} this week`
+                    {weeklyDeltaValue > 0
+                      ? `+${format(weeklyDeltaValue)} this week`
                       : "Keep going"}
                   </Text>
                 ) : null}
@@ -479,322 +443,3 @@ export default function HomeScreen() {
     </ScreenContainer>
   );
 }
-
-const makeStyles = (c: ThemeColorPalette) =>
-  StyleSheet.create({
-    content: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 104 },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      paddingTop: 4,
-    },
-    kicker: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.5,
-      fontWeight: "800",
-    },
-    greeting: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 29,
-      lineHeight: 34,
-      marginTop: 8,
-    },
-    profileButton: {
-      width: 43,
-      height: 43,
-      borderRadius: 16,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    balanceCard: {
-      backgroundColor: "#3B2D24",
-      padding: 22,
-      borderRadius: 27,
-      marginTop: 23,
-      shadowColor: "#3B2D24",
-      shadowOpacity: 0.22,
-      shadowOffset: { width: 0, height: 12 },
-      shadowRadius: 18,
-      elevation: 5,
-    },
-    balanceTop: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    balanceLabel: {
-      color: "#E8D9C8",
-      fontSize: 10,
-      letterSpacing: 1.15,
-      fontWeight: "800",
-    },
-    balanceMark: {
-      width: 34,
-      height: 34,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "rgba(255,253,249,.17)",
-    },
-    balanceValue: {
-      color: "#FFFDF9",
-      fontSize: 37,
-      lineHeight: 46,
-      marginTop: 8,
-      fontFamily: "Georgia",
-      fontWeight: "700",
-      fontVariant: ["tabular-nums"],
-    },
-    balanceBottom: {
-      marginTop: 15,
-      paddingTop: 14,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: "rgba(255,253,249,.22)",
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    balanceNote: { color: "#E8D9C8", fontSize: 13 },
-    balanceMomentum: {
-      color: "#FFFDF9",
-      fontSize: 12,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    nudge: {
-      backgroundColor: c.surface,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: c.border,
-      marginTop: 13,
-      paddingVertical: 11,
-      paddingHorizontal: 13,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    nudgeIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    nudgeTitle: { color: c.foreground, fontSize: 13, fontWeight: "800" },
-    nudgeCopy: { color: c.muted, fontSize: 11, marginTop: 2 },
-    reminder: {
-      backgroundColor: c.surface,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: `${c.primary}55`,
-      marginTop: 13,
-      paddingVertical: 11,
-      paddingHorizontal: 13,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    reminderIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    reminderTitle: { color: c.foreground, fontSize: 13, fontWeight: "800" },
-    reminderCopy: { color: c.muted, fontSize: 11, marginTop: 2 },
-    featured: {
-      backgroundColor: c.surface,
-      borderRadius: 25,
-      marginTop: 15,
-      padding: 17,
-      borderWidth: 1,
-      borderColor: c.border,
-      flexDirection: "row",
-      overflow: "hidden",
-      minHeight: 156,
-      alignItems: "center",
-    },
-    featuredCopy: {
-      flex: 1,
-      alignSelf: "stretch",
-      justifyContent: "center",
-      zIndex: 2,
-    },
-    featuredLabel: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.1,
-      fontWeight: "800",
-    },
-    featuredName: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 21,
-      marginTop: 5,
-    },
-    featuredText: {
-      color: c.muted,
-      fontSize: 13,
-      marginTop: 5,
-      fontVariant: ["tabular-nums"],
-    },
-    featuredAction: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "flex-start",
-      gap: 5,
-      borderRadius: 9,
-      paddingHorizontal: 9,
-      paddingVertical: 6,
-      marginTop: 14,
-    },
-    featuredActionText: { fontSize: 12, fontWeight: "800" },
-    sectionHeader: {
-      marginTop: 28,
-      marginBottom: 13,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-end",
-    },
-    sectionTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22 },
-    sectionSub: { color: c.muted, fontSize: 12, marginTop: 4 },
-    newGoal: {
-      width: 37,
-      height: 37,
-      borderRadius: 13,
-      backgroundColor: c.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    goalCard: {
-      minHeight: 114,
-      backgroundColor: c.surface,
-      borderRadius: 22,
-      borderColor: c.border,
-      borderWidth: 1,
-      padding: 12,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    goalVisual: { width: 77, alignItems: "center", justifyContent: "center" },
-    goalCopy: { flex: 1, alignSelf: "stretch", justifyContent: "center" },
-    goalHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
-    goalName: { color: c.foreground, flex: 1, fontSize: 15, fontWeight: "800" },
-    pill: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4 },
-    pillText: { fontSize: 10, fontWeight: "800" },
-    goalAmount: {
-      color: c.foreground,
-      fontSize: 14,
-      marginTop: 5,
-      fontWeight: "700",
-      fontVariant: ["tabular-nums"],
-    },
-    goalTarget: { color: c.muted, fontWeight: "500" },
-    track: {
-      height: 5,
-      borderRadius: 999,
-      backgroundColor: c.border,
-      overflow: "hidden",
-      marginTop: 10,
-    },
-    trackFill: { height: "100%", borderRadius: 999 },
-    goalMeta: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      marginTop: 8,
-    },
-    goalMetaText: { color: c.muted, fontSize: 11 },
-    completedBlock: { marginTop: 26 },
-    completedHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginBottom: 10,
-    },
-    completedTitle: {
-      color: c.muted,
-      fontSize: 11,
-      fontWeight: "800",
-      letterSpacing: 0.9,
-    },
-    completedCount: {
-      color: c.muted,
-      fontSize: 11,
-      fontWeight: "800",
-      backgroundColor: c.border,
-      borderRadius: 999,
-      paddingHorizontal: 7,
-      paddingVertical: 1,
-      overflow: "hidden",
-    },
-    empty: {
-      backgroundColor: c.surface,
-      borderRadius: 26,
-      padding: 26,
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    emptyTitle: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 24,
-      marginTop: 14,
-    },
-    emptyCopy: {
-      color: c.muted,
-      fontSize: 13,
-      lineHeight: 19,
-      textAlign: "center",
-      marginTop: 8,
-      maxWidth: 275,
-    },
-    primary: {
-      backgroundColor: c.primary,
-      minHeight: 52,
-      borderRadius: 16,
-      marginTop: 21,
-      alignSelf: "stretch",
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-    },
-    primaryText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
-    quickAdd: {
-      position: "absolute",
-      bottom: 14,
-      alignSelf: "center",
-      backgroundColor: "#3B2D24",
-      minHeight: 51,
-      paddingHorizontal: 19,
-      borderRadius: 17,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 8,
-      shadowColor: "#3B2D24",
-      shadowOffset: { width: 0, height: 7 },
-      shadowOpacity: 0.24,
-      shadowRadius: 12,
-      elevation: 5,
-    },
-    quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
-    quickAddChip: {
-      borderRadius: 11,
-      paddingHorizontal: 11,
-      paddingVertical: 7,
-      alignSelf: "center",
-    },
-    quickAddChipText: { fontSize: 12, fontWeight: "800" },
-    pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
-  });

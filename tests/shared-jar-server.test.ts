@@ -196,6 +196,9 @@ function makeDb(state: FixtureState) {
     insertedEntries: [] as Record<string, unknown>[],
     insertedMembers: [] as Record<string, unknown>[],
     updatedInvites: [] as unknown[],
+    // Tables passed to db.delete(); the stub cannot evaluate the where clause,
+    // so tests assert which tables were targeted, not which rows.
+    deletedTables: [] as unknown[],
   };
 
   const select = (fields?: unknown) => ({
@@ -262,12 +265,20 @@ function makeDb(state: FixtureState) {
     }),
   });
 
+  const remove = (table: unknown) => ({
+    where: () => {
+      recorded.deletedTables.push(table);
+      return Promise.resolve();
+    },
+  });
+
   const db = {
     select,
     insert,
     update,
+    delete: remove,
     transaction: async (work: (tx: unknown) => Promise<unknown>) =>
-      work({ select, insert, update }),
+      work({ select, insert, update, delete: remove }),
   };
   return { db, recorded };
 }
@@ -401,6 +412,80 @@ describe("sharedJar.joinInvite", () => {
   it("rejects an unauthenticated caller", async () => {
     await expect(
       callerFor(null).sharedJar.joinInvite({ token: "B".repeat(22) }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});
+
+describe("sharedJar.removeMember", () => {
+  it("lets a member remove themself", async () => {
+    await expect(
+      callerFor(mate).sharedJar.removeMember({ jarId: 42, userId: 9 }),
+    ).resolves.toEqual({ success: true });
+    expect(recorded.deletedTables).toContain(sharedJarMembers);
+  });
+
+  it("lets the owner remove someone else", async () => {
+    await expect(
+      callerFor(owner).sharedJar.removeMember({ jarId: 42, userId: 9 }),
+    ).resolves.toEqual({ success: true });
+    expect(recorded.deletedTables).toContain(sharedJarMembers);
+  });
+
+  it("forbids a member from removing someone else", async () => {
+    await expect(
+      callerFor(mate).sharedJar.removeMember({ jarId: 42, userId: 7 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(recorded.deletedTables).toHaveLength(0);
+  });
+
+  it("refuses to let the owner leave; deleting is their exit", async () => {
+    await expect(
+      callerFor(owner).sharedJar.removeMember({ jarId: 42, userId: 7 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(recorded.deletedTables).toHaveLength(0);
+  });
+
+  it("hides the jar from a non-member", async () => {
+    await expect(
+      callerFor(stranger).sharedJar.removeMember({ jarId: 42, userId: 9 }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(recorded.deletedTables).toHaveLength(0);
+  });
+
+  it("rejects an unauthenticated caller", async () => {
+    await expect(
+      callerFor(null).sharedJar.removeMember({ jarId: 42, userId: 7 }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});
+
+describe("sharedJar.remove", () => {
+  it("lets the owner delete the jar and everything hanging off it", async () => {
+    await expect(
+      callerFor(owner).sharedJar.remove({ jarId: 42 }),
+    ).resolves.toEqual({ success: true });
+    expect(recorded.deletedTables).toEqual(
+      expect.arrayContaining([sharedJarEntries, sharedJarMembers, sharedJars]),
+    );
+  });
+
+  it("forbids a non-owner member from deleting it", async () => {
+    await expect(
+      callerFor(mate).sharedJar.remove({ jarId: 42 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(recorded.deletedTables).toHaveLength(0);
+  });
+
+  it("hides the jar from a non-member", async () => {
+    await expect(
+      callerFor(stranger).sharedJar.remove({ jarId: 42 }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(recorded.deletedTables).toHaveLength(0);
+  });
+
+  it("rejects an unauthenticated caller", async () => {
+    await expect(
+      callerFor(null).sharedJar.remove({ jarId: 42 }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

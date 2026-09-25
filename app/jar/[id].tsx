@@ -1,30 +1,25 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, Pressable, Text, View } from "react-native";
 
+import { makeStyles } from "@/app/jar/jar-detail.styles";
 import { ActionSheet } from "@/components/action-sheet";
+import { CelebrationModal } from "@/components/celebration-modal";
+import { DepositSheet } from "@/components/deposit-sheet";
+import { EditJarSheet } from "@/components/edit-jar-sheet";
 import { InviteSheet } from "@/components/invite-sheet";
 import { JarVessel } from "@/components/jar-vessel";
+import { RecurringSheet } from "@/components/recurring-sheet";
 import { ScreenContainer } from "@/components/screen-container";
 import { Toast } from "@/components/toast";
-import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import { feedback } from "@/lib/haptics";
 import {
-  CADENCES,
   type Accent,
-  type JarKind,
   type QuickPreset,
+  nextRecurringDate,
   percent,
   quickPresets,
   sanitizeAmountInput,
@@ -50,6 +45,8 @@ export default function JarDetail() {
     archiveJar,
     editJar,
     contributeShared,
+    deleteShared,
+    leaveShared,
     remoteIdOf,
     shareExisting,
   } = useSavings();
@@ -85,6 +82,14 @@ export default function JarDetail() {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  // Leaving or deleting a shared jar moves membership on the server, so each
+  // gets one explicit confirmation and a place to surface a failure.
+  const [sharedAction, setSharedAction] = useState<"leave" | "delete" | null>(
+    null,
+  );
+  const [sharedActionError, setSharedActionError] = useState<string | null>(
+    null,
+  );
   // A withdrawal stays reversible for a few seconds instead of demanding a confirm dialog.
   const [undo, setUndo] = useState<{
     jarId: string;
@@ -233,10 +238,7 @@ export default function JarDetail() {
         amount: value,
         cadence,
         paused: false,
-        nextDate:
-          previous?.amount === value && previous?.cadence === cadence
-            ? previous?.nextDate
-            : undefined,
+        nextDate: nextRecurringDate({ previous, amount: value, cadence }),
       },
     });
     setRecurringAmount("");
@@ -264,11 +266,41 @@ export default function JarDetail() {
     setError("");
     setEditVisible(false);
   };
+  const openInvite = () => setInviteVisible(true);
   // Shared jars are managed by the server, so offer no local edit or archive
-  // rather than buttons that would quietly do nothing.
+  // rather than buttons that would quietly do nothing. What the server does
+  // own — inviting, leaving and deleting — is offered here instead.
   const options = () => setMenuVisible(true);
   const menuActions = shared
-    ? [{ label: "Got it", onPress: () => undefined }]
+    ? [
+        ...(jar.members?.some((member) => member.you && member.isOwner)
+          ? [
+              {
+                label: "Invite people",
+                detail: "Send a link that lets someone else join this jar.",
+                icon: "person-add",
+                onPress: openInvite,
+              },
+              {
+                label: "Delete jar",
+                detail: "Removes its balance and every entry for all members.",
+                icon: "delete-outline",
+                destructive: true,
+                onPress: () => setSharedAction("delete"),
+              },
+            ]
+          : [
+              {
+                label: "Leave jar",
+                detail:
+                  "The jar stays with the other members; your access ends.",
+                icon: "logout",
+                destructive: true,
+                onPress: () => setSharedAction("leave"),
+              },
+            ]),
+        { label: "Cancel", onPress: () => undefined },
+      ]
     : [
         {
           label: "Save together",
@@ -293,7 +325,6 @@ export default function JarDetail() {
         },
         { label: "Cancel", onPress: () => undefined },
       ];
-  const openInvite = () => setInviteVisible(true);
   // Turn this personal jar into a shared one, then open the invite sheet so the
   // next step — sending the link — is already on screen.
   const shareThisJar = async () => {
@@ -313,6 +344,26 @@ export default function JarDetail() {
       );
     } finally {
       setSharing(false);
+    }
+  };
+  // Leave and delete both move membership on the server; on success this
+  // screen is looking at a jar that no longer exists for this account, so go
+  // home. Failures land in an error sheet rather than vanishing silently.
+  const runSharedAction = async (action: "leave" | "delete") => {
+    try {
+      if (action === "leave") await leaveShared(jar.id);
+      else await deleteShared(jar.id);
+      feedback.success();
+      setSharedAction(null);
+      router.replace("/(tabs)" as never);
+    } catch (problem) {
+      setSharedActionError(
+        problem instanceof Error
+          ? problem.message
+          : action === "leave"
+            ? "Could not leave this jar."
+            : "Could not delete this jar.",
+      );
     }
   };
   const nextOccurrence =
@@ -698,321 +749,73 @@ export default function JarDetail() {
           </Text>
         }
       />
-      <Modal
-        transparent
-        animationType="slide"
-        visible={Boolean(direction)}
-        onRequestClose={() => {
+      <DepositSheet
+        direction={direction}
+        jarName={jar.name}
+        jarBalance={jar.balance}
+        currencySymbol={currencySymbol}
+        amount={amount}
+        note={note}
+        error={error}
+        presets={presets}
+        accent={accent}
+        withdrawPreview={withdrawPreview}
+        depositPreview={depositPreview}
+        depositPreviewPct={depositPreviewPct}
+        format={format}
+        onAmountChange={(raw) => {
+          setAmount(sanitizeAmountInput(raw));
+          setError("");
+        }}
+        onNoteChange={setNote}
+        onApplyPreset={applyPreset}
+        onRecord={() => void record()}
+        onDismiss={() => {
           setDirection(null);
           setError("");
         }}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetEyebrow}>
-              {direction === "deposit" ? "ADD TO JAR" : "TAKE MONEY OUT"}
-            </Text>
-            <Text style={styles.sheetTitle}>
-              {direction === "deposit"
-                ? "Every bit adds up."
-                : "Use what you need."}
-            </Text>
-            <Text style={styles.sheetCopy}>
-              {direction === "deposit"
-                ? `Add to ${jar.name} and watch the jar rise.`
-                : `This jar currently holds ${format(jar.balance)}.`}
-            </Text>
-            {direction === "deposit" && presets.length ? (
-              <View style={styles.chipRow}>
-                {presets.map((preset) => {
-                  const activeChip =
-                    amount !== "" &&
-                    toMinor(sanitizeAmountInput(amount)) === preset.amount;
-                  return (
-                    <Pressable
-                      key={preset.id}
-                      accessibilityLabel={`${preset.label}. ${preset.hint}. Adds ${format(preset.amount)}.`}
-                      onPress={() => applyPreset(preset.amount)}
-                      style={({ pressed }) => [
-                        styles.chip,
-                        activeChip && [
-                          styles.chipActive,
-                          {
-                            backgroundColor: `${accent}22`,
-                            borderColor: accent,
-                          },
-                        ],
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          activeChip && { color: accent },
-                        ]}
-                      >
-                        {preset.label}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.chipHint,
-                          activeChip && { color: accent },
-                        ]}
-                      >
-                        {preset.hint}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-            <View style={styles.sheetAmount}>
-              <Text style={styles.sheetCurrency}>{currencySymbol}</Text>
-              <TextInput
-                autoFocus
-                accessibilityLabel="Amount"
-                value={amount}
-                onChangeText={(raw) => {
-                  setAmount(sanitizeAmountInput(raw));
-                  setError("");
-                }}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                style={styles.sheetAmountInput}
-              />
-            </View>
-            {withdrawPreview !== null && !Number.isNaN(withdrawPreview) ? (
-              <Text style={styles.previewBalance}>
-                Leaves {format(withdrawPreview)} in this jar.
-              </Text>
-            ) : null}
-            {depositPreview !== null && depositPreviewPct !== null ? (
-              <View style={styles.previewRow}>
-                <Text style={styles.previewBalance}>{format(jar.balance)}</Text>
-                <MaterialIcons
-                  name="arrow-forward"
-                  size={13}
-                  color={colors.muted}
-                />
-                <Text style={styles.previewNewBalance}>
-                  {format(depositPreview)}
-                </Text>
-                <Text style={[styles.previewPct, { color: accent }]}>
-                  {depositPreviewPct}%
-                </Text>
-              </View>
-            ) : null}
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              maxLength={80}
-              placeholder="Add a note (optional)"
-              placeholderTextColor={colors.muted}
-              style={styles.noteInput}
-            />
-            <Text style={styles.error}>{error}</Text>
-            <Pressable
-              onPress={record}
-              style={({ pressed }) => [
-                styles.sheetButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.sheetButtonText}>
-                {direction === "deposit" ? "Add to jar" : "Confirm withdrawal"}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setDirection(null);
-                setError("");
-              }}
-              style={styles.cancel}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        transparent
-        animationType="fade"
+      />
+      <RecurringSheet
         visible={recurringVisible}
-        onRequestClose={() => {
+        currentAmountMinor={jar.recurring?.amount}
+        currentPaused={jar.recurring?.paused ?? false}
+        amount={recurringAmount}
+        cadence={cadence}
+        error={error}
+        currencySymbol={currencySymbol}
+        accent={accent}
+        onAmountChange={(raw) => {
+          setRecurringAmount(sanitizeAmountInput(raw));
+          setError("");
+        }}
+        onCadenceChange={setCadence}
+        onSave={saveRecurring}
+        onTogglePause={toggleRecurringPause}
+        onDismiss={() => {
           setRecurringVisible(false);
           setError("");
         }}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetEyebrow}>REPEAT CONTRIBUTION</Text>
-            <Text style={styles.sheetTitle}>Build the habit.</Text>
-            <Text style={styles.sheetCopy}>
-              Choose a contribution you can repeat comfortably.
-            </Text>
-            <View style={styles.sheetAmount}>
-              <Text style={styles.sheetCurrency}>{currencySymbol}</Text>
-              <TextInput
-                autoFocus
-                accessibilityLabel="Recurring amount"
-                value={recurringAmount}
-                onChangeText={(raw) => {
-                  setRecurringAmount(sanitizeAmountInput(raw));
-                  setError("");
-                }}
-                keyboardType="decimal-pad"
-                placeholder={
-                  jar.recurring ? String(jar.recurring.amount / 100) : "0"
-                }
-                placeholderTextColor={colors.muted}
-                style={styles.sheetAmountInput}
-              />
-            </View>
-            <View style={styles.cadences}>
-              {CADENCES.map((item) => (
-                <Pressable
-                  key={item}
-                  accessibilityLabel={`Every ${item}`}
-                  onPress={() => setCadence(item)}
-                  style={[
-                    styles.cadence,
-                    cadence === item && {
-                      backgroundColor: accent,
-                      borderColor: accent,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.cadenceText,
-                      cadence === item && styles.cadenceTextActive,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.error}>{error}</Text>
-            <Pressable
-              onPress={saveRecurring}
-              style={({ pressed }) => [
-                styles.sheetButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.sheetButtonText}>Save schedule</Text>
-            </Pressable>
-            {jar.recurring ? (
-              <Pressable onPress={toggleRecurringPause} style={styles.cancel}>
-                <Text style={styles.pauseText}>
-                  {jar.recurring.paused ? "Resume schedule" : "Pause schedule"}
-                </Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              onPress={() => {
-                setRecurringVisible(false);
-                setError("");
-              }}
-              style={styles.cancel}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-      <Modal
-        transparent
-        animationType="fade"
+      />
+      <EditJarSheet
         visible={editVisible}
-        onRequestClose={() => {
+        name={editName}
+        target={editTarget}
+        kind={jar.kind}
+        error={error}
+        currencySymbol={currencySymbol}
+        accent={accent}
+        onNameChange={setEditName}
+        onTargetChange={(raw) => {
+          setEditTarget(sanitizeAmountInput(raw));
+          setError("");
+        }}
+        onKindChange={(kind) => editJar(jar.id, { kind })}
+        onSave={saveEdit}
+        onDismiss={() => {
           setEditVisible(false);
           setError("");
         }}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetEyebrow}>EDIT JAR</Text>
-            <Text style={styles.sheetTitle}>Adjust your goal.</Text>
-            <Text style={styles.sheetCopy}>
-              Rename it or change its target. Your history stays untouched.
-            </Text>
-            <TextInput
-              accessibilityLabel="Jar name"
-              value={editName}
-              onChangeText={setEditName}
-              maxLength={60}
-              placeholder="Jar name"
-              placeholderTextColor={colors.muted}
-              style={styles.noteInput}
-            />
-            <View style={[styles.sheetAmount, { marginTop: 10 }]}>
-              <Text style={styles.sheetCurrency}>{currencySymbol}</Text>
-              <TextInput
-                accessibilityLabel="Target amount"
-                value={editTarget}
-                onChangeText={(raw) => {
-                  setEditTarget(sanitizeAmountInput(raw));
-                  setError("");
-                }}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                style={styles.sheetAmountInput}
-              />
-            </View>
-            <View style={styles.cadences}>
-              {(["goal", "habit"] as JarKind[]).map((kind) => (
-                <Pressable
-                  key={kind}
-                  accessibilityLabel={`${kind} jar`}
-                  onPress={() => editJar(jar.id, { kind })}
-                  style={[
-                    styles.cadence,
-                    jar.kind === kind && {
-                      backgroundColor: accent,
-                      borderColor: accent,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.cadenceText,
-                      jar.kind === kind && styles.cadenceTextActive,
-                    ]}
-                  >
-                    {kind === "goal" ? "Goal" : "Habit"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.error}>{error}</Text>
-            <Pressable
-              onPress={saveEdit}
-              style={({ pressed }) => [
-                styles.sheetButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.sheetButtonText}>Save changes</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setEditVisible(false);
-                setError("");
-              }}
-              style={styles.cancel}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      />
       <ActionSheet
         visible={menuVisible}
         title={shared ? "Shared jar" : "Jar options"}
@@ -1043,6 +846,45 @@ export default function JarDetail() {
           }
         }}
       />
+      <ActionSheet
+        visible={sharedAction === "leave"}
+        title="Leave this jar?"
+        message="The jar and its history stay with the other members. Your membership ends, and coming back needs a new invite."
+        actions={[
+          {
+            label: "Leave jar",
+            icon: "logout",
+            destructive: true,
+            onPress: () => void runSharedAction("leave"),
+          },
+          { label: "Cancel", onPress: () => undefined },
+        ]}
+        onDismiss={() => setSharedAction(null)}
+      />
+      <ActionSheet
+        visible={sharedAction === "delete"}
+        title="Delete this jar?"
+        message={`${jar.name}, its balance and every entry are removed for all members. This cannot be undone.`}
+        actions={[
+          {
+            label: "Delete forever",
+            icon: "delete-outline",
+            destructive: true,
+            onPress: () => void runSharedAction("delete"),
+          },
+          { label: "Cancel", onPress: () => undefined },
+        ]}
+        onDismiss={() => setSharedAction(null)}
+      />
+      {sharedActionError !== null ? (
+        <ActionSheet
+          visible
+          title="Could not finish"
+          message={sharedActionError}
+          actions={[{ label: "Got it", onPress: () => undefined }]}
+          onDismiss={() => setSharedActionError(null)}
+        />
+      ) : null}
       {shareError ? (
         <ActionSheet
           visible={shareError !== null}
@@ -1059,44 +901,15 @@ export default function JarDetail() {
         accent={accent}
         onDismiss={() => setInviteVisible(false)}
       />
-      <Modal
-        transparent
-        animationType="fade"
+      <CelebrationModal
         visible={celebration !== null}
-        onRequestClose={() => setCelebration(null)}
-      >
-        <View style={styles.celebrationBackdrop}>
-          <View style={styles.celebration}>
-            <Text style={styles.celebrationNumber}>{celebration?.level}%</Text>
-            <JarVessel
-              accent={accent}
-              icon={jar.icon}
-              progress={celebration?.progress ?? progress}
-              size="medium"
-            />
-            <Text style={styles.celebrationTitle}>
-              {celebration?.level === 100
-                ? "You made it."
-                : celebration?.level === 50
-                  ? "Halfway there."
-                  : "A beautiful milestone."}
-            </Text>
-            <Text style={styles.celebrationCopy}>
-              {jar.name} is now {celebration?.level}% funded. Small, steady
-              progress is real progress.
-            </Text>
-            <Pressable
-              onPress={() => setCelebration(null)}
-              style={({ pressed }) => [
-                styles.celebrationButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.sheetButtonText}>Keep saving</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        level={celebration?.level ?? null}
+        progress={celebration?.progress ?? progress}
+        accent={accent}
+        icon={jar.icon}
+        jarName={jar.name}
+        onDismiss={() => setCelebration(null)}
+      />
       <Toast
         visible={undo !== null}
         message={`${format(undo?.amount ?? 0)} withdrawn from ${undo?.name ?? "your jar"}`}
@@ -1107,453 +920,3 @@ export default function JarDetail() {
     </ScreenContainer>
   );
 }
-
-const makeStyles = (c: ThemeColorPalette) =>
-  StyleSheet.create({
-    content: { padding: 20, paddingBottom: 36 },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    circle: {
-      width: 42,
-      height: 42,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    headerName: {
-      color: c.foreground,
-      maxWidth: 190,
-      fontWeight: "800",
-      fontSize: 15,
-    },
-    hero: {
-      alignItems: "center",
-      padding: 22,
-      borderRadius: 28,
-      marginTop: 20,
-    },
-    heroName: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 27,
-      marginTop: 17,
-      textAlign: "center",
-    },
-    heroProgress: { fontSize: 12, fontWeight: "800", marginTop: 5 },
-    amount: {
-      color: c.foreground,
-      fontSize: 38,
-      lineHeight: 46,
-      fontFamily: "Georgia",
-      marginTop: 17,
-      fontVariant: ["tabular-nums"],
-    },
-    of: { color: c.muted, fontSize: 13, marginTop: 2 },
-    deadline: {
-      flexDirection: "row",
-      gap: 5,
-      alignItems: "center",
-      marginTop: 11,
-    },
-    deadlineText: { color: c.muted, fontSize: 11 },
-    progressTrack: {
-      alignSelf: "stretch",
-      height: 6,
-      borderRadius: 999,
-      overflow: "hidden",
-      backgroundColor: c.border,
-      marginTop: 18,
-    },
-    progressFill: { height: "100%", borderRadius: 999 },
-    remaining: { color: c.muted, fontSize: 12, marginTop: 9 },
-    members: {
-      borderRadius: 22,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      padding: 15,
-      marginTop: 13,
-    },
-    membersHead: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    membersLabel: {
-      color: c.muted,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 1.1,
-    },
-    membersCount: { color: c.muted, fontSize: 11, fontWeight: "700" },
-    memberRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      marginTop: 11,
-    },
-    memberAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    memberInitial: { color: "#FFFDF9", fontSize: 13, fontWeight: "800" },
-    memberName: { color: c.foreground, fontSize: 13, fontWeight: "700" },
-    memberYou: { color: c.muted, fontWeight: "600" },
-    memberAmount: {
-      color: c.foreground,
-      fontSize: 13,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    memberBarTrack: {
-      height: 4,
-      borderRadius: 999,
-      backgroundColor: c.border,
-      overflow: "hidden",
-      marginTop: 7,
-    },
-    memberBarFill: { height: "100%", borderRadius: 999 },
-    inviteRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      marginTop: 14,
-      minHeight: 40,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderStyle: "dashed",
-      borderColor: c.border,
-    },
-    inviteText: { fontSize: 12.5, fontWeight: "800" },
-    disabled: { opacity: 0.45 },
-    syncNote: {
-      color: c.muted,
-      fontSize: 11,
-      lineHeight: 16,
-      marginTop: 15,
-      textAlign: "center",
-    },
-    actions: { flexDirection: "row", gap: 10, marginTop: 14 },
-    deposit: {
-      flex: 1,
-      minHeight: 53,
-      borderRadius: 17,
-      backgroundColor: c.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 7,
-    },
-    depositText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
-    withdraw: {
-      flex: 1,
-      minHeight: 53,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "row",
-      gap: 7,
-    },
-    withdrawText: { color: c.foreground, fontSize: 14, fontWeight: "800" },
-    streak: {
-      minHeight: 53,
-      borderRadius: 17,
-      marginTop: 13,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 14,
-      gap: 7,
-    },
-    streakText: { color: c.foreground, fontWeight: "800", fontSize: 13 },
-    streakNote: { color: c.muted, marginLeft: "auto", fontSize: 11 },
-    recurringCard: {
-      borderRadius: 20,
-      marginTop: 14,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      padding: 15,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    recurringIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    recurringLabel: {
-      color: c.muted,
-      letterSpacing: 0.9,
-      fontWeight: "800",
-      fontSize: 10,
-    },
-    recurringValue: {
-      color: c.foreground,
-      fontWeight: "800",
-      fontSize: 14,
-      marginTop: 3,
-    },
-    recurringNote: { color: c.muted, fontSize: 11, marginTop: 3 },
-    editText: { fontSize: 12, fontWeight: "800" },
-    buildHabit: {
-      borderRadius: 20,
-      marginTop: 14,
-      borderWidth: 1,
-      borderStyle: "dashed",
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      padding: 15,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    buildTitle: { color: c.foreground, fontWeight: "800", fontSize: 14 },
-    buildCopy: { color: c.muted, fontSize: 12, marginTop: 3 },
-    activityHeader: { marginTop: 27, marginBottom: 10 },
-    activityTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22 },
-    activitySub: { color: c.muted, fontSize: 12, marginTop: 4 },
-    entry: {
-      minHeight: 65,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    entryIcon: {
-      width: 39,
-      height: 39,
-      borderRadius: 13,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    entryTitle: { color: c.foreground, fontSize: 14, fontWeight: "800" },
-    entryMeta: { color: c.muted, fontSize: 11, marginTop: 4 },
-    entryAmount: {
-      fontSize: 13,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: c.border,
-      marginLeft: 51,
-    },
-    empty: { color: c.muted, fontSize: 13, paddingTop: 5, textAlign: "center" },
-    backdrop: {
-      flex: 1,
-      justifyContent: "flex-end",
-      backgroundColor: "rgba(32,27,24,.48)",
-    },
-    sheet: {
-      backgroundColor: c.background,
-      borderTopLeftRadius: 30,
-      borderTopRightRadius: 30,
-      padding: 23,
-      paddingBottom: 32,
-    },
-    sheetHandle: {
-      width: 41,
-      height: 4,
-      alignSelf: "center",
-      borderRadius: 99,
-      backgroundColor: c.border,
-      marginBottom: 18,
-    },
-    sheetEyebrow: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.15,
-      fontWeight: "800",
-    },
-    sheetTitle: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 28,
-      marginTop: 7,
-    },
-    sheetCopy: { color: c.muted, lineHeight: 20, fontSize: 13, marginTop: 7 },
-    sheetAmount: {
-      minHeight: 62,
-      marginTop: 19,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: 17,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    sheetCurrency: { color: c.primary, fontSize: 25, fontFamily: "Georgia" },
-    sheetAmountInput: {
-      flex: 1,
-      color: c.foreground,
-      fontSize: 27,
-      fontFamily: "Georgia",
-      fontVariant: ["tabular-nums"],
-    },
-    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 15 },
-    chip: {
-      minHeight: 34,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: 13,
-      paddingVertical: 6,
-      alignItems: "flex-start",
-      justifyContent: "center",
-    },
-    chipActive: { borderColor: c.border },
-    chipText: { color: c.foreground, fontSize: 12, fontWeight: "800" },
-    chipHint: {
-      color: c.muted,
-      fontSize: 10,
-      fontWeight: "600",
-      marginTop: 1,
-      fontVariant: ["tabular-nums"],
-    },
-    previewBalance: {
-      color: c.muted,
-      fontSize: 12,
-      marginTop: 8,
-      fontVariant: ["tabular-nums"],
-    },
-    previewRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginTop: 8,
-    },
-    previewNewBalance: {
-      color: c.foreground,
-      fontSize: 12,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    previewPct: {
-      fontSize: 12,
-      fontWeight: "800",
-      marginLeft: "auto",
-      fontVariant: ["tabular-nums"],
-    },
-    statRow: { flexDirection: "row", gap: 10, marginTop: 14 },
-    statCard: {
-      flex: 1,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingVertical: 13,
-      paddingHorizontal: 14,
-    },
-    statLabel: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.1,
-      fontWeight: "800",
-    },
-    statValue: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 19,
-      marginTop: 4,
-      fontVariant: ["tabular-nums"],
-    },
-    noteInput: {
-      minHeight: 49,
-      marginTop: 10,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: 14,
-      color: c.foreground,
-      fontSize: 13,
-    },
-    error: { color: c.error, minHeight: 18, fontSize: 11, marginTop: 6 },
-    sheetButton: {
-      minHeight: 53,
-      borderRadius: 17,
-      backgroundColor: c.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 4,
-    },
-    sheetButtonText: { color: "#FFFDF9", fontWeight: "800", fontSize: 15 },
-    cancel: { minHeight: 43, alignItems: "center", justifyContent: "center" },
-    cancelText: { color: c.muted, fontWeight: "800", fontSize: 13 },
-    pauseText: { color: c.warning, fontWeight: "800", fontSize: 13 },
-    cadences: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 14 },
-    cadence: {
-      minHeight: 36,
-      paddingHorizontal: 12,
-      borderRadius: 11,
-      borderWidth: 1,
-      borderColor: c.border,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    cadenceText: { color: c.muted, fontSize: 11, fontWeight: "800" },
-    cadenceTextActive: { color: "#FFFDF9" },
-    celebrationBackdrop: {
-      flex: 1,
-      backgroundColor: "rgba(32,27,24,.58)",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 24,
-    },
-    celebration: {
-      width: "100%",
-      maxWidth: 360,
-      backgroundColor: c.surface,
-      borderRadius: 30,
-      padding: 24,
-      alignItems: "center",
-    },
-    celebrationNumber: {
-      color: c.primary,
-      fontFamily: "Georgia",
-      fontSize: 46,
-      marginBottom: 6,
-      fontVariant: ["tabular-nums"],
-    },
-    celebrationTitle: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 27,
-      marginTop: 17,
-    },
-    celebrationCopy: {
-      color: c.muted,
-      fontSize: 13,
-      lineHeight: 20,
-      textAlign: "center",
-      marginTop: 9,
-    },
-    celebrationButton: {
-      minHeight: 52,
-      borderRadius: 17,
-      backgroundColor: c.primary,
-      alignSelf: "stretch",
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 21,
-    },
-    pressed: { opacity: 0.84, transform: [{ scale: 0.98 }] },
-  });

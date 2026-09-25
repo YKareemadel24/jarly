@@ -14,10 +14,12 @@ import {
 import {
   contributeToSharedJar,
   createSharedJar,
+  deleteSharedJar,
   fetchSharedJars,
   importPersonalJar,
   inviteToSharedJar,
   joinInvite,
+  leaveSharedJar,
 } from "@/lib/shared-jar-api";
 import {
   mergeJars,
@@ -36,6 +38,8 @@ import {
   type TransferSnapshot,
 } from "@/shared/transfer";
 
+import { StoreError } from "@/lib/store-error";
+import { useSettings } from "@/lib/settings-store";
 import {
   CADENCES,
   type Accent,
@@ -46,7 +50,10 @@ import {
   badgeStats,
   type Cadence,
   deadlineCountdown,
+  isUrgentDeadline,
   type Entry,
+  nextMilestoneNudge,
+  weeklyDelta,
   jarAccent,
   jarAccentDark,
   type Jar,
@@ -59,11 +66,13 @@ import {
   percent,
   type QuickPreset,
   type QuickPresetId,
+  activeJars,
+  nextRecurringDate,
   quickPresets,
   runDueRecurring,
   sanitizeAmountInput,
   toMinor,
-} from "@/lib/savings-core";
+} from "@/lib/domain";
 
 export type {
   Accent,
@@ -80,9 +89,14 @@ export type {
 };
 export {
   CADENCES,
+  activeJars,
   badges,
   badgeStats,
   deadlineCountdown,
+  isUrgentDeadline,
+  nextMilestoneNudge,
+  weeklyDelta,
+  nextRecurringDate,
   jarAccent,
   jarAccentDark,
   money,
@@ -92,8 +106,7 @@ export {
   sanitizeAmountInput,
   toMinor,
 };
-
-import { useSettings } from "@/lib/settings-store";
+export { StoreError, type StoreErrorCode } from "@/lib/store-error";
 
 /** Returns a money(minor) formatter bound to the user's active currency. */
 export function useMoney(): (minor: number) => string {
@@ -188,6 +201,14 @@ type Store = {
    * Returns the local id of the joined jar. Rejects when the token is unusable.
    */
   joinShared: (token: string) => Promise<string>;
+  /**
+   * Leave a shared jar you belong to. The jar stays with its other members and
+   * the refresh drops it from this device's list. Rejects when you are not a
+   * member, or when you are the owner (who must delete instead).
+   */
+  leaveShared: (id: string) => Promise<void>;
+  /** Owner-only: delete a shared jar and its whole history for every member. */
+  deleteShared: (id: string) => Promise<void>;
   /**
    * Everything on this device, ready to be handed to another device as QR
    * frames. Shared jars are excluded: the server already owns them.
@@ -429,9 +450,13 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       },
       contributeShared: async (id, amountMinor, direction, note) => {
         const remoteId = remoteIdOf(id);
-        if (remoteId === undefined) throw new Error("That jar is not shared.");
+        if (remoteId === undefined)
+          throw new StoreError("not-shared", "That jar is not shared.");
         if (!Number.isInteger(amountMinor) || amountMinor <= 0)
-          throw new Error("Amount must be greater than zero.");
+          throw new StoreError(
+            "invalid-amount",
+            "Amount must be greater than zero.",
+          );
         await contributeToSharedJar({
           jarId: remoteId,
           amount: amountMinor,
@@ -443,9 +468,10 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       },
       inviteShared: async (id, userId) => {
         const remoteId = remoteIdOf(id);
-        if (remoteId === undefined) throw new Error("That jar is not shared.");
+        if (remoteId === undefined)
+          throw new StoreError("not-shared", "That jar is not shared.");
         if (!Number.isInteger(userId) || userId <= 0)
-          throw new Error("Enter a valid account id.");
+          throw new StoreError("invalid-user", "Enter a valid account id.");
         await inviteToSharedJar(remoteId, userId);
         // Re-read so the new member (and their zero balance) appears immediately.
         await refreshShared();
@@ -457,9 +483,36 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         await refreshShared();
         return sharedJarLocalId(joined.jarId);
       },
+      leaveShared: async (id) => {
+        const remoteId = remoteIdOf(id);
+        if (remoteId === undefined)
+          throw new StoreError("not-shared", "That jar is not shared.");
+        const jar = jars.find((item) => item.id === id);
+        const self = jar?.members?.find((member) => member.you);
+        if (!self)
+          throw new StoreError(
+            "not-a-member",
+            "You are not a member of this jar.",
+          );
+        await leaveSharedJar(remoteId, Number(self.id));
+        // Re-read: the jar must vanish from every screen at once, and only the
+        // server's membership list knows when that has actually happened.
+        await refreshShared();
+      },
+      deleteShared: async (id) => {
+        const remoteId = remoteIdOf(id);
+        if (remoteId === undefined)
+          throw new StoreError("not-shared", "That jar is not shared.");
+        await deleteSharedJar(remoteId);
+        await refreshShared();
+      },
       shareExisting: async (id) => {
         const source = jarsRef.current.find((jar) => jar.id === id);
-        if (!source) throw new Error("That jar is no longer available.");
+        if (!source)
+          throw new StoreError(
+            "jar-missing",
+            "That jar is no longer available.",
+          );
         if (remoteIdOf(id) !== undefined)
           return sharedJarLocalId(remoteIdOf(id) as number);
 
@@ -597,6 +650,10 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
 
 export function useSavings() {
   const value = useContext(StoreContext);
-  if (!value) throw new Error("useSavings must be used within SavingsProvider");
+  if (!value)
+    throw new StoreError(
+      "provider-missing",
+      "useSavings must be used within SavingsProvider",
+    );
   return value;
 }

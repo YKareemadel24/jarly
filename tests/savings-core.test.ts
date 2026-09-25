@@ -2,14 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   applyEntry,
+  activeJars,
+  badgeStats,
   crossedMilestones,
   deadlineCountdown,
   type Jar,
   money,
   monthlyDeposits,
+  nextRecurringDate,
   runDueRecurring,
   sanitizeAmountInput,
   toMinor,
+  weeklyDelta,
 } from "../lib/savings-core";
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -259,6 +263,143 @@ describe("deadlineCountdown", () => {
     expect(deadlineCountdown("2026-01-01", now)).toBe("Past deadline");
     expect(deadlineCountdown("someday maybe", now)).toBe("someday maybe");
     expect(deadlineCountdown(undefined, now)).toBeUndefined();
+  });
+});
+
+describe("nextRecurringDate", () => {
+  const now = new Date("2026-06-15T12:00:00.000Z");
+
+  it("keeps a still-future date when amount and cadence are unchanged", () => {
+    const previous = {
+      amount: 500,
+      cadence: "weekly" as const,
+      nextDate: "2026-06-20T12:00:00.000Z",
+    };
+    expect(
+      nextRecurringDate({ previous, amount: 500, cadence: "weekly", now }),
+    ).toBe("2026-06-20T12:00:00.000Z");
+  });
+
+  it("restarts when the amount or the cadence changes", () => {
+    const previous = {
+      amount: 500,
+      cadence: "weekly" as const,
+      nextDate: "2026-06-20T12:00:00.000Z",
+    };
+    expect(
+      nextRecurringDate({ previous, amount: 700, cadence: "weekly", now }),
+    ).toBeUndefined();
+    expect(
+      nextRecurringDate({ previous, amount: 500, cadence: "monthly", now }),
+    ).toBeUndefined();
+  });
+
+  it("restarts when the previous date is no longer in the future", () => {
+    const previous = {
+      amount: 500,
+      cadence: "weekly" as const,
+      nextDate: "2026-06-01T12:00:00.000Z",
+    };
+    expect(
+      nextRecurringDate({ previous, amount: 500, cadence: "weekly", now }),
+    ).toBeUndefined();
+  });
+
+  it("starts fresh when there was no previous rule", () => {
+    expect(
+      nextRecurringDate({
+        previous: undefined,
+        amount: 500,
+        cadence: "weekly",
+        now,
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("active jars exclude archived history", () => {
+  it("activeJars keeps only jars that are not archived", () => {
+    const active = jar();
+    const archived = jar({ id: "old", archived: true });
+    expect(activeJars([active, archived])).toEqual([active]);
+    expect(activeJars([archived])).toEqual([]);
+  });
+
+  it("monthlyDeposits ignores deposits from archived jars", () => {
+    const archived = jar({
+      archived: true,
+      entries: [
+        {
+          id: "e1",
+          amount: 5000,
+          direction: "deposit",
+          at: "2026-08-02T00:00:00.000Z",
+        },
+      ],
+    });
+    const months = monthlyDeposits([archived], new Date(2026, 7, 15));
+    expect(months.every((month) => month.total === 0)).toBe(true);
+  });
+
+  it("badgeStats ignores archived jars entirely", () => {
+    const archived = jar({
+      archived: true,
+      balance: 10000,
+      target: 10000,
+      streak: 9,
+      entries: [
+        {
+          id: "e1",
+          amount: 5000,
+          direction: "deposit",
+          at: "2026-08-02T00:00:00.000Z",
+        },
+      ],
+    });
+    expect(badgeStats([archived])).toMatchObject({
+      deposits: 0,
+      totalDeposited: 0,
+      maxStreak: 0,
+      completed: 0,
+    });
+  });
+});
+
+describe("weeklyDelta", () => {
+  const now = new Date("2026-08-24T12:00:00.000Z");
+  const entry = (
+    id: string,
+    amount: number,
+    direction: "deposit" | "withdrawal",
+    at: string,
+  ) => ({ id, amount, direction, at });
+
+  it("sums only deposits in the inclusive trailing seven-day window", () => {
+    expect(
+      weeklyDelta(
+        [
+          {
+            entries: [
+              entry("inside", 2500, "deposit", "2026-08-18T12:00:00.000Z"),
+              entry(
+                "withdrawal",
+                9999,
+                "withdrawal",
+                "2026-08-20T12:00:00.000Z",
+              ),
+            ],
+          },
+          {
+            entries: [
+              entry("now", 500, "deposit", "2026-08-24T12:00:00.000Z"),
+              entry("old", 7000, "deposit", "2026-08-17T11:59:59.999Z"),
+              entry("future", 8000, "deposit", "2026-08-24T12:00:00.001Z"),
+            ],
+          },
+        ],
+        now,
+      ),
+    ).toBe(3000);
   });
 });
 

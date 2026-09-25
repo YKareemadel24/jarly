@@ -5,7 +5,12 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
-import { badges, type MonthTotal, monthlyDeposits } from "@/lib/savings-core";
+import {
+  badges,
+  type MonthTotal,
+  monthlyDeposits,
+  activeJars,
+} from "@/lib/savings-core";
 import { percent, type Jar, useMoney, useSavings } from "@/lib/savings-store";
 
 function Metric({
@@ -83,7 +88,7 @@ export default function InsightsScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { jars, total } = useSavings();
   const format = useMoney();
-  const active = useMemo(() => jars.filter((jar) => !jar.archived), [jars]);
+  const active = useMemo(() => activeJars(jars), [jars]);
   const completed = useMemo(
     () => active.filter((jar) => percent(jar) >= 100).length,
     [active],

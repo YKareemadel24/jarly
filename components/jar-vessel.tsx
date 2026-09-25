@@ -12,6 +12,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+import { jarIconRender } from "@/lib/jar-icon";
+
 type JarVesselProps = {
   accent: string;
   icon: string;
@@ -40,6 +42,7 @@ export function JarVessel({
 }: JarVesselProps) {
   const metrics = SIZES[size];
   const reduceMotion = Boolean(useReducedMotion());
+  const renderedIcon = jarIconRender(icon);
   const fill = Math.max(0, Math.min(100, progress));
   const complete = fill >= 99.5;
 
@@ -170,12 +173,28 @@ export function JarVessel({
             }}
           >
             <View style={[StyleSheet.absoluteFillObject, styles.iconScrim]} />
-            <MaterialIcons
-              name={icon as never}
-              size={metrics.icon}
-              color="#FFFDF9"
-              style={styles.iconGlyph}
-            />
+            {renderedIcon.kind === "font" ? (
+              <MaterialIcons
+                name={renderedIcon.name as never}
+                size={metrics.icon}
+                color="#FFFDF9"
+                style={styles.iconGlyph}
+              />
+            ) : (
+              /* Emoji icons (shared jars default to 🫙) render as text — a
+                 MaterialIcons font would draw nothing for them. */
+              <Text
+                style={[
+                  styles.iconGlyph,
+                  {
+                    fontSize: metrics.icon * 0.9,
+                    lineHeight: metrics.icon * 1.15,
+                  },
+                ]}
+              >
+                {renderedIcon.text}
+              </Text>
+            )}
           </View>
         </View>
         {complete ? (

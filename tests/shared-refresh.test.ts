@@ -3,6 +3,7 @@ import {
   createSharedRefresh,
   isSharedAuthFailure,
 } from "../lib/shared-refresh";
+import { FALLBACK_JAR_ICON, jarIconRender } from "../lib/jar-icon";
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -109,5 +110,60 @@ describe("shared refresh", () => {
     pending.resolve(42);
     await work;
     expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("backs off after failures and resumes once a fetch succeeds", async () => {
+    vi.useFakeTimers();
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue([]);
+    const controller = createSharedRefresh({
+      fetch,
+      active: () => true,
+      receive: vi.fn(),
+      failed: vi.fn(),
+      busy: vi.fn(),
+    });
+    await controller.refresh();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // First failure backs off for two intervals (10s -> 20s): neither a
+    // foreground hook nor the 10s tick may fetch inside that window.
+    controller.foreground();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // The tick at 20s runs and succeeds, clearing the backoff so normal
+    // polling resumes at the very next interval.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    controller.dispose();
+  });
+});
+
+describe("jarIconRender", () => {
+  it("treats printable-ASCII names as MaterialIcons glyphs", () => {
+    expect(jarIconRender("flight")).toEqual({ kind: "font", name: "flight" });
+    expect(jarIconRender(" laptop-mac ")).toEqual({
+      kind: "font",
+      name: "laptop-mac",
+    });
+  });
+
+  it("renders emoji icons as text instead of a blank font glyph", () => {
+    expect(jarIconRender("🫙")).toEqual({ kind: "text", text: "🫙" });
+    expect(jarIconRender("✈️")).toEqual({ kind: "text", text: "✈️" });
+  });
+
+  it("falls back to the jar emoji when the icon is empty or blank", () => {
+    expect(jarIconRender("")).toEqual({
+      kind: "text",
+      text: FALLBACK_JAR_ICON,
+    });
+    expect(jarIconRender("   ")).toEqual({
+      kind: "text",
+      text: FALLBACK_JAR_ICON,
+    });
   });
 });

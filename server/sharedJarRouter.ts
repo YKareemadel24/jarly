@@ -376,6 +376,15 @@ export const sharedJarRouter = router({
           message: "Only the jar's owner can remove other people.",
         });
       }
+      // The owner is the one member the jar cannot lose: only they can
+      // withdraw, invite or delete, so letting them walk away strands the jar
+      // with an owner who can no longer see it. Deleting is their way out.
+      if (removingSelf && view.jar.ownerId === ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "The owner cannot leave a jar; delete it instead.",
+        });
+      }
       await removeMember(input.jarId, input.userId);
       return { success: true } as const;
     }),

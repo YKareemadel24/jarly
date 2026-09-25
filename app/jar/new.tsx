@@ -18,7 +18,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import {
   jarAccent,
-  money,
   type Accent,
   type JarKind,
   sanitizeAmountInput,
