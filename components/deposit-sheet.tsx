@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo } from "react";
 import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
-import { makeStyles } from "@/app/jar/jar-detail.styles";
+import { makeStyles } from "@/components/jar-detail.styles";
 import { useColors } from "@/hooks/use-colors";
 import {
   type QuickPreset,

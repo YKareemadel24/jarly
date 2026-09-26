@@ -34,11 +34,7 @@ export function Toast({
 
   if (!visible) return null;
   return (
-    <View
-      pointerEvents="box-none"
-      accessibilityLiveRegion="polite"
-      style={toastStyles.wrap}
-    >
+    <View accessibilityLiveRegion="polite" style={toastStyles.wrap}>
       <View style={[toastStyles.toast, { backgroundColor: colors.foreground }]}>
         <Text
           numberOfLines={2}
@@ -75,6 +71,7 @@ const toastStyles = StyleSheet.create({
     right: 20,
     bottom: 24,
     alignItems: "center",
+    pointerEvents: "box-none",
     zIndex: 20,
   },
   toast: {
@@ -87,11 +84,7 @@ const toastStyles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 52,
     paddingVertical: 10,
-    shadowColor: "#201B18",
-    shadowOpacity: 0.28,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 6,
+    boxShadow: "0px 6px 14px rgba(32, 27, 24, 0.28)",
   },
   message: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   action: {

@@ -360,7 +360,7 @@ export function LockScreen() {
 const makeStyles = (c: ThemeColorPalette) =>
   StyleSheet.create({
     safe: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: c.background,
       zIndex: 100,
     },

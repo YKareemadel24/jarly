@@ -1,7 +1,34 @@
 import { type Jar, money, parseDeadline } from "@/lib/savings-core";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+
+/**
+ * `expo-notifications` is imported lazily, and never on web. Importing it runs a
+ * push-token auto-registration side effect that warns on every web load, so the
+ * OS-touching functions below await this loader instead of a static import.
+ */
+type NotificationsApi = typeof import("expo-notifications");
+
+let apiPromise: Promise<NotificationsApi> | null = null;
+let handlerRegistered = false;
+
+async function notifications(): Promise<NotificationsApi | null> {
+  if (Platform.OS === "web") return null;
+  apiPromise ??= import("expo-notifications");
+  const api = await apiPromise;
+  if (!handlerRegistered) {
+    api.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+    handlerRegistered = true;
+  }
+  return api;
+}
 
 export type DueNotification = {
   jarId: string;
@@ -78,22 +105,11 @@ export function dueNotifications(
   return pings;
 }
 
-if (Platform.OS !== "web") {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
-}
-
-async function ensureAndroidChannel(): Promise<void> {
+async function ensureAndroidChannel(api: NotificationsApi): Promise<void> {
   if (Platform.OS !== "android") return;
-  await Notifications.setNotificationChannelAsync("reminders", {
+  await api.setNotificationChannelAsync("reminders", {
     name: "Saving reminders",
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: api.AndroidImportance.DEFAULT,
   });
 }
 
@@ -105,16 +121,17 @@ export async function resyncNotifications(
   jars: Jar[],
   opts: { enabled: boolean; currency?: string; now?: Date },
 ): Promise<void> {
-  if (Platform.OS === "web") return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  const api = await notifications();
+  if (!api) return;
+  await api.cancelAllScheduledNotificationsAsync();
   if (!opts.enabled) return;
-  await ensureAndroidChannel();
+  await ensureAndroidChannel(api);
   const now = opts.now ?? new Date();
   for (const ping of dueNotifications(jars, now, opts.currency)) {
-    await Notifications.scheduleNotificationAsync({
+    await api.scheduleNotificationAsync({
       content: { title: ping.title, body: ping.detail },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: api.SchedulableTriggerInputTypes.DATE,
         date: new Date(ping.fireDate),
         ...(Platform.OS === "android" ? { channelId: "reminders" } : null),
       },
@@ -124,10 +141,11 @@ export async function resyncNotifications(
 
 /** Ask the OS for permission once. Returns true only when alerts can fire. */
 export async function requestPermissionAndEnable(): Promise<boolean> {
-  if (Platform.OS === "web") return false;
-  const current = await Notifications.getPermissionsAsync();
+  const api = await notifications();
+  if (!api) return false;
+  const current = await api.getPermissionsAsync();
   if (current.granted) return true;
-  const next = await Notifications.requestPermissionsAsync();
+  const next = await api.requestPermissionsAsync();
   return next.granted;
 }
 

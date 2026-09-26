@@ -24,7 +24,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const APPEARANCE_KEY = "saving-jar:appearance";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? "light";
+  const systemScheme: ColorScheme =
+    useSystemColorScheme() === "dark" ? "dark" : "light";
   const [appearanceMode, setAppearanceModeState] =
     useState<AppearanceMode>("system");
   const colorScheme: ColorScheme =

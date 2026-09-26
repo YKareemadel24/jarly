@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 
-import { makeStyles } from "@/app/jar/jar-detail.styles";
+import { makeStyles } from "@/components/jar-detail.styles";
 import { ActionSheet } from "@/components/action-sheet";
 import { CelebrationModal } from "@/components/celebration-modal";
 import { DepositSheet } from "@/components/deposit-sheet";

@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { makeStyles } from "@/app/(tabs)/home.styles";
+import { makeStyles } from "@/components/home.styles";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";

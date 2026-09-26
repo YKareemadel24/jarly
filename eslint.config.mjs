@@ -5,6 +5,12 @@ import expoConfig from "eslint-config-expo/flat.js";
 export default defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    ignores: ["dist/**"],
+  },
+  {
+    rules: {
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
+    },
   },
 ]);

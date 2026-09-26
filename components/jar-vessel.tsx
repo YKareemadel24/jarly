@@ -90,7 +90,7 @@ export function JarVessel({
       accessibilityLabel={label}
     >
       {/* Coin drop plays above the glass so the fall is never clipped. */}
-      <Animated.View pointerEvents="none" style={[styles.coinLayer, coinStyle]}>
+      <Animated.View style={[styles.coinLayer, coinStyle]}>
         <View
           style={[
             styles.coin,
@@ -152,11 +152,7 @@ export function JarVessel({
         <View style={styles.reflection} />
         {/* Etched milestone ticks double as a progress ruler (never color-only meaning). */}
         {TICK_LEVELS.map((level) => (
-          <View
-            key={level}
-            pointerEvents="none"
-            style={[styles.tick, { bottom: `${level}%` }]}
-          >
+          <View key={level} style={[styles.tick, { bottom: `${level}%` }]}>
             <View style={styles.tickLine} />
             {size === "large" ? (
               <Text style={styles.tickLabel}>{level}</Text>
@@ -172,7 +168,7 @@ export function JarVessel({
               justifyContent: "center",
             }}
           >
-            <View style={[StyleSheet.absoluteFillObject, styles.iconScrim]} />
+            <View style={[StyleSheet.absoluteFill, styles.iconScrim]} />
             {renderedIcon.kind === "font" ? (
               <MaterialIcons
                 name={renderedIcon.name as never}
@@ -236,6 +232,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+    pointerEvents: "none",
     zIndex: 6,
   },
   coin: {
@@ -243,11 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8BE5F",
     borderWidth: 1.5,
     borderColor: "#B8860B",
-    shadowColor: "#4A3324",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 2,
+    boxShadow: "0px 2px 3px rgba(74, 51, 36, 0.2)",
   },
   lid: { position: "absolute", top: 0, height: 9, borderRadius: 5, zIndex: 4 },
   lidSealed: { height: 11, borderRadius: 6 },
@@ -271,11 +264,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 27,
     borderBottomLeftRadius: 35,
     borderBottomRightRadius: 35,
-    shadowColor: "#4A3324",
-    shadowOpacity: 0.16,
-    shadowOffset: { width: 0, height: 9 },
-    shadowRadius: 12,
-    elevation: 4,
+    boxShadow: "0px 9px 12px rgba(74, 51, 36, 0.16)",
   },
   fill: {
     position: "absolute",
@@ -318,6 +307,7 @@ const styles = StyleSheet.create({
     right: "10%",
     flexDirection: "row",
     alignItems: "center",
+    pointerEvents: "none",
     gap: 3,
   },
   tickLine: {
@@ -343,11 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFDF9",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#4A3324",
-    shadowOpacity: 0.22,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: "0px 2px 4px rgba(74, 51, 36, 0.22)",
     zIndex: 5,
   },
   label: {

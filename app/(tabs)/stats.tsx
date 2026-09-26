@@ -365,11 +365,7 @@ const makeStyles = (c: ThemeColorPalette) =>
       backgroundColor: "#3B2D24",
       padding: 22,
       marginTop: 23,
-      shadowColor: "#3B2D24",
-      shadowOpacity: 0.18,
-      shadowOffset: { width: 0, height: 10 },
-      shadowRadius: 16,
-      elevation: 4,
+      boxShadow: "0px 10px 16px rgba(59, 45, 36, 0.18)",
     },
     heroTop: {
       flexDirection: "row",

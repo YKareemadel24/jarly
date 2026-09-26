@@ -580,11 +580,7 @@ const makeStyles = (c: ThemeColorPalette) =>
     colorSelected: {
       borderWidth: 3,
       borderColor: c.surface,
-      shadowColor: "#4A3324",
-      shadowOpacity: 0.2,
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 5,
-      elevation: 3,
+      boxShadow: "0px 2px 5px rgba(74, 51, 36, 0.2)",
     },
     amountField: {
       minHeight: 62,

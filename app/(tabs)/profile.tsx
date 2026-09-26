@@ -741,7 +741,7 @@ const makeStyles = (c: ThemeColorPalette) =>
     },
     currencyOptionSymbol: { color: c.muted, fontSize: 12, fontWeight: "800" },
     sheetOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: "rgba(0,0,0,.35)",
       alignItems: "center",
       justifyContent: "center",

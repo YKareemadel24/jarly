@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 
-import { makeStyles } from "@/app/jar/jar-detail.styles";
+import { makeStyles } from "@/components/jar-detail.styles";
 import { JarVessel } from "@/components/jar-vessel";
 import { useColors } from "@/hooks/use-colors";
 
