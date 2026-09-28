@@ -65,8 +65,10 @@ export default function RootLayout() {
   );
   const [trpcClient] = useState(() => createTRPCClient());
 
-  // Install the global uncaught-error hook once (idempotent, dev-red-box safe).
-  useState(() => initErrorReporting());
+  // Install the global uncaught-error hook once the layout mounts.
+  useEffect(() => {
+    initErrorReporting();
+  }, []);
 
   // Fail loudly, once, when a build is missing configuration it cannot recover
   // from at runtime — much easier to diagnose than a silent "no shared jars".
