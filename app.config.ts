@@ -40,7 +40,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.0",
+  version: "2.0.0",
   orientation: "portrait",
   updates: {
     url: "https://u.expo.dev/55c67265-81c0-4d30-8a4c-62322f5ca429",
@@ -114,7 +114,9 @@ const config: ExpoConfig = {
   ],
   experiments: {
     typedRoutes: true,
-    reactCompiler: true,
+    // reactCompiler requires babel-plugin-react-compiler to be installed.
+    // Enable only after adding the plugin.
+    // reactCompiler: true,
   },
   extra: {
     eas: {

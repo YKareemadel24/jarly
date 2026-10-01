@@ -1,15 +1,21 @@
 module.exports = function (api) {
   api.cache(true);
 
-  // No `plugins` entry for `react-native-worklets/plugin` on purpose: it is added
-  // automatically by `babel-preset-expo` (babel-preset-expo/build/configs/expo.js
-  // — "Automatically add worklets or reanimated plugin when package is installed")
-  // and again by `nativewind/babel`. Listing it a third time here is redundant;
-  // verified to produce byte-identical output for worklet and Reanimated files.
   return {
     presets: [
       ["babel-preset-expo", { jsxImportSource: "nativewind" }],
       "nativewind/babel",
+    ],
+    // CRITICAL: babel-preset-expo has a bug where it uses if/else-if for
+    // worklets vs reanimated plugins. When BOTH packages are installed,
+    // it only adds react-native-worklets/plugin and SKIPS
+    // react-native-reanimated/plugin entirely. Without the Reanimated
+    // Babel plugin, useAnimatedStyle/useSharedValue/etc are not
+    // transformed, causing an immediate silent crash on launch.
+    // We must explicitly add both plugins here, in order, with reanimated last.
+    plugins: [
+      "react-native-worklets/plugin",
+      "react-native-reanimated/plugin",
     ],
   };
 };
