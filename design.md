@@ -1,5 +1,7 @@
 # Saving Jar — Mobile Interface Design Plan
 
+**Last updated:** 2026-10-02
+
 ## Experience direction
 
 Saving Jar is a warm, tactile savings companion for portrait mobile use. The experience makes progress feel physical through colorful glass jars, visible liquid fills, tactile rounded cards, and a calm paper-like backdrop. Every visual progress cue is reinforced by an explicit saved amount, target amount, and percentage so the product remains clear and accessible.
@@ -55,6 +57,8 @@ Below the jar-detail hero sit two compact stat cards — **Remaining** (amount t
 The neutral app base is warm paper and dark cocoa: background **#F6F1E8**, elevated surface **#FFFDF9**, primary ink **#2C231D**, secondary ink **#7E7167**, and soft border **#E6DCD0**. The action color is cocoa **#3B2D24**. Six jar accents provide identity without changing application chrome: coral **#DE7D68**, amber **#E5B847**, mint **#73BDA3**, ocean **#6FA8BF**, berry **#B981AB**, and clay **#B68767**.
 
 Dark mode retains warm charcoal rather than blue-black, using **#201B18** for the canvas, **#2D2722** for surfaces, **#F6EDE2** for primary text, and muted warm-gray borders. Jar colors remain recognizable in both themes.
+
+The Jarly launcher mark uses the same warm visual language at a smaller scale: a bold cocoa field, pale jar glass, teal savings fill, coral lid, and gold coin. The jar silhouette, liquid line, and coin are intentionally oversized and high-contrast so the mark remains recognizable in launcher grids and adaptive-icon masks.
 
 ## Visual components
 
