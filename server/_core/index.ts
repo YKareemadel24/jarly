@@ -5,6 +5,8 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { ENV } from "./env";
+import { rateLimit } from "express-rate-limit";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -42,7 +44,8 @@ async function startServer() {
     .filter(Boolean);
   const devOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
   const isAllowedOrigin = (origin: string) =>
-    devOrigin.test(origin) || extraOrigins.includes(origin);
+    (!ENV.isProduction && devOrigin.test(origin)) ||
+    extraOrigins.includes(origin);
 
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -68,6 +71,25 @@ async function startServer() {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
+  });
+
+  const apiLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+  const inviteLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 20,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+  });
+  app.use("/api/trpc", (req, res, next) => {
+    if (req.path.includes("previewInvite") || req.path.includes("joinInvite")) {
+      return inviteLimiter(req, res, next);
+    }
+    return apiLimiter(req, res, next);
   });
 
   app.use(

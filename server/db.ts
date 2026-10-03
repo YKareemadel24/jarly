@@ -81,8 +81,9 @@ export async function upsertUser(user: InsertUser): Promise<User | null> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (isOwnerEmail(user.email)) {
+      // Grant admin once, at first sign-in. Re-deriving on every upsert would
+      // let any trusted-email claim from a later session silently re-elevate.
       values.role = "admin";
-      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {

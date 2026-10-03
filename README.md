@@ -50,6 +50,13 @@ The primary loop is intentionally short:
 
 ## Recent upgrades
 
+### Security hardening
+
+- **RLS on every table** — `drizzle/0002_enable_rls.sql` enables row level security with no policies, so the publishable client key can no longer reach PostgREST; all access goes through the API server. Run `pnpm db:push` to apply.
+- **Rate limiting** — `express-rate-limit` on `/api/trpc` (120 req/min; 20/min for `previewInvite`/`joinInvite`).
+- **Admin granted once** — owner-email admin is set at first sign-in only, not re-derived on every upsert.
+- **CORS** — loopback origins are only accepted outside production.
+
 ### Expo SDK 57 / React Native 0.86
 
 - **Runtime jump** — Expo SDK 54 → 57, React Native 0.81 → 0.86, React 19.2, TypeScript 6.0, `react-native-reanimated` 4 with `react-native-worklets`, `expo-updates`, and `expo-dev-client` (a dev build is now required for native, since Expo Go no longer covers these versions).
