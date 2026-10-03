@@ -7,6 +7,7 @@ This file defines mandatory rules for any AI coding agent working on this reposi
 ## Documentation Maintenance
 
 ### README.md
+
 - **Always** review `README.md` after making changes that affect:
   - Tech stack versions (Expo SDK, React Native, React, TypeScript, key dependencies)
   - Project structure (new/removed directories, renamed files)
@@ -20,6 +21,7 @@ This file defines mandatory rules for any AI coding agent working on this reposi
 - Keep the project structure tree in sync with actual directory layout.
 
 ### design.md
+
 - **Always** review `design.md` after making changes that affect:
   - UI components, screens, or navigation structure
   - Visual design tokens (colors, spacing, typography)
@@ -29,6 +31,7 @@ This file defines mandatory rules for any AI coding agent working on this reposi
 - Update the "Last updated" line at the top when changes are made.
 
 ### When in doubt, update both.
+
 It is better to make a small doc update than to leave documentation stale.
 
 ---
@@ -52,7 +55,7 @@ It is better to make a small doc update than to leave documentation stale.
 - **`expo-notifications`:** always import lazily via `lib/notifications.ts` loader. Never static-import on web.
 - **Styles live in `components/`**, not in `app/`. Route folders are routes to Expo Router.
 - **Pure domain code stays pure.** `lib/domain/*` takes data and returns data: no React, no AsyncStorage, no network.
-- **Babel plugins:** `react-native-worklets/plugin` must come before `react-native-reanimated/plugin`, and both must be explicitly listed in `babel.config.js` (see SDK 57 fix notes).
+- **Babel plugins:** never list `react-native-worklets/plugin` or `react-native-reanimated/plugin` in `babel.config.js`. `babel-preset-expo` registers the worklets plugin automatically, and Reanimated 4's plugin is the same module (`react-native-reanimated/plugin` re-exports `react-native-worklets/plugin`), so listing them triggers a Babel "Duplicate plugin/preset detected" error that Metro swallows and surfaces as the misleading `Cannot read properties of undefined (reading 'transformFile')`.
 
 ---
 
