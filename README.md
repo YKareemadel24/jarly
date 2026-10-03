@@ -50,6 +50,11 @@ The primary loop is intentionally short:
 
 ## Recent upgrades
 
+### Google sign-in
+
+- **Continue with Google** — the sign-in screen now leads with a Google button that covers both a first visit and a return: Supabase creates the account when the address is new and signs it in when it is not. Email + password is unchanged underneath it.
+- **Stable native redirect** — `getAuthRedirectUrl()` now builds `manussavingjar://oauth/callback` directly rather than going through `Linking.createURL`, which in a dev build prefixed the Metro host (`manussavingjar://10.0.0.5:8081/oauth/callback`). Expo Router reads a deep link's host and path as one route, so that prefix resolved to unknown leading segments and the callback route — which both emailed links and provider sign-ins finish at — was never reached. The Supabase redirect allow-list entry is now one exact URL per platform instead of a wildcard that had to cover every dev host.
+
 ### Security hardening
 
 - **RLS on every table** — `drizzle/0002_enable_rls.sql` enables row level security with no policies, so the publishable client key can no longer reach PostgREST; all access goes through the API server. Run `pnpm db:push` to apply.
@@ -96,7 +101,7 @@ The primary loop is intentionally short:
 - **Light / dark / system theming** — a white-first modern palette with warm, complete dark-mode tokens, persisted per user.
 - **Tactile feedback** — haptics on success/error and confirmation for destructive actions.
 - **Accessibility** — descriptive labels, explicit numeric progress, and large touch targets.
-- **Account sign-in** — Supabase Auth (email + password). Only jars you _share_ need an account; personal jars never do.
+- **Account sign-in** — Supabase Auth, with **Continue with Google** or email + password. Google serves a first visit and a return visit alike; only jars you _share_ need an account, and personal jars never do.
 - **Type-safe API** — end-to-end typed tRPC with `superjson` serialization.
 
 ---
@@ -171,11 +176,12 @@ jarly/
 │   │   ├── instruments.tsx     # Debug read-out for the domain layer
 │   │   └── theme-lab.tsx       # Theme development playground
 │   ├── join.tsx                # Accept a shared-jar invite
-│   ├── login.tsx               # Email + password sign-in / sign-up
+│   ├── login.tsx               # Sign in: Google, or email + password
 │   └── oauth/callback.tsx      # Where a provider sign-in redirect lands
 ├── components/                 # Reusable UI (styles live beside their components)
 │   ├── home.styles.ts          # Home dashboard styles
 │   ├── jar-detail.styles.ts    # Jar detail + every sheet that shares its look
+│   ├── google-mark.tsx         # The Google "G", drawn as four vector paths
 │   ├── jar-vessel.tsx          # Animated glass-jar visualization
 │   ├── lock-screen.tsx         # Biometric / PIN app lock
 │   ├── qr-code.tsx             # QR rendering + scanning for transfers
@@ -205,6 +211,7 @@ jarly/
 │   ├── invite-links.ts         # Building and parsing invite links
 │   ├── notifications.ts        # Lazy expo-notifications wrapper + scheduling
 │   ├── reminders.ts            # Which reminder, if any, is due
+│   ├── oauth-signin.ts         # Starting a Google sign-in on web and on native
 │   ├── supabase.ts             # The one Supabase client (session storage, PKCE)
 │   ├── theme-provider.tsx      # Light/dark/system theme provider
 │   ├── trpc.ts                 # tRPC React client
@@ -259,6 +266,22 @@ jarly/
    email confirmation. With it **on**, sign-up returns no session and the person
    must open the emailed link before signing in — the app says so rather than
    appearing to do nothing. For local development, turning it **off** is simpler.
+
+6. Optional, and only needed for **Continue with Google**: turn Google on under
+   _Authentication → Sign In / Providers → Google_ with an OAuth client id and
+   secret from the [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+   then list where sign-ins may return to under _Authentication → URL
+   Configuration_:
+   - **Web** — the origin the app is served from, e.g.
+     `http://localhost:8081/oauth/callback` and the deployed equivalent.
+   - **Native** — `manussavingjar://oauth/callback`.
+
+   That scheme is derived from the bundle id in `app.config.ts` (`com.app.savingjar`
+   → `manussavingjar`); the two have to agree, or the browser has nowhere to
+   return the app to. Google is the only provider wired up, but the button, the
+   callback route, and the allow-list are the whole of it — adding another is
+   Supabase configuration, not code. A provider that is left off is reported on
+   the sign-in screen with a pointer back to that dashboard page.
 
 > Sign-in only matters for shared jars. Skip all of this and the app still runs:
 > personal jars, transfers and theming have no backend dependency at all.
@@ -495,7 +518,7 @@ pnpm format   # Prettier
 
 All four checks (typecheck, format, lint, tests) run on every push to `master` and on every pull request via GitHub Actions (`.github/workflows/ci.yml`).
 
-**174 tests across 15 files.** Coverage (`tests/`):
+**184 tests across 17 files.** Coverage (`tests/`):
 
 - `savings-core.test.ts` — money conversion, amount sanitization, milestones, deposits/withdrawals, habit streaks, recurring catch-up.
 - `saving-jar.helpers.test.ts` — progress helpers, currency formatting, accent colors.
@@ -509,6 +532,8 @@ All four checks (typecheck, format, lint, tests) run on every push to `master` a
 - `shared-refresh.test.ts` — refresh ordering: cached data survives a network failure, is dropped on an auth rejection.
 - `api-transport.test.ts` — turning a non-tRPC error page into a message worth reading.
 - `api-base-url.test.ts` — deriving the API origin from the Metro origin.
+- `auth-redirect-url.test.ts` — the web origin and the native deep link a sign-in returns to.
+- `oauth-signin.test.ts` — branching the Google hand-off between a web redirect and a native browser open, plus the messages shown when it fails.
 - `notifications.test.ts`, `reminders.test.ts` — reminder scheduling and the permission gate.
 
 ---
@@ -538,6 +563,7 @@ Notable open items:
 - **Native folders** (`ios/`, `android/`) are generated and git-ignored.
 - **Sensitive data:** never commit `.env` files; use `.env.example` as the source of truth for required variables.
 - **Auth:** Supabase owns the session on the client (persisted in `AsyncStorage`). The API server verifies the access token against the project JWKS on every request, so there is no server-issued cookie and no session table.
+- **Sign-in returns through one route.** Google, emailed confirmation links and password recovery all land on `app/oauth/callback.tsx`, which exchanges the PKCE code on native and reads the session supabase-js already established on web. `getAuthRedirectUrl()` is the single place that decides where that is, and its native form stays a bare `scheme://path` — Expo Router reads a deep link's host and path as one route, so anything that prepends a host (`Linking.createURL` does this in a dev build) turns into unknown route segments and the code is dropped.
 - **Identity:** Supabase accounts are UUIDs, but app tables reference an integer `users.id`, linked by `users.supabaseUserId`. That is why the shared-jar code did not have to change when the auth provider did.
 - **Postgres has no `ON UPDATE CURRENT_TIMESTAMP`**, so `updatedAt` is stamped by the application; and an error inside a transaction aborts the whole transaction, so duplicate-key cases use `ON CONFLICT DO NOTHING` rather than a caught exception.
 - **Concurrent money writes** are validated inside a transaction holding a row lock on the jar, so two simultaneous withdrawals cannot both pass the balance check.

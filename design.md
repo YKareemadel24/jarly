@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-03
 
 ## Experience direction
 
@@ -10,15 +10,16 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 ## Screen list
 
-| Screen             | Primary content                                                                                                                                         | Core actions                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Home               | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point                                        | Open a jar, add money, create a jar, inspect the overview                              |
-| Jar detail         | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity                            |
-| Create jar sheet   | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview                                                                    | Create a goal jar                                                                      |
-| Deposit sheet      | Selected jar, amount entry, balance impact, confirmation                                                                                                | Add a manual contribution and trigger progress feedback                                |
-| Activity view      | Recent contributions and withdrawals grouped by jar                                                                                                     | Review transaction history                                                             |
-| Insights           | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight                                                       | Review progress patterns                                                               |
-| Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, archived jars                                             | Change personal preferences, lock the app, restore or permanently delete archived jars |
+| Screen             | Primary content                                                                                                                                          | Core actions                                                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Home               | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point                                         | Open a jar, add money, create a jar, inspect the overview                                              |
+| Jar detail         | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history  | Deposit, withdraw, manage recurring saving, review activity                                            |
+| Create jar sheet   | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview                                                                     | Create a goal jar                                                                                      |
+| Deposit sheet      | Selected jar, amount entry, balance impact, confirmation                                                                                                 | Add a manual contribution and trigger progress feedback                                                |
+| Activity view      | Recent contributions and withdrawals grouped by jar                                                                                                      | Review transaction history                                                                             |
+| Insights           | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight                                                        | Review progress patterns                                                                               |
+| Sign in            | Google button, an "or use an email" divider, email + password fields, and a mode switch that swaps the heading between welcome-back and save-it-together | Continue with Google, sign in or create an account with a password, switch mode                        |
+| Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, account row, archived jars                                 | Change personal preferences, lock the app, sign in or out, restore or permanently delete archived jars |
 
 ## Core user flows
 
@@ -40,9 +41,13 @@ Home shows at most one reminder card (`nextReminder`): a due recurring deposit (
 
 The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push, no background tasks, no generic daily repeater.
 
+### Sign in for shared jars
+
+Reached from the invite screen or the account row, never as a wall in front of the app — nothing a personal jar does needs an account. The screen opens on one action: **Continue with Google**, with the four-colour mark rather than a tinted glyph, and a line underneath saying that it sets the account up if the address is new and signs it back in if it is not. Below that, an "or use an email" divider separates the email and password pair. Heading and the helper line both follow the mode switch, so the same screen reads as a return visit or a first one. Whichever path is taken, feedback appears directly under the control that produced it, and the browser round trip lands on the callback route rather than back here.
+
 ### Lock, currency, and archiving
 
-Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (SecureStore on native, AsyncStorage on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
+Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (SecureStore on native, AsyncStorage on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation. The account row reflects who is signed in — naming the provider when Google was used — and doubles as the sign-out control.
 
 ## Layout and interaction rules
 
@@ -62,7 +67,7 @@ The Jarly launcher mark uses the same warm visual language at a smaller scale: a
 
 ## Visual components
 
-The reusable visual system contains a `Jar` component with a glass silhouette, translucent colored fill, highlight layer, icon, and accessible numeric label; an `AmountDisplay` component for high-emphasis money; rounded `SurfaceCard` variants; color swatches; a `ProgressPill`; and action buttons with strong active feedback. The jar visual may animate its fill when value changes, but the rendered amount and percentage must always remain the source of truth.
+The reusable visual system contains a `Jar` component with a glass silhouette, translucent colored fill, highlight layer, icon, and accessible numeric label; an `AmountDisplay` component for high-emphasis money; rounded `SurfaceCard` variants; color swatches; a `ProgressPill`; a `GoogleMark` drawn as four vector paths rather than a tinted icon-font glyph, since the provider's mark is only correct in colour; and action buttons with strong active feedback. The jar visual may animate its fill when value changes, but the rendered amount and percentage must always remain the source of truth.
 
 ## Implementation decisions
 

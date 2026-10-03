@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { ActionSheet } from "@/components/action-sheet";
+import { GoogleMark } from "@/components/google-mark";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { isSupabaseConfigured } from "@/constants/oauth";
@@ -338,6 +339,7 @@ export default function ProfileScreen() {
                 {user.email ?? "Signed in"}
               </Text>
               <Text style={styles.prefDetail}>
+                {user.loginMethod === "google" ? "Signed in with Google. " : ""}
                 Shared jars follow this account. Tap to sign out.
               </Text>
             </View>
@@ -357,12 +359,13 @@ export default function ProfileScreen() {
             onPress={() => router.push("/login" as never)}
           >
             <View style={styles.prefIcon}>
-              <MaterialIcons name="login" size={19} color={colors.primary} />
+              <GoogleMark size={19} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.prefTitle}>Sign in</Text>
               <Text style={styles.prefDetail}>
-                Only needed for jars you share with other people.
+                Continue with Google, or use an email and password. Only needed
+                for jars you share with other people.
               </Text>
             </View>
             <MaterialIcons

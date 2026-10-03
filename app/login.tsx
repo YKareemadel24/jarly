@@ -10,12 +10,14 @@ import {
   View,
 } from "react-native";
 
+import { GoogleMark } from "@/components/google-mark";
 import { ScreenContainer } from "@/components/screen-container";
 import { getAuthRedirectUrl, isSupabaseConfigured } from "@/constants/oauth";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
+import { startProviderSignIn } from "@/lib/oauth-signin";
 import { getSupabase } from "@/lib/supabase";
 
 type Mode = "signin" | "signup";
@@ -27,9 +29,14 @@ type Mode = "signin" | "signup";
  * from the invite screen or the account row — rather than being a wall in front
  * of the app. Everything a personal jar does stays available without it.
  *
- * Email and password are the whole of it. A third-party provider sign-in needs
- * a browser round trip and a redirect URL registered with the project, which is
- * a reasonable next step but not something the app has to have to be usable.
+ * Two ways in, and the screen never has to know which one suits somebody:
+ * Google covers a first visit and a return visit alike — Supabase creates the
+ * account if the address is new and signs it in if it is not — while email and
+ * password stay for anyone who would rather not involve a third party.
+ *
+ * Neither path finishes here. Google's browser round trip lands on
+ * `/oauth/callback`; the email path either returns a session directly or, with
+ * confirmation switched on, waits for an emailed link that lands there too.
  */
 export default function LoginScreen() {
   const colors = useColors();
@@ -42,13 +49,53 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [providerBusy, setProviderBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Kept apart from the email path's pair so each message sits under the
+  // control that produced it rather than under whichever one is lower down.
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const [providerNotice, setProviderNotice] = useState<string | null>(null);
 
   const configured = isSupabaseConfigured();
+  const busyWithAnything = busy || providerBusy;
+
+  /**
+   * Google, on either platform.
+   *
+   * Nothing here waits for a session: on web the page leaves for Google, and on
+   * native the browser owns the round trip while the deep link brings the app
+   * back to `/oauth/callback`, which finishes the exchange. So this only has to
+   * report whether the hand-off itself worked.
+   */
+  const continueWithGoogle = async () => {
+    if (busyWithAnything) return;
+    feedback.tap();
+    setProviderBusy(true);
+    setProviderError(null);
+    setProviderNotice(null);
+
+    const outcome = await startProviderSignIn("google");
+
+    if (outcome.status === "redirecting") return; // The page is on its way out.
+
+    setProviderBusy(false);
+
+    if (outcome.status === "opened") {
+      // The app is about to go to the background, so say what happens next
+      // rather than leaving the button looking like it did nothing.
+      setProviderNotice(
+        "Finish signing in with Google in your browser — we'll bring you straight back.",
+      );
+      return;
+    }
+
+    feedback.error();
+    setProviderError(outcome.message);
+  };
 
   const submit = async () => {
-    if (busy) return;
+    if (busyWithAnything) return;
     const address = email.trim();
     if (!address || !password) {
       setError("Enter your email and password.");
@@ -129,6 +176,52 @@ export default function LoginScreen() {
         </View>
       ) : (
         <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            accessibilityHint="Opens Google to sign in, or to create the account if you are new"
+            disabled={busyWithAnything}
+            onPress={() => void continueWithGoogle()}
+            style={({ pressed }) => [
+              styles.google,
+              busyWithAnything && styles.disabled,
+              pressed && !busyWithAnything && styles.pressed,
+            ]}
+          >
+            {providerBusy ? (
+              <ActivityIndicator color={colors.foreground} />
+            ) : (
+              <>
+                <GoogleMark size={18} />
+                <Text style={styles.googleText}>Continue with Google</Text>
+              </>
+            )}
+          </Pressable>
+
+          {/* One button, both errands: Supabase creates the account when the
+              address is new and signs it in when it is not, so the label stays
+              "Continue" and this line says the rest. */}
+          <Text style={styles.googleNote}>
+            {mode === "signin"
+              ? "New here? This sets the account up as it signs you in."
+              : "Been here before? This signs you back into that account."}
+          </Text>
+
+          {providerError ? (
+            <Text style={[styles.error, { color: colors.error }]}>
+              {providerError}
+            </Text>
+          ) : null}
+          {providerNotice ? (
+            <Text style={styles.notice}>{providerNotice}</Text>
+          ) : null}
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR USE AN EMAIL</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <View style={styles.field}>
             <Text style={styles.label}>EMAIL</Text>
             <TextInput
@@ -167,12 +260,12 @@ export default function LoginScreen() {
             accessibilityLabel={
               mode === "signin" ? "Sign in" : "Create account"
             }
-            disabled={busy}
+            disabled={busyWithAnything}
             onPress={() => void submit()}
             style={({ pressed }) => [
               styles.primary,
-              busy && styles.disabled,
-              pressed && !busy && styles.pressed,
+              busyWithAnything && styles.disabled,
+              pressed && !busyWithAnything && styles.pressed,
             ]}
           >
             {busy ? (
@@ -189,12 +282,14 @@ export default function LoginScreen() {
               setMode(mode === "signin" ? "signup" : "signin");
               setError(null);
               setNotice(null);
+              setProviderError(null);
+              setProviderNotice(null);
             }}
             style={styles.secondary}
           >
             <Text style={styles.secondaryText}>
               {mode === "signin"
-                ? "New here? Create an account"
+                ? "New here? Create an account with a password"
                 : "Already have an account? Sign in"}
             </Text>
           </Pressable>
@@ -232,6 +327,43 @@ const makeStyles = (c: ThemeColorPalette) =>
       marginTop: 8,
     },
     copy: { color: c.muted, fontSize: 13.5, lineHeight: 20, marginTop: 10 },
+    google: {
+      minHeight: 52,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      marginTop: 26,
+    },
+    googleText: { color: c.foreground, fontSize: 15, fontWeight: "800" },
+    googleNote: {
+      color: c.muted,
+      fontSize: 11.5,
+      lineHeight: 17,
+      marginTop: 9,
+      textAlign: "center",
+    },
+    divider: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 22,
+    },
+    dividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+    },
+    dividerText: {
+      color: c.muted,
+      fontSize: 9.5,
+      letterSpacing: 1.1,
+      fontWeight: "800",
+    },
     field: { marginTop: 20 },
     label: {
       color: c.muted,

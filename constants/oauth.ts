@@ -7,7 +7,6 @@
  * safe to ship because it can only reach what row level security allows.
  */
 
-import * as Linking from "expo-linking";
 import * as ReactNative from "react-native";
 
 const env = {
@@ -93,6 +92,14 @@ export function getApiBaseUrl(): string {
  * out of. Native returns through the app's deep link, which the callback route
  * handles. Both forms have to be listed under Authentication → URL
  * Configuration in the Supabase dashboard or the redirect is refused.
+ *
+ * The native form is assembled by hand rather than with `Linking.createURL`,
+ * which in a dev build prefixes the Metro host and yields
+ * `manussavingjar://10.0.0.5:8081/oauth/callback`. Expo Router reads a deep
+ * link's host and path as a single route — `oauth/callback` — so that prefix
+ * arrives as unknown leading segments and the callback route is never reached.
+ * A bare `scheme://path` is also the one form a Supabase allow-list entry can
+ * name exactly, instead of a wildcard that has to cover every dev host.
  */
 export function getAuthRedirectUrl(path = "/oauth/callback"): string {
   if (
@@ -102,5 +109,5 @@ export function getAuthRedirectUrl(path = "/oauth/callback"): string {
   ) {
     return `${window.location.origin}${path}`;
   }
-  return Linking.createURL(path, { scheme: deepLinkScheme });
+  return `${deepLinkScheme}://${path.replace(/^\/+/, "")}`;
 }
