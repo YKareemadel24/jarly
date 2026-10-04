@@ -9,11 +9,6 @@
  *
  * Pure and dependency-free. No Buffer, no TextEncoder, no zlib: a snapshot is
  * split into fixed-size frames and each frame is a self-describing string.
- *
- * Shared jars are deliberately excluded from a transfer. They are
- * server-authoritative and every member already sees them by signing in, so
- * copying one to another device would create a stale second copy of a balance
- * the server owns.
  */
 
 import type { Accent, Cadence, Entry, Jar, JarKind } from "../lib/savings-core";

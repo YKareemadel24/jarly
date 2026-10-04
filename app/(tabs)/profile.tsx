@@ -11,11 +11,8 @@ import {
   View,
 } from "react-native";
 import { ActionSheet } from "@/components/action-sheet";
-import { GoogleMark } from "@/components/google-mark";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
-import { isSupabaseConfigured } from "@/constants/oauth";
-import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import {
   MIN_PIN_LENGTH,
@@ -86,7 +83,6 @@ export default function ProfileScreen() {
     setCurrency,
   } = useSettings();
   const { jars, restoreJar, deleteJarPermanently } = useSavings();
-  const { user, logout } = useAuth({ autoFetch: true });
   const format = useMoney();
   const archived = useMemo(() => jars.filter((jar) => jar.archived), [jars]);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
@@ -315,66 +311,6 @@ export default function ProfileScreen() {
           </View>
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
-
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
-        {!isSupabaseConfigured() ? (
-          <Text style={styles.groupCopy}>
-            This build has no Supabase project configured, so accounts are
-            unavailable. Personal jars are unaffected.
-          </Text>
-        ) : user ? (
-          <Pressable
-            accessibilityLabel="Sign out"
-            style={({ pressed }) => [
-              styles.currencyRow,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => void logout()}
-          >
-            <View style={styles.prefIcon}>
-              <MaterialIcons name="logout" size={19} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.prefTitle} numberOfLines={1}>
-                {user.email ?? "Signed in"}
-              </Text>
-              <Text style={styles.prefDetail}>
-                {user.loginMethod === "google" ? "Signed in with Google. " : ""}
-                Shared jars follow this account. Tap to sign out.
-              </Text>
-            </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={20}
-              color={colors.muted}
-            />
-          </Pressable>
-        ) : (
-          <Pressable
-            accessibilityLabel="Sign in"
-            style={({ pressed }) => [
-              styles.currencyRow,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => router.push("/login" as never)}
-          >
-            <View style={styles.prefIcon}>
-              <GoogleMark size={19} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.prefTitle}>Sign in</Text>
-              <Text style={styles.prefDetail}>
-                Continue with Google, or use an email and password. Only needed
-                for jars you share with other people.
-              </Text>
-            </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={20}
-              color={colors.muted}
-            />
-          </Pressable>
-        )}
 
         <Text style={styles.sectionLabel}>YOUR DEVICES</Text>
         <Pressable

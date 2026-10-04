@@ -110,20 +110,6 @@ describe("badgeStats", () => {
     expect(stats.completed).toBe(1);
   });
 
-  it("counts a jar as shared only when it has more than one member", () => {
-    const solo = jar({
-      members: [{ id: "1", name: "You", contributed: 100, you: true }],
-    });
-    const pair = jar({
-      id: "b",
-      members: [
-        { id: "1", name: "You", contributed: 100, you: true },
-        { id: "2", name: "Mia", contributed: 50 },
-      ],
-    });
-    expect(badgeStats([solo, pair]).sharedJars).toBe(1);
-  });
-
   it("tolerates an unparseable entry date without inflating months", () => {
     const stats = badgeStats([jar({ entries: [dep(500, "not-a-date")] })]);
     expect(stats.deposits).toBe(1);
@@ -137,7 +123,6 @@ describe("badgeStats", () => {
       maxStreak: 0,
       completed: 0,
       months: 0,
-      sharedJars: 0,
     });
   });
 });
@@ -145,7 +130,7 @@ describe("badgeStats", () => {
 describe("badges", () => {
   it("returns the full catalogue in a stable order with progress", () => {
     const list = badges([jar()]);
-    expect(list.length).toBe(12);
+    expect(list.length).toBe(11);
     expect(list.map((badge) => badge.id)).toEqual([
       "first-deposit",
       "ten-deposits",
@@ -158,7 +143,6 @@ describe("badges", () => {
       "saved-1000",
       "first-goal",
       "steady-months",
-      "shared-jar",
     ]);
   });
 
@@ -236,16 +220,6 @@ describe("badges", () => {
       }),
     ]);
     expect(find(four, "steady-months").earned).toBe(true);
-  });
-
-  it("earns the shared-jar badge once a jar has two members", () => {
-    const shared = jar({
-      members: [
-        { id: "1", name: "You", contributed: 100, you: true },
-        { id: "2", name: "Mia", contributed: 0 },
-      ],
-    });
-    expect(find(badges([shared]), "shared-jar").earned).toBe(true);
   });
 
   it("never reports negative progress", () => {

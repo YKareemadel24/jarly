@@ -177,7 +177,7 @@ export function JarVessel({
                 style={styles.iconGlyph}
               />
             ) : (
-              /* Emoji icons (shared jars default to 🫙) render as text — a
+              /* Emoji icons render as text — a
                  MaterialIcons font would draw nothing for them. */
               <Text
                 style={[

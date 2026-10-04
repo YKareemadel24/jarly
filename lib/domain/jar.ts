@@ -19,24 +19,6 @@ export type Entry = {
   note?: string;
   at: string;
   source?: "manual" | "recurring";
-  /** Display name of the member who made this contribution (shared jars only). */
-  who?: string;
-};
-
-/**
- * One participant in a shared jar. Shared jars are server-backed so several
- * devices see the same jar; personal jars never carry members.
- */
-export type JarMember = {
-  /** Stable member id; for the signed-in user this is their account id. */
-  id: string;
-  name: string;
-  /** Integer minor units this member has put in. */
-  contributed: number;
-  /** True for the signed-in user viewing the jar. */
-  you?: boolean;
-  /** True for the member who created the jar and may invite or remove others. */
-  isOwner?: boolean;
 };
 
 export type RecurringRule = {
@@ -66,13 +48,6 @@ export type Jar = {
   archived?: boolean;
   recurring?: RecurringRule;
   entries: Entry[];
-  /**
-   * Server jar id backing a shared jar. Personal jars leave this unset and stay
-   * device-local; a jar with a remoteId syncs through the sharedJar router.
-   */
-  remoteId?: string;
-  /** Participants, present only on shared jars. */
-  members?: JarMember[];
 };
 
 export const MILESTONE_LEVELS = [25, 50, 75, 100] as const;

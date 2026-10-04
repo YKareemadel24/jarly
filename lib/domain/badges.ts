@@ -19,8 +19,7 @@ export type BadgeId =
   | "saved-100"
   | "saved-1000"
   | "first-goal"
-  | "steady-months"
-  | "shared-jar";
+  | "steady-months";
 
 /** Everything badges are earned from — all derived from the jar list. */
 export type BadgeStats = {
@@ -34,8 +33,6 @@ export type BadgeStats = {
   completed: number;
   /** Distinct calendar months with at least one deposit. */
   months: number;
-  /** Jars shared with at least one other person. */
-  sharedJars: number;
 };
 
 export type Badge = {
@@ -135,21 +132,11 @@ const BADGE_CATALOGUE: {
     description: "Save in 4 different months",
     of: (s) => [s.months, 4],
   },
-  {
-    id: "shared-jar",
-    glyph: "🤝",
-    name: "Better Together",
-    description: "Fill a shared jar",
-    of: (s) => [s.sharedJars, 1],
-  },
 ];
 
 /** Roll a jar list up into the counters badges are earned from. */
 export function badgeStats(
-  jars: Pick<
-    Jar,
-    "archived" | "target" | "balance" | "streak" | "entries" | "members"
-  >[],
+  jars: Pick<Jar, "archived" | "target" | "balance" | "streak" | "entries">[],
   now: Date = new Date(),
 ): BadgeStats {
   const months = new Set<string>();
@@ -157,7 +144,6 @@ export function badgeStats(
   let totalDeposited = 0;
   let maxStreak = 0;
   let completed = 0;
-  let sharedJars = 0;
 
   for (const jar of jars) {
     // As with the monthly chart, archived jars no longer count toward active
@@ -174,7 +160,6 @@ export function badgeStats(
     }
     maxStreak = Math.max(maxStreak, jar.streak ?? 0);
     if (jar.target > 0 && jar.balance >= jar.target) completed += 1;
-    if (jar.members && jar.members.length > 1) sharedJars += 1;
   }
 
   return {
@@ -183,16 +168,12 @@ export function badgeStats(
     maxStreak,
     completed,
     months: months.size,
-    sharedJars,
   };
 }
 
 /** Every badge with its live progress, earned flags included. `now` is accepted for symmetry and future time-boxed badges. */
 export function badges(
-  jars: Pick<
-    Jar,
-    "archived" | "target" | "balance" | "streak" | "entries" | "members"
-  >[],
+  jars: Pick<Jar, "archived" | "target" | "balance" | "streak" | "entries">[],
   now: Date = new Date(),
 ): Badge[] {
   const stats = badgeStats(jars, now);

@@ -1,10 +1,9 @@
 /**
  * How a jar's `icon` value should be drawn.
  *
- * Personal jars store a bundled MaterialIcons glyph name ("flight"); shared
- * jars arrive from the server with an emoji (the schema default is "🫙") or
- * any other short string a member chose. Passing an emoji to <MaterialIcons>
- * renders nothing at all, so the vessel has to know which kind it holds.
+ * Jars store a bundled MaterialIcons glyph name ("flight") or any other short
+ * string the user chose. Passing a non-glyph string to <MaterialIcons> renders
+ * nothing at all, so the vessel has to know which kind it holds.
  */
 export type JarIconRender =
   | { kind: "font"; name: string }

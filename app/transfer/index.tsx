@@ -120,7 +120,7 @@ export default function TransferScreen() {
         <MaterialIcons name="info-outline" size={16} color={colors.muted} />
         <Text style={styles.noteText}>
           Jars you share with other people are not copied — they already live on
-          your account, so signing in is all they need.
+          your device.
         </Text>
       </View>
     </ScreenContainer>

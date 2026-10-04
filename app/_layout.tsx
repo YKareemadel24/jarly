@@ -1,8 +1,7 @@
 import "@/global.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 import { Platform } from "react-native";
@@ -20,11 +19,6 @@ import {
 } from "react-native-safe-area-context";
 import type { EdgeInsets, Rect } from "react-native-safe-area-context";
 
-import { trpc, createTRPCClient } from "@/lib/trpc";
-import {
-  isApiBaseUrlConfigured,
-  isSupabaseConfigured,
-} from "@/constants/oauth";
 import { initErrorReporting } from "@/lib/error-reporting";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -49,40 +43,9 @@ export default function RootLayout() {
   const insets: EdgeInsets = initialWindowMetrics?.insets ?? initialInsets;
   const frame: Rect = initialWindowMetrics?.frame ?? initialFrame;
 
-  // Create clients once and reuse them
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            // Disable automatic refetching on window focus for mobile
-            refetchOnWindowFocus: false,
-            // Retry failed requests once
-            retry: 1,
-          },
-        },
-      }),
-  );
-  const [trpcClient] = useState(() => createTRPCClient());
-
   // Install the global uncaught-error hook once the layout mounts.
   useEffect(() => {
     initErrorReporting();
-  }, []);
-
-  // Fail loudly, once, when a build is missing configuration it cannot recover
-  // from at runtime — much easier to diagnose than a silent "no shared jars".
-  useEffect(() => {
-    if (Platform.OS !== "web" && !__DEV__ && !isApiBaseUrlConfigured()) {
-      console.error(
-        "[config] EXPO_PUBLIC_API_BASE_URL is not set: release native builds cannot derive the API address, so sign-in and shared jars will fail.",
-      );
-    }
-    if (__DEV__ && !isSupabaseConfigured()) {
-      console.warn(
-        "[config] Supabase is not configured: sign-in and shared jars are disabled; personal jars keep working offline.",
-      );
-    }
   }, []);
 
   // Ensure minimum 8px padding for top and bottom on mobile
@@ -103,28 +66,15 @@ export default function RootLayout() {
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          {/* Default to hiding native headers so raw route segments don't appear (e.g. "(tabs)", "products/[id]"). */}
-          {/* If a screen needs the native header, explicitly enable it and set a human title via Stack.Screen options. */}
-          {/* in order for ios apps tab switching to work properly, use presentation: "fullScreenModal" for login page, whenever you decide to use presentation: "modal*/}
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            {/* Where a sign-in link or an external provider returns to. */}
-            <Stack.Screen name="oauth/callback" />
-            {/* Reached from the invite screen and the account row. */}
-            <Stack.Screen name="login" />
-            {/* An invite link opens the app on this screen, signed in or not. */}
-            <Stack.Screen name="join" />
-            <Stack.Screen name="transfer/index" />
-            <Stack.Screen name="transfer/send" />
-            <Stack.Screen name="transfer/receive" />
-          </Stack>
-          <SavingJarStatusBar />
-          <LockScreen />
-          <NotificationResync />
-        </QueryClientProvider>
-      </trpc.Provider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="transfer/index" />
+        <Stack.Screen name="transfer/send" />
+        <Stack.Screen name="transfer/receive" />
+      </Stack>
+      <SavingJarStatusBar />
+      <LockScreen />
+      <NotificationResync />
     </GestureHandlerRootView>
   );
 

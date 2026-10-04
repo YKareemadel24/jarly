@@ -14,7 +14,6 @@ import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
-import { useAuth } from "@/hooks/use-auth";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import {
   jarAccent,
@@ -44,7 +43,7 @@ export default function NewJar() {
   const colors = useColors();
   const accentsForScheme = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { addJar, createSharedJar } = useSavings();
+  const { addJar } = useSavings();
   const format = useMoney();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
@@ -53,12 +52,6 @@ export default function NewJar() {
   const [icon, setIcon] = useState("flight");
   const [kind, setKind] = useState<JarKind>("goal");
   const [deadline, setDeadline] = useState("");
-  // A shared jar is created on the server so every member reads one balance;
-  // this flag is only offered when the user is signed in, since it needs an account.
-  const [shared, setShared] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const { isAuthenticated } = useAuth({ autoFetch: true });
   // Money is stored as integer minor units; inputs are sanitized as typed.
   const targetValue = toMinor(target);
   const accentHex = accentsForScheme[accent];
@@ -69,37 +62,10 @@ export default function NewJar() {
     feedback.tap();
     setStep(step - 1);
   };
-  const next = async () => {
-    if (!stepValid || busy) return;
+  const next = () => {
+    if (!stepValid) return;
     feedback.tap();
     if (step < 3) return setStep(step + 1);
-
-    if (shared) {
-      // Shared creation is a network call, so it can fail: stay on the step and
-      // say so rather than leaving the user on a jar that was never created.
-      setBusy(true);
-      try {
-        const id = await createSharedJar({
-          name: name.trim(),
-          target: targetValue!,
-          accent,
-          icon,
-          kind,
-          deadline: deadline.trim() || undefined,
-          streak: kind === "habit" ? 0 : undefined,
-        });
-        router.replace(`/jar/${id}` as never);
-      } catch (problem) {
-        feedback.error();
-        setBusy(false);
-        setCreateError(
-          problem instanceof Error
-            ? problem.message
-            : "Check your connection and try again.",
-        );
-      }
-      return;
-    }
 
     const id = addJar({
       name: name.trim(),
@@ -360,64 +326,8 @@ export default function NewJar() {
                 style={styles.deadlineInput}
               />
             </View>
-            {isAuthenticated ? (
-              <Pressable
-                accessibilityRole="switch"
-                accessibilityState={{ checked: shared }}
-                accessibilityLabel="Save this jar with other people"
-                onPress={() => {
-                  feedback.tap();
-                  setShared(!shared);
-                }}
-                style={({ pressed }) => [
-                  styles.shareRow,
-                  shared && styles.shareRowActive,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.shareIcon,
-                    shared && { backgroundColor: accentHex },
-                  ]}
-                >
-                  <MaterialIcons
-                    name={shared ? "people" : "person-outline"}
-                    size={18}
-                    color={shared ? "#FFFDF9" : colors.muted}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.shareTitle}>Save this one together</Text>
-                  <Text style={styles.shareCopy}>
-                    {shared
-                      ? "Anyone you add can contribute, and the jar stays in sync on every device."
-                      : "Keep it private to this device. This is the default."}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.shareToggle,
-                    shared && {
-                      backgroundColor: accentHex,
-                      borderColor: accentHex,
-                    },
-                  ]}
-                >
-                  {shared ? (
-                    <MaterialIcons name="check" size={14} color="#FFFDF9" />
-                  ) : null}
-                </View>
-              </Pressable>
-            ) : null}
-            {createError ? (
-              <Text style={styles.createError}>{createError}</Text>
-            ) : null}
             <Text style={styles.disclaimer}>
               Saving Jar records your progress. It never moves your money.
-              {shared
-                ? " Shared jars are stored on your account so everyone sees the same balance."
-                : ""}
             </Text>
           </>
         ) : null}

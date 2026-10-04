@@ -63,4 +63,4 @@ It is better to make a small doc update than to leave documentation stale.
 
 - Never commit `.env` files. Use `.env.example` as the source of truth.
 - Never put secrets in `EXPO_PUBLIC_*` variables.
-- Never log Supabase secret keys or JWT tokens.
+- All savings data is device-local: no server, no account, no uploaded data. Keep it that way unless a backend is deliberately reintroduced.

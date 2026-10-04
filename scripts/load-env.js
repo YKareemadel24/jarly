@@ -32,16 +32,3 @@ if (fs.existsSync(envPath)) {
     }
   });
 }
-
-// Map server-side variables onto the EXPO_PUBLIC_ names Expo inlines into the
-// bundle, so the Supabase project only has to be configured once.
-const mappings = {
-  SUPABASE_URL: "EXPO_PUBLIC_SUPABASE_URL",
-  SUPABASE_PUBLISHABLE_KEY: "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-};
-
-for (const [systemVar, expoVar] of Object.entries(mappings)) {
-  if (process.env[systemVar] && !process.env[expoVar]) {
-    process.env[expoVar] = process.env[systemVar];
-  }
-}
