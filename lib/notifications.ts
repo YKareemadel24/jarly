@@ -127,6 +127,21 @@ export async function resyncNotifications(
   if (!opts.enabled) return;
   await ensureAndroidChannel(api);
   const now = opts.now ?? new Date();
+  const total = jars
+    .filter((jar) => !jar.archived)
+    .reduce((sum, jar) => sum + jar.balance, 0);
+  await api.scheduleNotificationAsync({
+    content: {
+      title: "Your savings check-in",
+      body: `Current savings: ${money(total, opts.currency)}. Add a little more today.`,
+    },
+    trigger: {
+      type: api.SchedulableTriggerInputTypes.DAILY,
+      hour: 9,
+      minute: 0,
+      ...(Platform.OS === "android" ? { channelId: "reminders" } : null),
+    },
+  });
   for (const ping of dueNotifications(jars, now, opts.currency)) {
     await api.scheduleNotificationAsync({
       content: { title: ping.title, body: ping.detail },

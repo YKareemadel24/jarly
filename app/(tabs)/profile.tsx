@@ -213,7 +213,7 @@ export default function ProfileScreen() {
           <Preference
             icon="notifications-none"
             title="Saving reminders"
-            detail="Nudges for due deposits and deadlines"
+            detail="Daily savings check-in plus due deposit and deadline nudges"
             value={remindersEnabled}
             onChange={onRemindersChange}
             styles={styles}

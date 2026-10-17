@@ -77,7 +77,7 @@ The primary loop is intentionally short:
 - **Badges & nudges** — a badge catalogue driven by the pure domain layer, plus deadline countdowns and pace hints.
 - **Device-to-device transfer** — move personal jars to a new phone over chained QR frames. No account, no server, no cable.
 - **App lock** — optional biometric or PIN lock. The PIN is stored as a salted SHA-256 in `SecureStore`, with an escalating lockout after five failed attempts.
-- **Reminders** — local notifications for recurring deposits (1 day ahead) and approaching deadlines (3 days ahead), resynced whenever the jar list changes.
+- **Reminders** — a daily 9 AM local savings check-in showing the active-jar total, plus local notifications for due recurring deposits and deadlines. Notifications resync when the app opens or savings change.
 - **Multi-currency display** — balances stay integer minor units; only the displayed symbol changes (USD, EUR, GBP, EGP, SAR, AED, JPY, INR, CAD, AUD).
 - **Local-first persistence** — data is stored on-device with `AsyncStorage`, one-generation backup, and automatic migration from legacy formats.
 - **Light / dark / system theming** — a white-first modern palette with warm, complete dark-mode tokens, persisted per user.

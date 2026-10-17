@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-18
 
 ## Experience direction
 
@@ -36,9 +36,9 @@ The user opens a jar card to see its physical jar visualization paired with save
 
 ### Gentle support: reminders and OS notifications
 
-Home shows at most one reminder card (`nextReminder`): a due recurring deposit (today/tomorrow, top priority) or an approaching deadline (within 3 days). Completed and archived jars never remind. The same guards drive OS local notifications (`dueNotifications`): at most one ping per jar, fired at 09:00 local on the due day. Every ping has a matching card; cards may appear without a ping.
+Home shows at most one reminder card (`nextReminder`): a due recurring deposit (today/tomorrow, top priority) or an approaching deadline (within 3 days). Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
 
-The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push, no background tasks, no generic daily repeater.
+The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push or background tasks.
 
 ### Lock, currency, and archiving
 
