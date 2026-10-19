@@ -25,7 +25,7 @@ import {
   useMoney,
   useSavings,
 } from "@/lib/savings-store";
-import { weeklyDelta } from "@/lib/domain/insights";
+import { weeklyDelta } from "@/lib/savings-core";
 import { useSettings } from "@/lib/settings-store";
 import { nextReminder } from "@/lib/reminders";
 
@@ -358,6 +358,8 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Create a new jar"
                 onPress={() => router.push("/jar/new" as never)}
                 style={({ pressed }) => [
                   styles.newGoal,

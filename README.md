@@ -62,6 +62,13 @@ The primary loop is intentionally short:
 - Savings core split into focused modules under `lib/domain/` (`money`, `jar`, `schedule`, `insights`, `presets`, `badges`) with `lib/savings-core.ts` kept as the public entry point.
 - App lock (biometric or PIN), currency selection, and reminders.
 
+### Reliability, accessibility, and scale
+
+- Notification scheduling now waits for savings and settings hydration, coalesces overlapping changes so the latest setting wins, and reports scheduler failures.
+- Date-only and month-year deadlines use local calendar days, and Activity groups transactions by day in a virtualized list.
+- Create-jar fields and Profile switches have screen-reader labels; Home's small add actions meet the 44-point touch target.
+- Vitest is updated to patched 5.0.5 with Vite 8.3. React Native's `react-devtools-core` allows `shell-quote` `^1.6.1`, so a narrow pnpm override resolves its advisory path to patched 1.12.0.
+
 ---
 
 ## Features
@@ -96,7 +103,7 @@ The primary loop is intentionally short:
 | Animation       | `react-native-reanimated` 4 + `react-native-worklets`, `react-native-gesture-handler`, `expo-haptics`, `react-native-svg`           |
 | Device features | `expo-local-authentication` + `expo-secure-store` (app lock), `expo-notifications` (reminders), `expo-updates`, `expo-dev-client`   |
 | Client state    | React Context + `AsyncStorage` (savings, settings)                                                                                  |
-| Testing         | [Vitest](https://vitest.dev)                                                                                                        |
+| Testing         | [Vitest](https://vitest.dev) 5 (Vite 8)                                                                                             |
 | Tooling         | TypeScript 6, ESLint 9 (Expo flat config), Prettier 3                                                                               |
 | Package manager | pnpm 9.12                                                                                                                           |
 
@@ -134,7 +141,7 @@ jarly/
 │   ├── (tabs)/                 # Bottom-tab shell
 │   │   ├── _layout.tsx         # Home / Activity / Insights / Profile tab bar
 │   │   ├── index.tsx           # Home dashboard
-│   │   ├── activity.tsx        # Chronological deposit & withdrawal log
+│   │   ├── activity.tsx        # Day-grouped deposit & withdrawal log
 │   │   ├── stats.tsx           # Insights screen
 │   │   └── profile.tsx         # Appearance, currency, reminders, app lock
 │   ├── jar/
@@ -147,8 +154,14 @@ jarly/
 │   ├── dev/
 │   │   └── theme-lab.tsx       # Theme development playground
 ├── components/                 # Reusable UI (styles live beside their components)
+│   ├── activity.styles.ts      # Virtualized Activity rows and date groups
 │   ├── home.styles.ts          # Home dashboard styles
 │   ├── jar-detail.styles.ts    # Jar detail + every sheet that shares its look
+│   ├── new-jar.styles.ts       # New jar screen styles
+│   ├── profile.styles.ts       # Profile and settings styles
+│   ├── stats.styles.ts         # Insights screen styles
+│   ├── theme-lab.styles.ts     # Theme playground styles
+│   ├── transfer-*.styles.ts    # Transfer screen styles
 │   ├── jar-vessel.tsx          # Animated glass-jar visualization
 │   ├── lock-screen.tsx         # Biometric / PIN app lock
 │   ├── qr-code.tsx             # QR rendering + scanning for transfers
@@ -166,6 +179,7 @@ jarly/
 ├── hooks/                      # use-colors, use-color-scheme, use-jar-accents
 ├── lib/                        # Client domain + infrastructure
 │   ├── savings-core.ts         # Public entry point re-exporting lib/domain
+│   ├── activity-sections.ts   # Pure local-day grouping for the Activity list
 │   ├── domain/                 # PURE modules: money, jar, schedule, insights, presets, badges
 │   ├── savings-store.tsx       # Jar context provider + AsyncStorage persistence
 │   ├── lock-policy.ts          # Fail-closed app lock decisions
@@ -347,7 +361,8 @@ All four checks (typecheck, format, lint, tests) run on every push to `master` a
 - `lock-policy.test.ts`, `transfer.test.ts`, `transfer-merge.test.ts` — lock gates, transfer validation, and conflict-safe imports.
 - `saving-jar.helpers.test.ts` — progress helpers, currency formatting, accent colors.
 - `badges.test.ts`, `quick-presets.test.ts` — badge thresholds and deposit presets.
-- `notifications.test.ts`, `reminders.test.ts` — reminder scheduling and the permission gate.
+- `notifications.test.ts`, `reminders.test.ts` — ordered reminder scheduling, hydration and error handling, permission flow, and calendar-day deadlines.
+- `activity-sections.test.ts` — day grouping and transaction ordering for the virtualized Activity list.
 
 ---
 
@@ -363,7 +378,7 @@ All four checks (typecheck, format, lint, tests) run on every push to `master` a
 
 Notable open items:
 
-- [ ] Publish over-the-air updates once `expo-updates` is configured for the production channel.
+- [ ] After release approval, create the missing EAS production channel, run a compatible build, and publish an OTA update.
 
 ---
 

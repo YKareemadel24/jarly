@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { styles } from "@/components/theme-lab.styles";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Redirect } from "expo-router";
@@ -248,21 +248,3 @@ function ThemeLabInner() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  schemeToggle: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  schemeToggleTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  schemeToggleSubtitle: {
-    fontSize: 12,
-  },
-});

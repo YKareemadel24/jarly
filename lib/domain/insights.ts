@@ -40,6 +40,14 @@ const MONTH_NAMES = [
   "december",
 ];
 
+const DAY_MS = 86_400_000;
+
+function calendarDay(date: Date): number {
+  const day = new Date(0);
+  day.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+  return day.getTime() / DAY_MS;
+}
+
 /** Deposit totals per calendar month for the last `count` months, oldest first. */
 export function monthlyDeposits(
   jars: Pick<Jar, "archived" | "entries">[],
@@ -75,13 +83,39 @@ export function monthlyDeposits(
 
 /** Parse an ISO or "Month Year" (end of that month) deadline. Undefined when unparseable. */
 export function parseDeadline(deadline: string): Date | undefined {
-  const date = new Date(deadline);
-  if (!Number.isNaN(date.getTime())) return date;
-  const match = /^([A-Za-z]+)\s+(\d{4})$/.exec(deadline.trim());
-  const month = match ? MONTH_NAMES.indexOf(match[1].toLowerCase()) : -1;
-  if (month < 0 || !match) return undefined;
-  const endOfMonth = new Date(Number(match[2]), month + 1, 0);
-  return Number.isNaN(endOfMonth.getTime()) ? undefined : endOfMonth;
+  const value = deadline.trim();
+  const monthYear = /^([A-Za-z]+)\s+(\d{4})$/.exec(value);
+  const month = monthYear
+    ? MONTH_NAMES.indexOf(monthYear[1].toLowerCase())
+    : -1;
+  if (monthYear && month >= 0) {
+    const endOfMonth = new Date(0);
+    endOfMonth.setFullYear(Number(monthYear[2]), month + 1, 0);
+    endOfMonth.setHours(0, 0, 0, 0);
+    return Number.isNaN(endOfMonth.getTime()) ? undefined : endOfMonth;
+  }
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnly) {
+    const [, year, monthNumber, dayNumber] = dateOnly;
+    const localDate = new Date(0);
+    localDate.setFullYear(
+      Number(year),
+      Number(monthNumber) - 1,
+      Number(dayNumber),
+    );
+    localDate.setHours(0, 0, 0, 0);
+    if (
+      localDate.getFullYear() === Number(year) &&
+      localDate.getMonth() === Number(monthNumber) - 1 &&
+      localDate.getDate() === Number(dayNumber)
+    )
+      return localDate;
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 /**
@@ -96,7 +130,7 @@ export function deadlineCountdown(
   if (!deadline) return undefined;
   const date = parseDeadline(deadline);
   if (!date) return deadline;
-  const days = Math.ceil((date.getTime() - now.getTime()) / 86_400_000);
+  const days = calendarDay(date) - calendarDay(now);
   if (days < 0) return "Past deadline";
   if (days === 0) return "Due today";
   if (days === 1) return "1 day left";
@@ -200,7 +234,7 @@ export function paceProjection(
 
   const weeksLeft = Math.max(
     1,
-    Math.ceil((date.getTime() - now.getTime()) / WEEK_MS),
+    Math.ceil((calendarDay(date) - calendarDay(now)) / 7),
   );
   const requiredPerWeekMinor = Math.ceil(remaining / weeksLeft);
 

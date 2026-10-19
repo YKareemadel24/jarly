@@ -184,8 +184,8 @@ export const makeStyles = (c: ThemeColorPalette) =>
     sectionTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 22 },
     sectionSub: { color: c.muted, fontSize: 12, marginTop: 4 },
     newGoal: {
-      width: 37,
-      height: 37,
+      width: 44,
+      height: 44,
       borderRadius: 13,
       backgroundColor: c.primary,
       alignItems: "center",
@@ -305,6 +305,9 @@ export const makeStyles = (c: ThemeColorPalette) =>
     quickAddText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
     quickAddChip: {
       borderRadius: 11,
+      minHeight: 44,
+      alignItems: "center",
+      justifyContent: "center",
       paddingHorizontal: 11,
       paddingVertical: 7,
       alignSelf: "center",

@@ -1,4 +1,5 @@
 import { type Jar, money, parseDeadline } from "@/lib/savings-core";
+import { reportError } from "@/lib/error-reporting";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 
@@ -11,6 +12,10 @@ type NotificationsApi = typeof import("expo-notifications");
 
 let apiPromise: Promise<NotificationsApi> | null = null;
 let handlerRegistered = false;
+let pendingResync:
+  | { jars: Jar[]; opts: { enabled: boolean; currency?: string; now?: Date } }
+  | undefined;
+let resyncTask: Promise<void> | undefined;
 
 async function notifications(): Promise<NotificationsApi | null> {
   if (Platform.OS === "web") return null;
@@ -117,7 +122,7 @@ async function ensureAndroidChannel(api: NotificationsApi): Promise<void> {
  * Rebuild the OS schedule from current jars. Cancel-all-then-schedule keeps
  * edits, deposits, and recurring catch-ups self-healing. Web is a no-op.
  */
-export async function resyncNotifications(
+async function rebuildNotifications(
   jars: Jar[],
   opts: { enabled: boolean; currency?: string; now?: Date },
 ): Promise<void> {
@@ -154,6 +159,29 @@ export async function resyncNotifications(
   }
 }
 
+export function resyncNotifications(
+  jars: Jar[],
+  opts: { enabled: boolean; currency?: string; now?: Date; ready?: boolean },
+): Promise<void> {
+  if (Platform.OS === "web" || opts.ready === false) return Promise.resolve();
+  pendingResync = { jars, opts };
+  if (!resyncTask) {
+    resyncTask = (async () => {
+      while (pendingResync) {
+        const request = pendingResync;
+        pendingResync = undefined;
+        try {
+          await rebuildNotifications(request.jars, request.opts);
+        } catch (error) {
+          reportError(error);
+        }
+      }
+      resyncTask = undefined;
+    })();
+  }
+  return resyncTask;
+}
+
 /** Ask the OS for permission once. Returns true only when alerts can fire. */
 export async function requestPermissionAndEnable(): Promise<boolean> {
   const api = await notifications();
@@ -167,15 +195,15 @@ export async function requestPermissionAndEnable(): Promise<boolean> {
 /** Re-runs the OS schedule on foreground and whenever inputs change. */
 export function useNotificationResync(
   jars: Jar[],
-  opts: { enabled: boolean; currency?: string },
+  opts: { enabled: boolean; currency?: string; ready: boolean },
 ): void {
   useEffect(() => {
-    if (Platform.OS === "web") return;
+    if (Platform.OS === "web" || !opts.ready) return;
     void resyncNotifications(jars, opts);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") void resyncNotifications(jars, opts);
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jars, opts.enabled, opts.currency]);
+  }, [jars, opts.enabled, opts.currency, opts.ready]);
 }

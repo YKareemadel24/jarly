@@ -50,6 +50,14 @@ describe("nextReminder", () => {
     expect(reminder?.title).toContain("deadline");
   });
 
+  it("reminds on the final day of a friendly month-year deadline", () => {
+    const reminder = nextReminder(
+      [jar({ deadline: "December 2026" })],
+      new Date(2026, 11, 31, 12),
+    );
+    expect(reminder?.title).toContain("due today");
+  });
+
   it("ignores a paused recurring rule", () => {
     const paused = jar({
       recurring: {

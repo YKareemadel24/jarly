@@ -16,7 +16,7 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 | Jar detail         | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity                            |
 | Create jar sheet   | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview                                                                    | Create a goal jar                                                                      |
 | Deposit sheet      | Selected jar, amount entry, balance impact, confirmation                                                                                                | Add a manual contribution and trigger progress feedback                                |
-| Activity view      | Recent contributions and withdrawals grouped by jar                                                                                                     | Review transaction history                                                             |
+| Activity view      | Recent contributions and withdrawals grouped by local calendar day in a virtualized list                                                                | Review transaction history                                                             |
 | Insights           | Saving rate, goal progress, habit consistency, 6-month contribution chart, closest-goal spotlight                                                       | Review progress patterns                                                               |
 | Profile / settings | Theme (light/dark/system), saving reminders toggle, biometric/PIN app lock, default currency, archived jars                                             | Change personal preferences, lock the app, restore or permanently delete archived jars |
 
@@ -36,6 +36,8 @@ The user opens a jar card to see its physical jar visualization paired with save
 
 New jars require a positive target in the selected currency. Amount conversion and deposits reject values outside safe integer minor-unit precision. A new or changed recurring schedule starts at its next cadence; resuming a paused schedule also begins from the resume time. Monthly dates clamp to the last valid day of the month, and bounded catch-up retains the first unapplied date for the next pass.
 
+Date-only deadlines (`YYYY-MM-DD`) and month-year deadlines (for example, `December 2026`) resolve to local calendar days. Countdown and pace calculations compare calendar dates so midnight and daylight-saving changes do not shift a deadline by a day.
+
 If local jar storage cannot be read or a save fails, a persistent warning explains that changes may not be saved. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
 
 The app lock stays visible while security settings load or when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
@@ -44,7 +46,7 @@ The app lock stays visible while security settings load or when the configured c
 
 Home shows at most one reminder card (`nextReminder`): a due recurring deposit (today/tomorrow, top priority) or an approaching deadline (within 3 days). Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
 
-The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push or background tasks.
+The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). Scheduling waits for both savings and settings to hydrate, and overlapping rebuilds coalesce so the latest setting wins. Scheduler errors go through the existing error capture; permission-check failures show an in-app notice. The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push or background tasks.
 
 ### Lock, currency, and archiving
 
@@ -52,7 +54,7 @@ Profile holds theme, default currency (all amounts re-render in it), biometric l
 
 ## Layout and interaction rules
 
-The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The active goal receives the visual emphasis as a large rounded card. Secondary jars appear as compact but touch-friendly rows or cards lower in the screen, each ending in a small accent-tinted `+ Add` chip so a quick deposit is always one tap away without opening the jar. The floating/add action remains reachable with one hand and never obscures tab navigation.
+The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The active goal receives the visual emphasis as a large rounded card. Secondary jars appear as compact but touch-friendly rows or cards lower in the screen, each ending in a small accent-tinted `+ Add` chip so a quick deposit is always one tap away without opening the jar. The small new-jar action and quick-add chips remain at least 44 points high for reliable touch and accessibility. The floating/add action remains reachable with one hand and never obscures tab navigation.
 
 Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Deposits show a live preview row (current balance → new balance, with the resulting percentage) while withdrawals preview the remaining balance, so both directions are unambiguous before committing. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
 

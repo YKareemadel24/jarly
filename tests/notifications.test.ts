@@ -1,4 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  dueNotifications,
+  requestPermissionAndEnable,
+  resyncNotifications,
+} from "../lib/notifications";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { reportError } from "@/lib/error-reporting";
+import { type Jar } from "../lib/savings-core";
 
 vi.mock("expo-notifications", () => ({
   setNotificationHandler: vi.fn(),
@@ -7,7 +16,7 @@ vi.mock("expo-notifications", () => ({
   scheduleNotificationAsync: vi.fn(),
   getPermissionsAsync: vi.fn(),
   requestPermissionsAsync: vi.fn(),
-  SchedulableTriggerInputTypes: { DATE: "date" },
+  SchedulableTriggerInputTypes: { DATE: "date", DAILY: "daily" },
   AndroidImportance: { DEFAULT: 3 },
 }));
 
@@ -16,8 +25,7 @@ vi.mock("react-native", () => ({
   AppState: { addEventListener: vi.fn() },
 }));
 
-import { dueNotifications } from "../lib/notifications";
-import { type Jar } from "../lib/savings-core";
+vi.mock("@/lib/error-reporting", () => ({ reportError: vi.fn() }));
 
 const jar = (overrides: Partial<Jar> = {}): Jar => ({
   id: "trip",
@@ -34,6 +42,11 @@ const jar = (overrides: Partial<Jar> = {}): Jar => ({
 });
 
 const at = "2026-06-15T12:00:00.000Z";
+
+afterEach(() => {
+  vi.clearAllMocks();
+  Object.defineProperty(Platform, "OS", { configurable: true, value: "test" });
+});
 
 describe("dueNotifications", () => {
   it("returns empty when nothing is due", () => {
@@ -147,5 +160,70 @@ describe("dueNotifications", () => {
     const delta = new Date(ping.fireDate).getTime() - new Date(at).getTime();
     expect(delta).toBeGreaterThan(0);
     expect(delta).toBeLessThanOrEqual(5 * 60_000);
+  });
+});
+
+describe("notification resync", () => {
+  it("lets a disable supersede a rebuild waiting on the OS", async () => {
+    Object.defineProperty(Platform, "OS", {
+      configurable: true,
+      value: "android",
+    });
+    const scheduled: unknown[] = [];
+    let releaseChannel!: () => void;
+    const channelGate = new Promise<null>((resolve) => {
+      releaseChannel = () => resolve(null);
+    });
+    vi.mocked(Notifications.setNotificationChannelAsync).mockReturnValueOnce(
+      channelGate,
+    );
+    vi.mocked(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).mockImplementation(async () => {
+      scheduled.length = 0;
+    });
+    vi.mocked(Notifications.scheduleNotificationAsync).mockImplementation(
+      async (request) => {
+        scheduled.push(request);
+        return "scheduled";
+      },
+    );
+
+    const oldResync = resyncNotifications([jar()], { enabled: true });
+    await vi.waitFor(() =>
+      expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledOnce(),
+    );
+    const disable = resyncNotifications([], { enabled: false });
+    releaseChannel();
+    await Promise.all([oldResync, disable]);
+
+    expect(scheduled).toEqual([]);
+    expect(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not touch OS notifications before both stores are ready", async () => {
+    await resyncNotifications([jar()], { enabled: true, ready: false });
+    expect(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("reports native scheduling failures", async () => {
+    const error = new Error("OS denied scheduling");
+    vi.mocked(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).mockRejectedValueOnce(error);
+
+    await resyncNotifications([jar()], { enabled: false });
+
+    expect(reportError).toHaveBeenCalledWith(error);
+  });
+
+  it("keeps permission request failures visible to the caller", async () => {
+    const error = new Error("permission API failed");
+    vi.mocked(Notifications.getPermissionsAsync).mockRejectedValueOnce(error);
+    await expect(requestPermissionAndEnable()).rejects.toBe(error);
   });
 });

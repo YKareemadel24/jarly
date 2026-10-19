@@ -1,17 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { makeStyles } from "@/components/new-jar.styles";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
-import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
 import { useJarAccents } from "@/hooks/use-jar-accents";
@@ -223,6 +216,8 @@ export default function NewJar() {
             </View>
             <Text style={styles.label}>NAME YOUR JAR</Text>
             <TextInput
+              accessibilityLabel="Jar name"
+              accessibilityHint="Enter what you are saving for."
               autoFocus
               value={name}
               onChangeText={setName}
@@ -308,6 +303,8 @@ export default function NewJar() {
             <View style={styles.amountField}>
               <Text style={styles.currency}>{currencySymbol}</Text>
               <TextInput
+                accessibilityLabel="Savings target"
+                accessibilityHint={`Enter a positive target in ${currency}.`}
                 autoFocus
                 value={target}
                 onChangeText={(raw) => setTarget(sanitizeAmountInput(raw))}
@@ -332,6 +329,8 @@ export default function NewJar() {
                 color={colors.muted}
               />
               <TextInput
+                accessibilityLabel="Deadline"
+                accessibilityHint="Optional. Enter a date or month and year."
                 value={deadline}
                 onChangeText={setDeadline}
                 placeholder="e.g. December 2026"
@@ -367,227 +366,3 @@ export default function NewJar() {
     </ScreenContainer>
   );
 }
-
-const makeStyles = (c: ThemeColorPalette) =>
-  StyleSheet.create({
-    scroll: { padding: 20, paddingBottom: 38 },
-    top: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    back: {
-      width: 42,
-      height: 42,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 15,
-      backgroundColor: c.surface,
-    },
-    navTitle: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.35,
-      fontWeight: "800",
-    },
-    stepDots: { flexDirection: "row", gap: 5, alignItems: "center" },
-    stepDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 999,
-      backgroundColor: c.border,
-    },
-    title: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 29,
-      lineHeight: 34,
-      marginTop: 23,
-    },
-    sub: {
-      color: c.muted,
-      fontSize: 13,
-      lineHeight: 19,
-      marginTop: 9,
-      maxWidth: 310,
-    },
-    preview: {
-      backgroundColor: c.surface,
-      borderRadius: 25,
-      borderWidth: 1,
-      borderColor: c.border,
-      flexDirection: "row",
-      marginTop: 20,
-      padding: 14,
-      alignItems: "center",
-      gap: 16,
-    },
-    previewCopy: { flex: 1 },
-    previewLabel: {
-      color: c.muted,
-      fontWeight: "800",
-      fontSize: 10,
-      letterSpacing: 1.1,
-    },
-    previewName: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 21,
-      marginTop: 6,
-    },
-    previewTarget: {
-      color: c.muted,
-      fontSize: 12,
-      marginTop: 6,
-      lineHeight: 17,
-    },
-    label: {
-      color: c.muted,
-      marginTop: 25,
-      fontWeight: "800",
-      letterSpacing: 1.05,
-      fontSize: 10,
-    },
-    optional: { fontWeight: "600", opacity: 0.75 },
-    kindRow: { flexDirection: "row", gap: 9, marginTop: 9 },
-    kind: {
-      flex: 1,
-      minHeight: 67,
-      padding: 12,
-      borderRadius: 17,
-      borderColor: c.border,
-      borderWidth: 1,
-      backgroundColor: c.surface,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 9,
-    },
-    kindActive: { backgroundColor: c.primary, borderColor: c.primary },
-    kindTitle: { color: c.foreground, fontWeight: "800", fontSize: 13 },
-    kindTitleActive: { color: "#FFFDF9" },
-    kindNote: { color: c.muted, fontSize: 11, marginTop: 2 },
-    kindNoteActive: { color: "#E8D9C8" },
-    input: {
-      backgroundColor: c.surface,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: c.border,
-      color: c.foreground,
-      minHeight: 54,
-      paddingHorizontal: 15,
-      fontSize: 16,
-      marginTop: 9,
-    },
-    iconRow: { flexDirection: "row", gap: 8, marginTop: 9 },
-    iconChoice: {
-      flex: 1,
-      height: 43,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: c.border,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: c.surface,
-    },
-    iconChoiceActive: { borderWidth: 1.5 },
-    colors: { flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap" },
-    color: {
-      width: 44,
-      height: 44,
-      borderRadius: 15,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    colorSelected: {
-      borderWidth: 3,
-      borderColor: c.surface,
-      boxShadow: "0px 2px 5px rgba(74, 51, 36, 0.2)",
-    },
-    amountField: {
-      minHeight: 62,
-      marginTop: 9,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    currency: { color: c.primary, fontSize: 24, fontFamily: "Georgia" },
-    amountInput: {
-      flex: 1,
-      color: c.foreground,
-      fontSize: 26,
-      fontFamily: "Georgia",
-      fontVariant: ["tabular-nums"],
-    },
-    deadlineField: {
-      minHeight: 52,
-      marginTop: 9,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      paddingHorizontal: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    deadlineInput: { flex: 1, color: c.foreground, fontSize: 14 },
-    shareRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      marginTop: 22,
-      padding: 14,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-    },
-    shareRowActive: { borderColor: `${c.primary}55` },
-    shareIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: c.border,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    shareTitle: { color: c.foreground, fontSize: 13.5, fontWeight: "800" },
-    shareCopy: { color: c.muted, fontSize: 11, lineHeight: 15, marginTop: 3 },
-    shareToggle: {
-      width: 24,
-      height: 24,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    createError: {
-      color: c.error,
-      fontSize: 12,
-      fontWeight: "700",
-      lineHeight: 17,
-      marginTop: 14,
-    },
-    disclaimer: { color: c.muted, fontSize: 11, lineHeight: 16, marginTop: 18 },
-    create: {
-      backgroundColor: c.primary,
-      minHeight: 54,
-      borderRadius: 17,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      marginTop: 26,
-    },
-    createText: { color: "#FFFDF9", fontSize: 15, fontWeight: "800" },
-    disabled: { opacity: 0.45 },
-    pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
-  });

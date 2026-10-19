@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { makeStyles } from "@/components/profile.styles";
 import { ActionSheet } from "@/components/action-sheet";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
@@ -52,6 +52,10 @@ function Preference({
         <Text style={styles.prefDetail}>{detail}</Text>
       </View>
       <Switch
+        accessibilityRole="switch"
+        accessibilityLabel={title}
+        accessibilityHint={detail}
+        accessibilityState={{ checked: value, disabled: Boolean(disabled) }}
         value={value}
         onValueChange={onChange}
         disabled={disabled}
@@ -205,15 +209,19 @@ export default function ProfileScreen() {
       setRemindersEnabled(false);
       return;
     }
-    void requestPermissionAndEnable().then((granted) => {
-      if (granted) {
-        setRemindersEnabled(true);
-      } else {
-        setNotice(
-          "Saving reminders stays off until you allow notifications in system Settings.",
-        );
-      }
-    });
+    void requestPermissionAndEnable()
+      .then((granted) => {
+        if (granted) {
+          setRemindersEnabled(true);
+        } else {
+          setNotice(
+            "Saving reminders stays off until you allow notifications in system Settings.",
+          );
+        }
+      })
+      .catch(() => {
+        setNotice("Could not check notification permission. Try again.");
+      });
   };
 
   return (
@@ -619,187 +627,3 @@ export default function ProfileScreen() {
     </ScreenContainer>
   );
 }
-
-const makeStyles = (c: ThemeColorPalette) =>
-  StyleSheet.create({
-    kicker: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.4,
-      fontWeight: "800",
-      marginTop: 4,
-    },
-    title: {
-      color: c.foreground,
-      fontFamily: "Georgia",
-      fontSize: 31,
-      lineHeight: 36,
-      marginTop: 7,
-    },
-    identity: {
-      minHeight: 82,
-      marginTop: 23,
-      backgroundColor: c.surface,
-      borderColor: c.border,
-      borderWidth: 1,
-      borderRadius: 23,
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 13,
-    },
-    monogram: {
-      width: 48,
-      height: 48,
-      borderRadius: 17,
-      backgroundColor: c.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    monogramText: { color: "#FFFDF9", fontFamily: "Georgia", fontSize: 16 },
-    identityTitle: { color: c.foreground, fontSize: 15, fontWeight: "800" },
-    identityCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
-    sectionLabel: {
-      color: c.muted,
-      fontSize: 10,
-      letterSpacing: 1.1,
-      fontWeight: "800",
-      marginTop: 26,
-      marginBottom: 9,
-    },
-    group: {
-      borderRadius: 21,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      padding: 15,
-    },
-    groupTitle: { color: c.foreground, fontSize: 14, fontWeight: "800" },
-    groupCopy: { color: c.muted, fontSize: 12, marginTop: 4 },
-    themes: { flexDirection: "row", gap: 7, marginTop: 14 },
-    themeChoice: {
-      flex: 1,
-      minHeight: 40,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: c.border,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 5,
-    },
-    themeChoiceActive: { backgroundColor: c.primary, borderColor: c.primary },
-    themeText: { color: c.muted, fontSize: 11, fontWeight: "800" },
-    themeTextActive: { color: "#FFFDF9" },
-    preference: {
-      minHeight: 57,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    prefAction: {
-      minHeight: 57,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    prefActionDisabled: { opacity: 0.45 },
-    prefIcon: {
-      width: 37,
-      height: 37,
-      borderRadius: 13,
-      backgroundColor: `${c.primary}12`,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    prefTitle: { color: c.foreground, fontSize: 13, fontWeight: "800" },
-    prefDetail: { color: c.muted, fontSize: 11, marginTop: 3 },
-    line: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: c.border,
-      marginLeft: 48,
-    },
-    currencyRow: {
-      minHeight: 65,
-      borderRadius: 20,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-    },
-    currencyChip: {
-      borderRadius: 11,
-      backgroundColor: `${c.primary}14`,
-      paddingHorizontal: 11,
-      paddingVertical: 7,
-    },
-    currencyChipText: { color: c.primary, fontSize: 12, fontWeight: "800" },
-    currencyOption: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-      paddingVertical: 10,
-    },
-    currencyOptionIcon: {
-      width: 37,
-      height: 37,
-      borderRadius: 13,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.background,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    currencyOptionSymbol: { color: c.muted, fontSize: 12, fontWeight: "800" },
-    sheetOverlay: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: "rgba(0,0,0,.35)",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 24,
-      zIndex: 50,
-    },
-    sheetCard: {
-      width: "100%",
-      maxWidth: 400,
-      backgroundColor: c.surface,
-      borderRadius: 24,
-      borderWidth: 1,
-      borderColor: c.border,
-      padding: 20,
-    },
-    sheetHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 6,
-    },
-    sheetTitle: { color: c.foreground, fontFamily: "Georgia", fontSize: 20 },
-    pinInput: {
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 15,
-      backgroundColor: c.background,
-      color: c.foreground,
-      fontSize: 22,
-      paddingHorizontal: 16,
-      height: 52,
-      marginTop: 16,
-      letterSpacing: 8,
-    },
-    pinError: { fontSize: 12, fontWeight: "700", marginTop: 10 },
-    primary: {
-      backgroundColor: c.primary,
-      minHeight: 50,
-      borderRadius: 15,
-      marginTop: 18,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    primaryText: { color: "#FFFDF9", fontSize: 14, fontWeight: "800" },
-    pressed: { opacity: 0.86, transform: [{ scale: 0.98 }] },
-  });

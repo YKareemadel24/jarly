@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyEntry,
@@ -10,6 +10,7 @@ import {
   money,
   monthlyDeposits,
   nextRecurringDate,
+  parseDeadline,
   runDueRecurring,
   runDueRecurringSafely,
   sanitizeAmountInput,
@@ -38,6 +39,8 @@ const jar = (overrides: Partial<Jar> = {}): Jar => ({
   entries: [],
   ...overrides,
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("money", () => {
   it("converts dollars to integer minor units", () => {
@@ -300,6 +303,29 @@ describe("deadlineCountdown", () => {
   it("parses Month Year deadlines as the end of that month", () => {
     // Far beyond 45 days, so the original friendly text passes through.
     expect(deadlineCountdown("December 2026", now)).toBe("December 2026");
+    const end = parseDeadline("December 2026");
+    expect(end?.getDate()).toBe(31);
+    expect(end?.getMonth()).toBe(11);
+  });
+
+  it("uses local calendar dates for date-only deadlines across DST", () => {
+    vi.stubEnv("TZ", "America/New_York");
+    const due = parseDeadline("2026-03-09");
+    expect([
+      due?.getFullYear(),
+      due?.getMonth(),
+      due?.getDate(),
+      due?.getHours(),
+    ]).toEqual([2026, 2, 9, 0]);
+    expect(deadlineCountdown("2026-03-09", new Date(2026, 2, 8, 23, 30))).toBe(
+      "1 day left",
+    );
+  });
+
+  it("counts friendly month deadlines to the last local calendar day", () => {
+    expect(
+      deadlineCountdown("December 2026", new Date(2026, 11, 30, 23, 30)),
+    ).toBe("1 day left");
   });
 
   it("returns past-deadline and passthrough text safely", () => {
