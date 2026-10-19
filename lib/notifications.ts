@@ -63,9 +63,8 @@ function morningFire(due: Date, now: Date): string {
 }
 
 /**
- * Pure derivation of schedulable nudges. Mirrors nextReminder() guards so
- * every scheduled ping has a matching Home card, while cards may appear
- * without a ping (deadline pings are due-day-only; the card window is 3 days).
+ * Pure derivation of schedulable nudges for active, unfinished jars.
+ * Home reminders also show future schedules; OS deadline pings are due-day-only.
  * Max one ping per jar.
  */
 export function dueNotifications(

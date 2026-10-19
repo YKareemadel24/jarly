@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-19
+**Last updated:** 2026-10-20
 
 ## Experience direction
 
@@ -12,7 +12,7 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 | Screen             | Primary content                                                                                                                                         | Core actions                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Home               | Total saved summary, active jar hero, jar collection, per-jar `+ Add` quick-deposit chips, quick-add entry point                                        | Open a jar, add money, create a jar, inspect the overview                              |
+| Home               | Total saved summary, reminders for every unfinished jar, jar collection, per-jar `+ Add` quick-deposit chips                                            | Open a jar, add money, create a jar, inspect the overview                              |
 | Jar detail         | Large visual jar, saved/target figures, remaining and deposit-count stat cards, progress, deadline, deposit and withdrawal actions, transaction history | Deposit, withdraw, manage recurring saving, review activity                            |
 | Create jar sheet   | Goal name, emoji, semantic jar color, target amount, optional deadline, live preview                                                                    | Create a goal jar                                                                      |
 | Deposit sheet      | Selected jar, amount entry, balance impact, confirmation                                                                                                | Add a manual contribution and trigger progress feedback                                |
@@ -24,7 +24,7 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 ### Add money to a goal
 
-The user opens the home screen, taps the primary **Add money** action, taps a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
+The user opens the home screen, taps a reminder or a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
 
 ### Create a goal jar
 
@@ -44,7 +44,7 @@ The app lock stays visible while security settings load or when the configured c
 
 ### Gentle support: reminders and OS notifications
 
-Home shows at most one reminder card (`nextReminder`): a due recurring deposit (today/tomorrow, top priority) or an approaching deadline (within 3 days). Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
+Home shows one compact reminder card per active, unfinished jar (`jarReminders`), with its remaining savings amount, next scheduled deposit (when active), and deadline (when set). Tapping a reminder opens that jar's deposit sheet. These cards stay visible independently of the OS notification toggle. Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
 
 The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). Scheduling waits for both savings and settings to hydrate, and overlapping rebuilds coalesce so the latest setting wins. Scheduler errors go through the existing error capture; permission-check failures show an in-app notice. The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push or background tasks.
 
@@ -54,7 +54,7 @@ Profile holds theme, default currency (all amounts re-render in it), biometric l
 
 ## Layout and interaction rules
 
-The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The active goal receives the visual emphasis as a large rounded card. Secondary jars appear as compact but touch-friendly rows or cards lower in the screen, each ending in a small accent-tinted `+ Add` chip so a quick deposit is always one tap away without opening the jar. The small new-jar action and quick-add chips remain at least 44 points high for reliable touch and accessibility. The floating/add action remains reachable with one hand and never obscures tab navigation.
+The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. Compact, accent-tinted reminder cards sit immediately below the total, replacing the single-jar milestone nudge and featured goal. Jars appear as compact but touch-friendly rows or cards lower in the screen, each ending in a small accent-tinted `+ Add` chip so a quick deposit is always one tap away without opening the jar. The small new-jar action and quick-add chips remain at least 44 points high for reliable touch and accessibility. Deposits use the selected jar's reminder or `+ Add` chip; there is no floating Add money button.
 
 Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Deposits show a live preview row (current balance → new balance, with the resulting percentage) while withdrawals preview the remaining balance, so both directions are unambiguous before committing. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
 

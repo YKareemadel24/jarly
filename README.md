@@ -39,7 +39,7 @@ Saving Jar helps you set a savings goal (a "jar"), watch it fill as you add mone
 The primary loop is intentionally short:
 
 1. Open the **Home** dashboard.
-2. Open a jar (or tap **Add money**).
+2. Open a jar, tap its **+ Add** chip, or tap its reminder.
 3. Add a contribution and immediately see the jar fill.
 4. Return to the dashboard with confidence.
 
@@ -73,6 +73,7 @@ The primary loop is intentionally short:
 
 ## Features
 
+- **Per-jar home reminders** — each unfinished jar shows its remaining amount, next active scheduled deposit, and deadline when set; tap to add money to that jar.
 - **Goal jars** — one-time goals with a target, optional deadline, emoji, and semantic accent color.
 - **Habit jars** — repeatable savings with calendar-day streaks.
 - **Deposits & withdrawals** — record contributions and take money back out (withdrawals never undo milestones or streaks). The deposit sheet previews the balance → new-balance transition and resulting percentage before confirming.
