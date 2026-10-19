@@ -156,6 +156,7 @@ jarly/
 │   ├── edit-jar-sheet.tsx      # Rename, retarget, restyle
 │   ├── recurring-sheet.tsx     # Recurring cadence editor
 │   ├── toast.tsx               # Transient messages with an optional action
+│   ├── storage-warning.tsx     # Persistent warning when jar storage fails
 │   ├── screen-container.tsx    # Safe-area aware screen wrapper
 │   ├── themed-view.tsx         # Theme-aware View
 │   ├── notification-resync.tsx # Reschedules reminders when the jar list changes
@@ -167,6 +168,9 @@ jarly/
 │   ├── savings-core.ts         # Public entry point re-exporting lib/domain
 │   ├── domain/                 # PURE modules: money, jar, schedule, insights, presets, badges
 │   ├── savings-store.tsx       # Jar context provider + AsyncStorage persistence
+│   ├── lock-policy.ts          # Fail-closed app lock decisions
+│   ├── transfer-merge.ts       # Safe merge for matching transfer histories
+│   ├── savings-storage.ts      # Recovery selection + ordered jar writes
 │   ├── settings-store.tsx      # Appearance, currency, reminders, biometric/PIN lock
 │   ├── notifications.ts        # Lazy expo-notifications wrapper + scheduling
 │   ├── reminders.ts            # Which reminder, if any, is due
@@ -279,11 +283,13 @@ A `Jar` has a `target`, `balance`, `accent` color, `icon`, `kind`, and optional 
 ### Recurring deposits
 
 - Cadences: `daily`, `weekly`, `biweekly`, `monthly`.
-- `runDueRecurring(...)` deterministically applies missed occurrences and advances `nextDate` past "now", bounded to at most 366 occurrences per call.
+- `runDueRecurring(...)` deterministically applies missed occurrences and advances `nextDate` past "now", bounded to at most 366 occurrences per call. Startup skips a catch-up that would make the active savings total exceed safe integer precision.
 
 ### Persistence
 
 `lib/savings-store.tsx` persists the jar list to `AsyncStorage` under `saving-jar:v3`, keeps a one-generation backup (`saving-jar:v3:backup`), and migrates legacy `v1`/`v2` stores (converting float dollars → minor units).
+
+An intentionally empty v3 list is preserved. If the current list is corrupt, the store tries its valid backup before older migrations and does not overwrite the corrupt source when recovery fails. Writes run in order; storage read/write failures show a persistent warning in the app.
 
 Non-jar settings live in `lib/settings-store.tsx` under their own keys, so clearing jars never clears preferences:
 
@@ -337,6 +343,8 @@ All four checks (typecheck, format, lint, tests) run on every push to `master` a
 **Tests across multiple files.** Coverage (`tests/`):
 
 - `savings-core.test.ts` — money conversion, amount sanitization, milestones, deposits/withdrawals, habit streaks, recurring catch-up.
+- `savings-storage.test.ts` — empty-store preservation, backup recovery, and ordered writes.
+- `lock-policy.test.ts`, `transfer.test.ts`, `transfer-merge.test.ts` — lock gates, transfer validation, and conflict-safe imports.
 - `saving-jar.helpers.test.ts` — progress helpers, currency formatting, accent colors.
 - `badges.test.ts`, `quick-presets.test.ts` — badge thresholds and deposit presets.
 - `notifications.test.ts`, `reminders.test.ts` — reminder scheduling and the permission gate.

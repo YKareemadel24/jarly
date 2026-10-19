@@ -11,6 +11,7 @@ import { SavingsProvider } from "@/lib/savings-store";
 import { SettingsProvider } from "@/lib/settings-store";
 import { LockScreen } from "@/components/lock-screen";
 import { NotificationResync } from "@/components/notification-resync";
+import { StorageWarning } from "@/components/storage-warning";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -75,6 +76,7 @@ export default function RootLayout() {
       <SavingJarStatusBar />
       <LockScreen />
       <NotificationResync />
+      <StorageWarning />
     </GestureHandlerRootView>
   );
 

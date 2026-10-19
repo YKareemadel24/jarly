@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { Platform } from "react-native";
+import { reportError } from "@/lib/error-reporting";
 
 const REMINDERS_KEY = "saving-jar:reminders";
 const BIOMETRIC_KEY = "saving-jar:biometric-lock";
@@ -214,6 +215,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Restore persisted settings on first mount.
   useEffect(() => {
     let cancelled = false;
+    let restored = false;
     (async () => {
       try {
         const [
@@ -243,19 +245,21 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             : "USD";
         setRemindersEnabledState(reminders);
         setBiometricLockEnabledState(biometricEnabled);
-        // Only treat PIN lock as on when a PIN is actually configured, so the
-        // gate can never appear asking for a PIN that doesn't exist yet.
-        setPinLockEnabledState(pinEnabled && configured);
+        // Keep the lock policy active even if its credential is missing; the
+        // gate will fail closed and explain that authentication is unavailable.
+        setPinLockEnabledState(pinEnabled);
         setHasPin(configured);
         setPinLengthState(pinLengthOf(pinRecord));
         setPinLockedUntil(
           attempts.lockedUntil > Date.now() ? attempts.lockedUntil : null,
         );
         setCurrencyState(restoredCurrency);
-      } catch {
-        // Failed to read settings: keep defaults.
+        restored = true;
+      } catch (error) {
+        reportError(error);
       } finally {
-        if (!cancelled) setReady(true);
+        // Keep the app gate closed if lock preferences could not be read.
+        if (!cancelled && restored) setReady(true);
       }
     })();
     return () => {
@@ -286,11 +290,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const enablePinLock = useCallback(async () => {
-    const pin = await readPinRecord();
-    if (pin === null) return false;
-    setPinLockEnabledState(true);
-    await AsyncStorage.setItem(PIN_LOCK_KEY, "true").catch(() => undefined);
-    return true;
+    try {
+      const pin = await readPinRecord();
+      if (pin === null) return false;
+      await AsyncStorage.setItem(PIN_LOCK_KEY, "true");
+      setPinLockEnabledState(true);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const disablePinLock = useCallback(async () => {

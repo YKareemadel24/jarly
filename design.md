@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-19
 
 ## Experience direction
 
@@ -33,6 +33,12 @@ The user opens the create-jar sheet from the dashboard, names the goal, picks an
 ### Check progress and activity
 
 The user opens a jar card to see its physical jar visualization paired with saved, target, and percentage values. The detail screen exposes recent contributions and a focused activity link rather than overwhelming the dashboard with dense financial data.
+
+New jars require a positive target in the selected currency. Amount conversion and deposits reject values outside safe integer minor-unit precision. A new or changed recurring schedule starts at its next cadence; resuming a paused schedule also begins from the resume time. Monthly dates clamp to the last valid day of the month, and bounded catch-up retains the first unapplied date for the next pass.
+
+If local jar storage cannot be read or a save fails, a persistent warning explains that changes may not be saved. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
+
+The app lock stays visible while security settings load or when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
 
 ### Gentle support: reminders and OS notifications
 

@@ -62,7 +62,11 @@ function Preference({
   );
 }
 
-type PinPromptMode = "setup" | "change";
+type PinPromptMode =
+  | "setup"
+  | "change"
+  | "verify-pin-disable"
+  | "verify-biometric-disable";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -76,9 +80,12 @@ export default function ProfileScreen() {
     setBiometricLockEnabled,
     pinLockEnabled,
     hasPin,
+    pinLength,
     setPin,
+    tryUnlock,
     enablePinLock,
     disablePinLock,
+    authenticateWithBiometrics,
     currency,
     setCurrency,
   } = useSettings();
@@ -108,6 +115,28 @@ export default function ProfileScreen() {
   };
 
   const submitPin = async () => {
+    if (
+      pinMode === "verify-pin-disable" ||
+      pinMode === "verify-biometric-disable"
+    ) {
+      if (pinInput.length !== (pinLength ?? MIN_PIN_LENGTH)) {
+        setPinError("Enter your current PIN.");
+        return;
+      }
+      const result = await tryUnlock(pinInput);
+      if (result !== "ok") {
+        setPinError(
+          result === "locked"
+            ? "Too many tries. Wait before trying again."
+            : "That PIN didn’t match.",
+        );
+        return;
+      }
+      if (pinMode === "verify-pin-disable") await disablePinLock();
+      else setBiometricLockEnabled(false);
+      closePinPrompt();
+      return;
+    }
     if (pinInput.length < MIN_PIN_LENGTH) {
       setPinError(`Use ${MIN_PIN_LENGTH} or more digits.`);
       return;
@@ -117,19 +146,57 @@ export default function ProfileScreen() {
       setPinError("Could not save that PIN. Try again.");
       return;
     }
-    if (pinMode === "setup") await enablePinLock();
+    if (pinMode === "setup" && !(await enablePinLock())) {
+      setPinError("Could not enable the PIN lock. Try again.");
+      return;
+    }
     closePinPrompt();
   };
 
   const onPinLockChange = (next: boolean) => {
     if (next) {
       if (hasPin) {
-        void enablePinLock();
+        void enablePinLock().then((ok) => {
+          if (!ok) setNotice("Could not enable the PIN lock. Try again.");
+        });
       } else {
         openPinPrompt("setup");
       }
     } else {
-      void disablePinLock();
+      if (biometricLockEnabled && biometricAvailable) {
+        void authenticateWithBiometrics().then((ok) => {
+          if (ok) void disablePinLock();
+          else
+            setNotice(
+              "Verify with biometrics before turning off the PIN lock.",
+            );
+        });
+      } else {
+        openPinPrompt("verify-pin-disable");
+      }
+    }
+  };
+
+  const onBiometricLockChange = (next: boolean) => {
+    if (next) {
+      setBiometricLockEnabled(true);
+      return;
+    }
+    if (!biometricLockEnabled) return;
+    if (biometricAvailable) {
+      void authenticateWithBiometrics().then((ok) => {
+        if (ok) setBiometricLockEnabled(false);
+        else
+          setNotice(
+            "Verify with biometrics before turning off fingerprint unlock.",
+          );
+      });
+    } else if (hasPin) {
+      openPinPrompt("verify-biometric-disable");
+    } else {
+      setNotice(
+        "Authentication is unavailable. Restore device biometrics before changing this lock.",
+      );
     }
   };
 
@@ -229,7 +296,7 @@ export default function ProfileScreen() {
                 : "Set up fingerprint or face unlock on this device to use this"
             }
             value={biometricLockEnabled && biometricAvailable}
-            onChange={setBiometricLockEnabled}
+            onChange={onBiometricLockChange}
             disabled={!biometricAvailable}
             styles={styles}
             colors={colors}
@@ -457,7 +524,11 @@ export default function ProfileScreen() {
           <View style={styles.sheetCard}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
-                {pinMode === "setup" ? "Choose your PIN" : "Change your PIN"}
+                {pinMode === "setup"
+                  ? "Choose your PIN"
+                  : pinMode === "change"
+                    ? "Change your PIN"
+                    : "Verify your PIN"}
               </Text>
               <Pressable
                 accessibilityLabel="Close"
@@ -468,8 +539,9 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
             <Text style={styles.groupCopy}>
-              Use {MIN_PIN_LENGTH} or more digits. You&apos;ll be asked for it
-              each time the app opens.
+              {pinMode.startsWith("verify-")
+                ? "Confirm your PIN before changing the app lock."
+                : `Use ${MIN_PIN_LENGTH} or more digits. You’ll be asked for it each time the app opens.`}
             </Text>
             <TextInput
               value={pinInput}
@@ -503,7 +575,11 @@ export default function ProfileScreen() {
               ]}
             >
               <Text style={styles.primaryText}>
-                {pinMode === "setup" ? "Turn on PIN lock" : "Save PIN"}
+                {pinMode === "setup"
+                  ? "Turn on PIN lock"
+                  : pinMode.startsWith("verify-")
+                    ? "Verify PIN"
+                    : "Save PIN"}
               </Text>
             </Pressable>
           </View>

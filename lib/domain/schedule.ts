@@ -21,7 +21,17 @@ export function addCadence(from: Date, cadence: Cadence): Date {
       next.setDate(next.getDate() + 14);
       break;
     case "monthly":
-      next.setMonth(next.getMonth() + 1);
+      {
+        const day = next.getDate();
+        next.setDate(1);
+        next.setMonth(next.getMonth() + 1);
+        const lastDay = new Date(
+          next.getFullYear(),
+          next.getMonth() + 1,
+          0,
+        ).getDate();
+        next.setDate(Math.min(day, lastDay));
+      }
       break;
   }
   return next;
@@ -67,23 +77,30 @@ export function runDueRecurring(
 
   if (applied === 0) return { jar, applied: 0 };
 
-  const nextDate =
-    cursor.getTime() > now.getTime()
-      ? cursor.toISOString()
-      : addCadence(cursor, rule.cadence).toISOString();
+  const nextDate = cursor.toISOString();
   return {
     jar: { ...current, recurring: { ...rule, nextDate } },
     applied,
   };
 }
 
+export function runDueRecurringSafely(jars: Jar[], now: Date): Jar[] {
+  let total = 0;
+  return jars.map((jar) => {
+    const updated = runDueRecurring(jar, now).jar;
+    if (jar.archived) return updated;
+    const nextTotal = total + updated.balance;
+    if (!Number.isSafeInteger(nextTotal)) return jar;
+    total = nextTotal;
+    return updated;
+  });
+}
+
 /**
  * What a recurring rule's next due date should become after an edit.
  *
- * A still-future due date survives unchanged terms: an amount-only edit must
- * not silently skip the deposit that was already due. A changed schedule
- * restarts from now (the catch-up writes whatever that skips), and anything
- * already due stays due.
+ * Preserve a future due date for an unchanged rule. New, changed, or overdue
+ * rules begin one cadence after the edit so catch-up cannot replay history.
  */
 export function nextRecurringDate(params: {
   previous: Pick<RecurringRule, "amount" | "cadence" | "nextDate"> | undefined;
@@ -102,7 +119,7 @@ export function nextRecurringDate(params: {
   ) {
     return previous.nextDate;
   }
-  return undefined;
+  return addCadence(now, cadence).toISOString();
 }
 
 /** Weekly pace of a recurring rule in minor units, rounded. Paused or empty rules pace zero. */

@@ -10,7 +10,8 @@
 export function toMinor(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return null;
-  return Math.round(n * 100);
+  const minor = Math.round(n * 100);
+  return Number.isSafeInteger(minor) ? minor : null;
 }
 
 /** Convert minor units back to a whole-currency number for display inputs. */

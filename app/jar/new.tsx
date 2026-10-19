@@ -15,6 +15,7 @@ import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { feedback } from "@/lib/haptics";
 import { useJarAccents } from "@/hooks/use-jar-accents";
+import { SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
 import {
   jarAccent,
   type Accent,
@@ -44,6 +45,7 @@ export default function NewJar() {
   const accentsForScheme = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { addJar } = useSavings();
+  const { currency } = useSettings();
   const format = useMoney();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
@@ -54,8 +56,14 @@ export default function NewJar() {
   const [deadline, setDeadline] = useState("");
   // Money is stored as integer minor units; inputs are sanitized as typed.
   const targetValue = toMinor(target);
+  const currencySymbol =
+    SUPPORTED_CURRENCIES.find((item) => item.code === currency)?.symbol ??
+    currency;
   const accentHex = accentsForScheme[accent];
-  const stepValid = step === 1 ? Boolean(name.trim()) : true;
+  const stepValid =
+    step === 1
+      ? Boolean(name.trim())
+      : step < 3 || (targetValue !== null && targetValue > 0);
 
   const goBack = () => {
     if (step === 1) return router.back();
@@ -298,7 +306,7 @@ export default function NewJar() {
             </Text>
             <Text style={styles.label}>SET A TARGET</Text>
             <View style={styles.amountField}>
-              <Text style={styles.currency}>$</Text>
+              <Text style={styles.currency}>{currencySymbol}</Text>
               <TextInput
                 autoFocus
                 value={target}
@@ -309,6 +317,11 @@ export default function NewJar() {
                 style={styles.amountInput}
               />
             </View>
+            {!stepValid ? (
+              <Text accessibilityRole="alert" style={styles.disclaimer}>
+                Enter a target greater than zero.
+              </Text>
+            ) : null}
             <Text style={styles.label}>
               DEADLINE <Text style={styles.optional}>OPTIONAL</Text>
             </Text>

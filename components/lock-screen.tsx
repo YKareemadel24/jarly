@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useSettings } from "@/lib/settings-store";
+import { lockPolicy } from "@/lib/lock-policy";
 
 function PinDots({
   length,
@@ -57,18 +58,27 @@ export function LockScreen() {
     pinLockedUntil,
     tryUnlock,
     disablePinLock,
+    ready,
   } = useSettings();
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [bioError, setBioError] = useState<string | null>(null);
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(true);
   const [pinShown, setPinShown] = useState(false);
 
-  const canBio =
-    biometricLockEnabled && biometricAvailable && Platform.OS !== "web";
-  const canPin = pinLockEnabled && hasPin;
-  const anyLock = canBio || canPin;
+  const {
+    required: anyLock,
+    canBiometrics: canBio,
+    canPin,
+  } = lockPolicy({
+    ready,
+    biometricLockEnabled,
+    biometricAvailable,
+    pinLockEnabled,
+    hasPin,
+    native: Platform.OS !== "web",
+  });
   // The PIN length comes from the stored record, so 4-12 digit PINs all work.
   const expectedPinLength = pinLength ?? 4;
   const lockedOut = pinLockedUntil !== null && pinLockedUntil > Date.now();
@@ -121,17 +131,11 @@ export function LockScreen() {
     [tryUnlock, unlocking, expectedPinLength],
   );
 
-  /**
-   * Escape hatch for a genuinely forgotten PIN. Where the device has enrolled
-   * biometrics it demands proof of presence first; elsewhere the lock is a
-   * UI-level gate (jar data is not encrypted at rest), so the honest fallback
-   * is to allow the reset. Either way the stored PIN is cleared.
-   */
+  /** Reset is available only after a successful device biometric check. */
   const forgotPin = useCallback(async () => {
-    if (biometricAvailable && Platform.OS !== "web") {
-      const ok = await authenticateWithBiometrics();
-      if (!ok) return;
-    }
+    if (!biometricAvailable || Platform.OS === "web") return;
+    const ok = await authenticateWithBiometrics();
+    if (!ok) return;
     await disablePinLock();
     setShown(false);
     setPinShown(false);
@@ -173,6 +177,19 @@ export function LockScreen() {
   }, [anyLock]);
 
   if (!shown) return null;
+
+  if (!ready) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.inner}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.subtitle}>
+            Security settings could not be loaded. Restart the app to try again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const handleKey = (digit: string) => {
     if (unlocking || pin.length >= expectedPinLength) return;
@@ -285,19 +302,19 @@ export function LockScreen() {
                 style={styles.spinner}
               />
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Forgot PIN, turn off lock"
-              onPress={() => void forgotPin()}
-              hitSlop={8}
-              style={styles.forgot}
-            >
-              <Text style={styles.forgotText}>
-                {biometricAvailable
-                  ? "Forgot PIN? Verify with biometrics to turn off"
-                  : "Forgot PIN? Turn off lock"}
-              </Text>
-            </Pressable>
+            {biometricAvailable && Platform.OS !== "web" ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Forgot PIN, verify with biometrics to turn off lock"
+                onPress={() => void forgotPin()}
+                hitSlop={8}
+                style={styles.forgot}
+              >
+                <Text style={styles.forgotText}>
+                  Forgot PIN? Verify with biometrics to turn off
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         ) : (
           <>
@@ -347,7 +364,8 @@ export function LockScreen() {
               </Pressable>
             ) : (
               <Text style={styles.hint}>
-                Unlock happens automatically when the device recognizes you.
+                Authentication is unavailable. The lock stays active; restart
+                the app or restore device authentication to continue.
               </Text>
             )}
           </>

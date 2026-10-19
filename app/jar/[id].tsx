@@ -169,8 +169,19 @@ export default function JarDetail() {
   };
   const toggleRecurringPause = () => {
     if (!jar.recurring) return;
+    const resumeDate = jar.recurring.paused
+      ? nextRecurringDate({
+          previous: { ...jar.recurring, nextDate: undefined },
+          amount: jar.recurring.amount,
+          cadence: jar.recurring.cadence,
+        })
+      : jar.recurring.nextDate;
     editJar(jar.id, {
-      recurring: { ...jar.recurring, paused: !jar.recurring.paused },
+      recurring: {
+        ...jar.recurring,
+        paused: !jar.recurring.paused,
+        nextDate: resumeDate,
+      },
     });
     setRecurringVisible(false);
   };

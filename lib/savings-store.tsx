@@ -17,6 +17,9 @@ import {
 } from "@/shared/transfer";
 
 import { StoreError } from "@/lib/store-error";
+import { loadPersistedJars, persistJars } from "@/lib/savings-storage";
+import { reportError } from "@/lib/error-reporting";
+import { mergeTransferJars } from "@/lib/transfer-merge";
 import { useSettings } from "@/lib/settings-store";
 import {
   CADENCES,
@@ -39,14 +42,13 @@ import {
   applyEntry,
   money,
   newlyEarnedBadges,
-  normaliseJar,
   percent,
   type QuickPreset,
   type QuickPresetId,
   activeJars,
   nextRecurringDate,
   quickPresets,
-  runDueRecurring,
+  runDueRecurringSafely,
   sanitizeAmountInput,
   toMinor,
 } from "@/lib/domain";
@@ -90,9 +92,6 @@ export function useMoney(): (minor: number) => string {
   return (minor: number) => money(minor, currency);
 }
 
-const KEY = "saving-jar:v3";
-const BACKUP_KEY = "saving-jar:v3:backup";
-
 const StoreContext = createContext<Store | null>(null);
 
 type JarInput = Pick<
@@ -108,6 +107,7 @@ type Store = {
   /** Same as jars — all jars are device-local. */
   localJars: Jar[];
   ready: boolean;
+  storageError: string | null;
   addJar: (input: JarInput) => string;
   editJar: (
     id: string,
@@ -147,7 +147,10 @@ type Store = {
    * Fold a scanned transfer into this device. Returns the number of jars added
    * or updated, so the receiving screen can report something true.
    */
-  importTransfer: (frames: string[]) => {
+  importTransfer: (
+    frames: string[],
+    currentCurrency?: string,
+  ) => {
     added: number;
     updated: number;
     skipped: number;
@@ -156,76 +159,38 @@ type Store = {
   total: number;
 };
 
-function parseJars(raw: string | null): Jar[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(
-        (item) =>
-          item && typeof item === "object" && typeof item.id === "string",
-      )
-      .map((jar) => normaliseJar(jar));
-  } catch {
-    return [];
-  }
-}
-
-async function loadPersistedJars(): Promise<Jar[]> {
-  // Current version first; fall back to legacy versions with float -> minor-unit migration.
-  const current = parseJars(await AsyncStorage.getItem(KEY));
-  if (current.length > 0) return current;
-
-  for (const legacyKey of ["saving-jar:v2", "saving-jar:v1"] as const) {
-    try {
-      const raw = await AsyncStorage.getItem(legacyKey);
-      if (!raw) continue;
-      const legacy = JSON.parse(raw);
-      if (Array.isArray(legacy) && legacy.length > 0) {
-        return legacy.map((jar) => normaliseJar(jar, true));
-      }
-    } catch {
-      // try next legacy source
-    }
-  }
-
-  // Corrupt current store? Try the one-generation backup.
-  return parseJars(await AsyncStorage.getItem(BACKUP_KEY));
-}
-
-async function persistJars(jars: Jar[]): Promise<void> {
-  try {
-    const previous = await AsyncStorage.getItem(KEY);
-    if (previous !== null) {
-      // Keep one generation of recovery data in case a write is corrupted.
-      await AsyncStorage.setItem(BACKUP_KEY, previous);
-    }
-    await AsyncStorage.setItem(KEY, JSON.stringify(jars));
-  } catch {
-    // Persistence failures are non-fatal for the session.
-  }
-}
-
 export function SavingsProvider({ children }: { children: React.ReactNode }) {
   const [jars, setJars] = useState<Jar[]>([]);
   const [ready, setReady] = useState(false);
+  const [writable, setWritable] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
   // Mirror of state so mutations always compute against fresh data even when
   // multiple calls happen inside one render cycle (double-tap safe).
   const jarsRef = useRef<Jar[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    loadPersistedJars()
-      .then((loaded) => {
+    loadPersistedJars(AsyncStorage)
+      .then(({ jars: loaded, writable: canWrite }) => {
         if (cancelled) return;
+        setWritable(canWrite);
+        if (!canWrite)
+          setStorageError(
+            "Saved data could not be read. Changes will not be saved.",
+          );
         // Catch up due scheduled deposits before first paint of data.
         const now = new Date();
-        const caughtUp = loaded.map((jar) => runDueRecurring(jar, now).jar);
+        const caughtUp = runDueRecurringSafely(loaded, now);
         jarsRef.current = caughtUp;
         setJars(caughtUp);
       })
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setStorageError(
+          "Saved data could not be read. Changes will not be saved.",
+        );
+        reportError(error);
+      })
       .finally(() => {
         if (!cancelled) setReady(true);
       });
@@ -235,8 +200,15 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (ready) persistJars(jars);
-  }, [jars, ready]);
+    if (!ready || !writable) return;
+    persistJars(AsyncStorage, jars).then(
+      () => setStorageError(null),
+      (error: unknown) => {
+        setStorageError("Your latest changes could not be saved.");
+        reportError(error);
+      },
+    );
+  }, [jars, ready, writable]);
 
   const commit = useCallback((next: Jar[]) => {
     jarsRef.current = next;
@@ -248,10 +220,23 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       jars,
       localJars: jars,
       ready,
+      storageError,
       total: jars
         .filter((jar) => !jar.archived)
         .reduce((sum, jar) => sum + jar.balance, 0),
       addJar: (input) => {
+        if (
+          !input.name.trim() ||
+          !Number.isSafeInteger(input.target) ||
+          input.target <= 0 ||
+          (input.recurring !== undefined &&
+            (!Number.isSafeInteger(input.recurring.amount) ||
+              input.recurring.amount <= 0))
+        )
+          throw new StoreError(
+            "invalid-amount",
+            "Enter a valid target amount.",
+          );
         const id = `jar-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         commit([
           ...jarsRef.current,
@@ -267,6 +252,14 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         return id;
       },
       editJar: (id, input) => {
+        if (
+          (input.target !== undefined &&
+            (!Number.isSafeInteger(input.target) || input.target <= 0)) ||
+          (input.recurring !== undefined &&
+            (!Number.isSafeInteger(input.recurring.amount) ||
+              input.recurring.amount <= 0))
+        )
+          throw new StoreError("invalid-amount", "Enter valid jar amounts.");
         commit(
           jarsRef.current.map((jar) =>
             jar.id === id ? { ...jar, ...input } : jar,
@@ -299,7 +292,7 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         };
         return encodeTransferFrames(snapshot);
       },
-      importTransfer: (frames) => {
+      importTransfer: (frames, currentCurrency) => {
         const assembly = decodeTransferFrames(frames);
         if (!assembly)
           return {
@@ -319,42 +312,37 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
           };
         }
 
-        const incoming = assembly.snapshot.jars;
-        const existing = new Map(jarsRef.current.map((jar) => [jar.id, jar]));
-        let added = 0;
-        let updated = 0;
-        let skipped = 0;
-        const next = [...jarsRef.current];
-
-        for (const jar of incoming) {
-          const current = existing.get(jar.id);
-          if (!current) {
-            next.push(jar);
-            added += 1;
-            continue;
-          }
-          // Same jar on both devices: the one with more history wins, so a
-          // half-filled receiving device is not clobbered by an older copy.
-          if (jar.entries.length > current.entries.length) {
-            const index = next.findIndex((item) => item.id === jar.id);
-            if (index >= 0) next[index] = jar;
-            updated += 1;
-          } else {
-            skipped += 1;
-          }
-        }
-
-        if (added > 0 || updated > 0) commit(next);
-        return { added, updated, skipped };
+        const merged = mergeTransferJars(
+          jarsRef.current,
+          assembly.snapshot.jars,
+          assembly.snapshot.currency,
+          currentCurrency,
+        );
+        if (merged.error)
+          return { added: 0, updated: 0, skipped: 0, error: merged.error };
+        if (merged.added > 0 || merged.updated > 0) commit(merged.jars);
+        return {
+          added: merged.added,
+          updated: merged.updated,
+          skipped: merged.skipped,
+        };
       },
       addEntry: (id, amountMinor, direction, note, source = "manual") => {
         const jar = jarsRef.current.find((candidate) => candidate.id === id);
-        if (!jar || !Number.isInteger(amountMinor) || amountMinor <= 0)
+        if (!jar || !Number.isSafeInteger(amountMinor) || amountMinor <= 0)
           return undefined;
         if (direction === "withdrawal" && amountMinor > jar.balance)
           return undefined;
         const applied = applyEntry(jar, amountMinor, direction, note, source);
         if (!applied) return undefined;
+        const nextTotal = jarsRef.current
+          .filter((item) => !item.archived)
+          .reduce(
+            (total, item) =>
+              total + (item.id === id ? applied.jar.balance : item.balance),
+            0,
+          );
+        if (!Number.isSafeInteger(nextTotal)) return undefined;
         commit(
           jarsRef.current.map((item) => (item.id === id ? applied.jar : item)),
         );
@@ -363,7 +351,7 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
           : undefined;
       },
     };
-  }, [jars, ready, commit]);
+  }, [jars, ready, storageError, commit]);
 
   return (
     <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

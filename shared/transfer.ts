@@ -81,6 +81,7 @@ type WireJar = {
   b: number;
   a: Accent;
   c: string;
+  ca?: string;
   k: JarKind;
   /** deadline */
   d?: string;
@@ -142,6 +143,7 @@ function jarToWire(jar: Jar): WireJar {
     b: jar.balance,
     a: jar.accent,
     c: jar.icon,
+    ca: jar.createdAt,
     k: jar.kind,
     e: jar.entries.map(entryToWire),
   };
@@ -161,7 +163,7 @@ function jarToWire(jar: Jar): WireJar {
   return wire;
 }
 
-function jarFromWire(wire: WireJar): Jar {
+function jarFromWire(wire: WireJar, exportedAt: string): Jar {
   return {
     id: wire.i,
     name: wire.n,
@@ -170,7 +172,7 @@ function jarFromWire(wire: WireJar): Jar {
     accent: wire.a,
     icon: wire.c,
     kind: wire.k,
-    createdAt: new Date().toISOString(),
+    createdAt: wire.ca ?? exportedAt,
     deadline: wire.d,
     streak: wire.st,
     lastDepositAt: wire.l,
@@ -227,19 +229,104 @@ export function encodeTransferFrames(snapshot: TransferSnapshot): string[] {
 /* Decoding                                                                    */
 /* -------------------------------------------------------------------------- */
 
+export const MAX_TRANSFER_FRAMES = 1024;
+export const MAX_TRANSFER_FRAME_LENGTH = TRANSFER_CHUNK_CHARS + 32;
+const MAX_TRANSFER_JARS = 100;
+const MAX_ENTRIES_PER_JAR = 20_000;
+const MAX_TRANSFER_ENTRIES = 50_000;
+
 function parseFrame(
   frame: string,
-): { index: number; total: number; payload: string } | undefined {
+): { id: string; index: number; total: number; payload: string } | undefined {
+  if (frame.length > MAX_TRANSFER_FRAME_LENGTH) return undefined;
   const text = frame.trim();
   if (!text.startsWith(`${TRANSFER_PREFIX}.`)) return undefined;
   const parts = text.split(".");
   if (parts.length < 5) return undefined;
   const index = Number(parts[2]);
   const total = Number(parts[3]);
+  if (!/^[A-Za-z0-9_-]{6}$/.test(parts[1])) return undefined;
   if (!Number.isInteger(index) || !Number.isInteger(total)) return undefined;
-  if (index < 1 || total < 1 || index > total) return undefined;
+  if (
+    index < 1 ||
+    total < 1 ||
+    total > MAX_TRANSFER_FRAMES ||
+    index > total ||
+    parts.slice(4).join(".").length > TRANSFER_CHUNK_CHARS
+  )
+    return undefined;
   // base64url never contains a period, so this is purely defensive.
-  return { index, total, payload: parts.slice(4).join(".") };
+  return { id: parts[1], index, total, payload: parts.slice(4).join(".") };
+}
+
+function validDate(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 40 &&
+    !Number.isNaN(Date.parse(value))
+  );
+}
+
+function isWireJar(value: unknown): value is WireJar {
+  if (!value || typeof value !== "object") return false;
+  const jar = value as Partial<WireJar>;
+  if (
+    typeof jar.i !== "string" ||
+    !jar.i ||
+    jar.i.length > 128 ||
+    typeof jar.n !== "string" ||
+    !jar.n.trim() ||
+    jar.n.length > 120 ||
+    !Number.isSafeInteger(jar.t) ||
+    (jar.t ?? 0) <= 0 ||
+    !Number.isSafeInteger(jar.b) ||
+    (jar.b ?? -1) < 0 ||
+    !["coral", "amber", "mint", "ocean", "berry", "clay"].includes(
+      jar.a as string,
+    ) ||
+    typeof jar.c !== "string" ||
+    !jar.c ||
+    jar.c.length > 64 ||
+    (jar.k !== "goal" && jar.k !== "habit") ||
+    !Array.isArray(jar.e) ||
+    jar.e.length > MAX_ENTRIES_PER_JAR ||
+    (jar.ca !== undefined && !validDate(jar.ca)) ||
+    (jar.d !== undefined && !validDate(jar.d)) ||
+    (jar.l !== undefined && !validDate(jar.l)) ||
+    (jar.st !== undefined && (!Number.isSafeInteger(jar.st) || jar.st < 0)) ||
+    (jar.x !== undefined && typeof jar.x !== "boolean")
+  )
+    return false;
+  if (
+    jar.h !== undefined &&
+    (!Array.isArray(jar.h) || jar.h.some((n) => ![25, 50, 75, 100].includes(n)))
+  )
+    return false;
+  if (jar.r !== undefined) {
+    const rule = jar.r;
+    if (
+      !rule ||
+      !Number.isSafeInteger(rule.am) ||
+      rule.am <= 0 ||
+      !["daily", "weekly", "biweekly", "monthly"].includes(rule.cd) ||
+      (rule.pa !== 0 && rule.pa !== 1)
+    )
+      return false;
+    if (rule.nd !== undefined && !validDate(rule.nd)) return false;
+  }
+  return jar.e.every(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length >= 3 &&
+      entry.length <= 5 &&
+      Number.isSafeInteger(entry[0]) &&
+      entry[0] > 0 &&
+      (entry[1] === 0 || entry[1] === 1) &&
+      validDate(entry[2]) &&
+      (entry[3] === undefined ||
+        (typeof entry[3] === "string" && entry[3].length <= 500)) &&
+      (entry[4] === undefined || entry[4] === 0 || entry[4] === 1),
+  );
 }
 
 /**
@@ -250,16 +337,45 @@ function parseFrame(
 export function decodeTransferFrames(
   frames: string[],
 ): TransferAssembly | undefined {
+  if (frames.length > MAX_TRANSFER_FRAMES)
+    return {
+      total: 0,
+      have: [],
+      missing: [],
+      duplicates: 0,
+      error: "That transfer contains too many codes.",
+    };
   const collected = new Map<number, string>();
   let total = 0;
   let duplicates = 0;
+  let transferId: string | undefined;
 
   for (const frame of frames) {
     const parsed = parseFrame(frame);
     if (!parsed) continue;
-    total = Math.max(total, parsed.total);
+    if (
+      (transferId !== undefined && transferId !== parsed.id) ||
+      (total !== 0 && total !== parsed.total)
+    )
+      return {
+        total,
+        have: [...collected.keys()].sort((a, b) => a - b),
+        missing: [],
+        duplicates,
+        error: "These codes come from different transfers.",
+      };
+    transferId = parsed.id;
+    total = parsed.total;
     if (collected.has(parsed.index)) {
       duplicates += 1;
+      if (collected.get(parsed.index) !== parsed.payload)
+        return {
+          total,
+          have: [...collected.keys()].sort((a, b) => a - b),
+          missing: [],
+          duplicates,
+          error: "A repeated code does not match the earlier code.",
+        };
       continue;
     }
     collected.set(parsed.index, parsed.payload);
@@ -284,20 +400,49 @@ export function decodeTransferFrames(
   }
 
   try {
-    const wire = JSON.parse(utf8Decode(bytes)) as WireSnapshot;
-    if (typeof wire?.v !== "number" || !Array.isArray(wire.jars)) {
+    const wire: unknown = JSON.parse(utf8Decode(bytes));
+    if (!wire || typeof wire !== "object") {
       assembly.error = "That code is not a Saving Jar transfer.";
       return assembly;
     }
-    if (wire.v > TRANSFER_VERSION) {
+    const snapshot = wire as Partial<WireSnapshot>;
+    if (
+      !Number.isInteger(snapshot.v) ||
+      !validDate(snapshot.at) ||
+      !Array.isArray(snapshot.jars) ||
+      snapshot.jars.length > MAX_TRANSFER_JARS ||
+      (snapshot.cur !== undefined &&
+        (typeof snapshot.cur !== "string" || !/^[A-Z]{3}$/.test(snapshot.cur)))
+    ) {
+      assembly.error = "That transfer contains invalid data.";
+      return assembly;
+    }
+    if (snapshot.v! > TRANSFER_VERSION) {
       assembly.error = "That transfer came from a newer version of the app.";
       return assembly;
     }
+    if (
+      snapshot.v !== TRANSFER_VERSION ||
+      snapshot.jars.some((jar) => !isWireJar(jar))
+    ) {
+      assembly.error = "That transfer contains invalid jar data.";
+      return assembly;
+    }
+    const typedJars = snapshot.jars as WireJar[];
+    if (
+      new Set(typedJars.map((jar) => jar.i)).size !== typedJars.length ||
+      typedJars.reduce((totalEntries, jar) => totalEntries + jar.e.length, 0) >
+        MAX_TRANSFER_ENTRIES
+    ) {
+      assembly.error =
+        "That transfer contains duplicate or excessive jar history.";
+      return assembly;
+    }
     assembly.snapshot = {
-      version: wire.v,
-      exportedAt: wire.at,
-      currency: wire.cur,
-      jars: wire.jars.map(jarFromWire),
+      version: snapshot.v,
+      exportedAt: snapshot.at,
+      currency: snapshot.cur,
+      jars: typedJars.map((jar) => jarFromWire(jar, snapshot.at!)),
     };
   } catch {
     assembly.error = "That code could not be read.";

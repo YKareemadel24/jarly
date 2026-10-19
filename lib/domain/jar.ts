@@ -119,11 +119,13 @@ export function applyEntry(
   source: Entry["source"] = "manual",
   now: Date = new Date(),
 ): AppliedEntry | null {
-  if (!Number.isInteger(amountMinor) || amountMinor <= 0) return null;
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) return null;
+  if (!Number.isSafeInteger(jar.balance) || jar.balance < 0) return null;
   if (direction === "withdrawal" && amountMinor > jar.balance) return null;
 
   const nextBalance =
     jar.balance + (direction === "deposit" ? amountMinor : -amountMinor);
+  if (!Number.isSafeInteger(nextBalance) || nextBalance < 0) return null;
   const reached =
     direction === "deposit" ? crossedMilestones(jar, nextBalance) : [];
 

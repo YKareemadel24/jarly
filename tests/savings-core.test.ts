@@ -11,6 +11,7 @@ import {
   monthlyDeposits,
   nextRecurringDate,
   runDueRecurring,
+  runDueRecurringSafely,
   sanitizeAmountInput,
   toMinor,
   weeklyDelta,
@@ -47,6 +48,10 @@ describe("money", () => {
   it("rejects non-finite input", () => {
     expect(toMinor("abc")).toBeNull();
     expect(toMinor(Number.NaN)).toBeNull();
+  });
+
+  it("rejects values outside safe minor-unit precision", () => {
+    expect(toMinor("90071992547409.92")).toBeNull();
   });
 });
 
@@ -96,6 +101,12 @@ describe("applyEntry", () => {
   it("rejects zero and negative amounts", () => {
     expect(applyEntry(jar(), 0, "deposit")).toBeNull();
     expect(applyEntry(jar(), -100, "deposit")).toBeNull();
+  });
+
+  it("rejects deposits that would overflow the safe balance range", () => {
+    expect(
+      applyEntry(jar({ balance: Number.MAX_SAFE_INTEGER }), 1, "deposit"),
+    ).toBeNull();
   });
 
   it("counts one milestone per deposit but records all crossed levels over time", () => {
@@ -242,6 +253,38 @@ describe("runDueRecurring", () => {
     // Jan 31 and Feb 28 (clamped) are both due by Mar 15.
     expect(result.applied).toBe(2);
     expect(result.jar.balance).toBe(2400);
+    expect(result.jar.entries.map((entry) => entry.at)).toEqual([
+      "2026-02-28T00:00:00.000Z",
+      "2026-01-31T00:00:00.000Z",
+    ]);
+  });
+
+  it("keeps the first unapplied occurrence when catch-up reaches its cap", () => {
+    const daily = jar({
+      createdAt: "2024-01-01T00:00:00.000Z",
+      recurring: { amount: 1, cadence: "daily", paused: false },
+    });
+    const now = new Date("2025-01-02T00:00:00.000Z");
+    const first = runDueRecurring(daily, now);
+    const second = runDueRecurring(first.jar, now);
+    expect(first.applied).toBe(366);
+    expect(first.jar.recurring?.nextDate).toBe("2025-01-01T00:00:00.000Z");
+    expect(first.applied + second.applied).toBe(368);
+    expect(second.jar.balance).toBe(368);
+  });
+
+  it("skips recurring catch-up that would overflow the active total", () => {
+    const nearLimit = jar({
+      id: "near",
+      balance: Number.MAX_SAFE_INTEGER - 500,
+    });
+    const due = jar({
+      id: "due",
+      recurring: { amount: 1000, cadence: "daily", paused: false },
+    });
+    expect(
+      runDueRecurringSafely([nearLimit, due], new Date("2026-01-02")),
+    ).toEqual([nearLimit, due]);
   });
 });
 
@@ -280,7 +323,7 @@ describe("nextRecurringDate", () => {
     ).toBe("2026-06-20T12:00:00.000Z");
   });
 
-  it("restarts when the amount or the cadence changes", () => {
+  it("starts a changed schedule at its next occurrence after now", () => {
     const previous = {
       amount: 500,
       cadence: "weekly" as const,
@@ -288,13 +331,13 @@ describe("nextRecurringDate", () => {
     };
     expect(
       nextRecurringDate({ previous, amount: 700, cadence: "weekly", now }),
-    ).toBeUndefined();
+    ).toBe("2026-06-22T12:00:00.000Z");
     expect(
       nextRecurringDate({ previous, amount: 500, cadence: "monthly", now }),
-    ).toBeUndefined();
+    ).toBe("2026-07-15T12:00:00.000Z");
   });
 
-  it("restarts when the previous date is no longer in the future", () => {
+  it("does not replay overdue occurrences after rescheduling", () => {
     const previous = {
       amount: 500,
       cadence: "weekly" as const,
@@ -302,10 +345,10 @@ describe("nextRecurringDate", () => {
     };
     expect(
       nextRecurringDate({ previous, amount: 500, cadence: "weekly", now }),
-    ).toBeUndefined();
+    ).toBe("2026-06-22T12:00:00.000Z");
   });
 
-  it("starts fresh when there was no previous rule", () => {
+  it("starts a new schedule at its next occurrence", () => {
     expect(
       nextRecurringDate({
         previous: undefined,
@@ -313,7 +356,7 @@ describe("nextRecurringDate", () => {
         cadence: "weekly",
         now,
       }),
-    ).toBeUndefined();
+    ).toBe("2026-06-22T12:00:00.000Z");
   });
 });
 

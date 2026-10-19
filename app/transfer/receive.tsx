@@ -17,7 +17,13 @@ import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import { feedback } from "@/lib/haptics";
 import { useSavings } from "@/lib/savings-store";
-import { TRANSFER_PREFIX, decodeTransferFrames } from "@/shared/transfer";
+import { useSettings } from "@/lib/settings-store";
+import {
+  MAX_TRANSFER_FRAMES,
+  MAX_TRANSFER_FRAME_LENGTH,
+  TRANSFER_PREFIX,
+  decodeTransferFrames,
+} from "@/shared/transfer";
 
 type Stage = "collect" | "done";
 
@@ -39,6 +45,7 @@ export default function TransferReceiveScreen() {
   const accents = useJarAccents();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { importTransfer } = useSavings();
+  const { currency } = useSettings();
 
   const [frames, setFrames] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
@@ -56,10 +63,17 @@ export default function TransferReceiveScreen() {
   /** Add one frame. Returns false when it is not a frame this app understands. */
   const accept = useCallback((raw: string) => {
     const text = raw.trim();
-    if (!text.startsWith(`${TRANSFER_PREFIX}.`)) return false;
-    setFrames((current) =>
-      current.includes(text) ? current : [...current, text],
-    );
+    if (
+      text.length > MAX_TRANSFER_FRAME_LENGTH ||
+      !text.startsWith(`${TRANSFER_PREFIX}.`)
+    )
+      return false;
+    setFrames((current) => {
+      if (current.includes(text)) return current;
+      return current.length < MAX_TRANSFER_FRAMES
+        ? [...current, text]
+        : current;
+    });
     return true;
   }, []);
 
@@ -83,7 +97,7 @@ export default function TransferReceiveScreen() {
   };
 
   const finish = () => {
-    const outcome = importTransfer(frames);
+    const outcome = importTransfer(frames, currency);
     if (outcome.error) {
       feedback.error();
       setError(outcome.error);
