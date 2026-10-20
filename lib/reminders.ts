@@ -1,4 +1,24 @@
-import { type Jar, deadlineCountdown, money } from "@/lib/savings-core";
+import {
+  type Jar,
+  deadlineCountdown,
+  money,
+  parseDeadline,
+} from "@/lib/savings-core";
+
+function nextReminderTime(jar: Jar): number {
+  const rule = jar.recurring;
+  const deposit =
+    rule && !rule.paused && rule.amount > 0
+      ? new Date(rule.nextDate ?? jar.createdAt).getTime()
+      : Infinity;
+  const deadline = jar.deadline
+    ? parseDeadline(jar.deadline)?.getTime()
+    : undefined;
+  return Math.min(
+    Number.isFinite(deposit) ? deposit : Infinity,
+    deadline ?? Infinity,
+  );
+}
 
 /** One savings reminder for each active, unfinished jar. */
 export function jarReminders(
@@ -8,6 +28,7 @@ export function jarReminders(
 ): { jar: Jar; title: string; detail: string }[] {
   return jars
     .filter((jar) => !jar.archived && jar.balance < jar.target)
+    .sort((a, b) => nextReminderTime(a) - nextReminderTime(b))
     .map((jar) => {
       const details = [
         `${money(jar.target - jar.balance, currency)} left to save.`,
@@ -16,7 +37,7 @@ export function jarReminders(
       if (rule && !rule.paused && rule.amount > 0) {
         const due = new Date(rule.nextDate ?? jar.createdAt);
         details.push(
-          `Scheduled deposit: ${money(rule.amount, currency)} on ${due.toLocaleDateString(
+          `Next deposit: ${money(rule.amount, currency)} on ${due.toLocaleDateString(
             "en-US",
             {
               month: "short",
@@ -28,6 +49,6 @@ export function jarReminders(
       }
       const deadline = deadlineCountdown(jar.deadline, now);
       if (deadline) details.push(`Deadline: ${deadline}.`);
-      return { jar, title: jar.name, detail: details.join(" ") };
+      return { jar, title: jar.name, detail: details.join("\n") };
     });
 }

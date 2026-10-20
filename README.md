@@ -73,11 +73,11 @@ The primary loop is intentionally short:
 
 ## Features
 
-- **Per-jar home reminders** — each unfinished jar shows its remaining amount, next active scheduled deposit, and deadline when set; tap to add money to that jar.
+- **Per-jar home reminders** — unfinished jars are ordered by their earliest deposit or deadline, with undated jars last. The first two appear by default; expand to see all. Remaining amount, next deposit, and deadline appear on separate lines with a clear `+ Add` action.
 - **Goal jars** — one-time goals with a target, optional deadline, emoji, and semantic accent color.
 - **Habit jars** — repeatable savings with calendar-day streaks.
 - **Deposits & withdrawals** — record contributions and take money back out (withdrawals never undo milestones or streaks). The deposit sheet previews the balance → new-balance transition and resulting percentage before confirming.
-- **Quick deposit** — every jar card on Home exposes a `+ Add` chip that opens its deposit sheet directly (long-press also works).
+- **Quick deposit** — every jar card on Home exposes a separate `+ Add` button that opens its deposit sheet directly (long-press also works). Cards emphasize the saved amount, show the target on its own line, and display progress once. A labeled `New jar` button starts a new goal.
 - **Recurring saving** — schedule automatic deposits on a daily, weekly, biweekly, or monthly cadence, with deterministic catch-up of missed occurrences.
 - **Milestones** — progress is tracked at 25/50/75/100%, with a celebratory overlay when a level is crossed.
 - **Insights dashboard** — total saved, active/completed jars, best streak, deposit count, and closest-to-goal view.

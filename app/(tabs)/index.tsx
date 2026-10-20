@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -24,7 +24,7 @@ import {
   useMoney,
   useSavings,
 } from "@/lib/savings-store";
-import { weeklyDelta } from "@/lib/savings-core";
+import { fromMinor, weeklyDelta } from "@/lib/savings-core";
 import { useSettings } from "@/lib/settings-store";
 import { jarReminders } from "@/lib/reminders";
 
@@ -56,75 +56,78 @@ function GoalCard({
         ? "calendar-today"
         : "flag";
   return (
-    <Pressable
-      accessibilityLabel={`${jar.name}. ${progress}% complete. ${format(jar.balance)} saved of ${format(jar.target)}.`}
-      accessibilityHint="Double-tap to open. Use Add for a quick deposit."
-      onPress={() => router.push(`/jar/${jar.id}` as never)}
-      onLongPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
-      delayLongPress={320}
-      style={({ pressed }) => [styles.goalCard, pressed && styles.pressed]}
-    >
-      <View style={styles.goalVisual}>
-        <JarVessel
-          accent={accent}
-          icon={jar.icon}
-          progress={progress}
-          size="small"
-          label={`${progress}%`}
-        />
-      </View>
-      <View style={styles.goalCopy}>
-        <View style={styles.goalHeading}>
-          <Text numberOfLines={1} style={styles.goalName}>
-            {jar.name}
-          </Text>
-          <View style={[styles.pill, { backgroundColor: `${accent}1F` }]}>
-            <Text style={[styles.pillText, { color: accent }]}>
-              {progress}%
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.goalAmount}>
-          {format(jar.balance)}{" "}
-          <Text style={styles.goalTarget}>of {format(jar.target)}</Text>
-        </Text>
-        <View style={styles.track}>
-          <View
-            style={[
-              styles.trackFill,
-              { width: `${progress}%`, backgroundColor: accent },
-            ]}
+    <View style={styles.goalCard}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${jar.name}. ${progress}% complete. ${format(jar.balance)} saved of ${format(jar.target)}.`}
+        accessibilityHint="Double-tap to open. Use Add for a quick deposit."
+        onPress={() => router.push(`/jar/${jar.id}` as never)}
+        onLongPress={() =>
+          router.push(`/jar/${jar.id}?action=deposit` as never)
+        }
+        delayLongPress={320}
+        style={({ pressed }) => [styles.goalMain, pressed && styles.pressed]}
+      >
+        <View
+          style={styles.goalVisual}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          <JarVessel
+            accent={accent}
+            icon={jar.icon}
+            progress={progress}
+            size="small"
           />
         </View>
+        <View style={styles.goalCopy}>
+          <Text style={styles.goalName}>{jar.name}</Text>
+          <Text style={styles.goalAmount}>{format(jar.balance)}</Text>
+          <Text style={styles.goalTarget}>of {format(jar.target)} goal</Text>
+          <View style={styles.goalProgress}>
+            <View style={styles.track}>
+              <View
+                style={[
+                  styles.trackFill,
+                  { width: `${progress}%`, backgroundColor: accent },
+                ]}
+              />
+            </View>
+            <Text style={styles.goalPercent}>{progress}%</Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={styles.goalFooter}>
         <View style={styles.goalMeta}>
           <MaterialIcons
             name={metaIcon as never}
-            size={13}
+            size={16}
             color={urgent ? colors.warning : colors.muted}
           />
           <Text
             style={[
               styles.goalMetaText,
-              urgent && { color: colors.warning, fontWeight: "700" },
+              urgent && { color: colors.foreground, fontWeight: "700" },
             ]}
           >
             {meta}
           </Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Add money to ${jar.name}`}
+          accessibilityHint="Opens the deposit sheet."
+          onPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
+          style={({ pressed }) => [
+            styles.quickAddChip,
+            { backgroundColor: `${accent}1F` },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.quickAddChipText}>+ Add</Text>
+        </Pressable>
       </View>
-      <Pressable
-        accessibilityLabel={`Add money to ${jar.name}`}
-        accessibilityHint="Opens the deposit sheet."
-        onPress={() => router.push(`/jar/${jar.id}?action=deposit` as never)}
-        style={({ pressed }) => [
-          styles.quickAddChip,
-          { backgroundColor: `${accent}1F` },
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text style={[styles.quickAddChipText, { color: accent }]}>+ Add</Text>
-      </Pressable>
-    </Pressable>
+    </View>
   );
 }
 
@@ -135,6 +138,7 @@ export default function HomeScreen() {
   const { jars, ready, total } = useSavings();
   const { currency } = useSettings();
   const format = useMoney();
+  const [remindersExpanded, setRemindersExpanded] = useState(false);
   const active = useMemo(() => activeJars(jars), [jars]);
   const inProgress = useMemo(
     () => active.filter((jar) => percent(jar) < 100),
@@ -168,13 +172,14 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <View>
+              <View style={styles.headerCopy}>
                 <Text style={styles.kicker}>SAVING JAR</Text>
                 <Text style={styles.greeting}>
                   Give your goals{"\n"}somewhere to grow.
                 </Text>
               </View>
               <Pressable
+                accessibilityRole="button"
                 accessibilityLabel="Open profile"
                 onPress={() => router.push("/(tabs)/profile" as never)}
                 style={({ pressed }) => [
@@ -191,12 +196,22 @@ export default function HomeScreen() {
             </View>
             <View style={styles.balanceCard}>
               <View style={styles.balanceTop}>
-                <Text style={styles.balanceLabel}>{"YOU'VE SAVED"}</Text>
+                <Text
+                  style={styles.balanceLabel}
+                >{`YOU'VE SAVED · ${currency}`}</Text>
                 <View style={styles.balanceMark}>
                   <MaterialIcons name="savings" size={18} color="#FFFDF9" />
                 </View>
               </View>
-              <Text style={styles.balanceValue}>{format(total)}</Text>
+              <Text
+                style={styles.balanceValue}
+                accessibilityLabel={`${format(total)} saved`}
+              >
+                {new Intl.NumberFormat(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(fromMinor(total))}
+              </Text>
               <View style={styles.balanceBottom}>
                 <Text style={styles.balanceNote}>
                   {active.length
@@ -212,55 +227,81 @@ export default function HomeScreen() {
                 ) : null}
               </View>
             </View>
-            {reminders.map((reminder) => (
+            {reminders.length ? (
+              <View style={styles.remindersHeader}>
+                <Text style={styles.remindersTitle}>Saving reminders</Text>
+                <Text style={styles.remindersCount}>{reminders.length}</Text>
+              </View>
+            ) : null}
+            {(remindersExpanded ? reminders : reminders.slice(0, 2)).map(
+              (reminder) => (
+                <Pressable
+                  key={reminder.jar.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add money to ${reminder.title}. ${reminder.detail}`}
+                  accessibilityHint="Opens this jar's deposit sheet."
+                  onPress={() =>
+                    router.push(
+                      `/jar/${reminder.jar.id}?action=deposit` as never,
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.reminder,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.reminderIcon,
+                      { backgroundColor: `${accents[reminder.jar.accent]}20` },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="notifications-active"
+                      size={17}
+                      color={accents[reminder.jar.accent]}
+                    />
+                  </View>
+                  <View style={styles.reminderContent}>
+                    <View style={styles.reminderHeading}>
+                      <Text style={styles.reminderTitle}>{reminder.title}</Text>
+                      <View style={styles.reminderAction}>
+                        <Text style={styles.quickAddChipText}>+ Add</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.reminderCopy}>{reminder.detail}</Text>
+                  </View>
+                </Pressable>
+              ),
+            )}
+            {reminders.length > 2 ? (
               <Pressable
-                key={reminder.jar.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Reminder: ${reminder.title}. ${reminder.detail}`}
-                onPress={() =>
-                  router.push(`/jar/${reminder.jar.id}?action=deposit` as never)
-                }
+                accessibilityState={{ expanded: remindersExpanded }}
+                onPress={() => setRemindersExpanded((expanded) => !expanded)}
                 style={({ pressed }) => [
-                  styles.reminder,
+                  styles.remindersToggle,
                   pressed && styles.pressed,
                 ]}
               >
-                <View
-                  style={[
-                    styles.reminderIcon,
-                    { backgroundColor: `${accents[reminder.jar.accent]}20` },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="notifications-active"
-                    size={17}
-                    color={accents[reminder.jar.accent]}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.reminderTitle} numberOfLines={1}>
-                    {reminder.title}
-                  </Text>
-                  <Text style={styles.reminderCopy}>{reminder.detail}</Text>
-                </View>
+                <Text style={styles.remindersToggleText}>
+                  {remindersExpanded
+                    ? "Show fewer reminders"
+                    : `View all ${reminders.length} reminders`}
+                </Text>
                 <MaterialIcons
-                  name="chevron-right"
+                  name={remindersExpanded ? "expand-less" : "expand-more"}
                   size={20}
-                  color={accents[reminder.jar.accent]}
+                  color={colors.foreground}
                 />
               </Pressable>
-            ))}
+            ) : null}
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionCopy}>
                 <Text style={styles.sectionTitle}>
                   {inProgress.length || !active.length
                     ? "Your jars"
                     : "All jars complete"}
-                </Text>
-                <Text style={styles.sectionSub}>
-                  {inProgress.length || !active.length
-                    ? "Progress you can see and feel."
-                    : "Celebrate it — then dream up another one."}
                 </Text>
               </View>
               <Pressable
@@ -272,7 +313,8 @@ export default function HomeScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <MaterialIcons name="add" size={18} color="#FFFDF9" />
+                <MaterialIcons name="add" size={18} color={colors.background} />
+                <Text style={styles.newGoalText}>New jar</Text>
               </Pressable>
             </View>
           </>

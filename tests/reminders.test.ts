@@ -95,7 +95,7 @@ describe("jarReminders", () => {
     });
     const [reminder] = jarReminders([paused], new Date(at));
     expect(reminder.detail).toContain("100.00 left to save");
-    expect(reminder.detail).not.toContain("Scheduled deposit");
+    expect(reminder.detail).not.toContain("Next deposit");
   });
 
   it("uses the selected currency for remaining and scheduled amounts", () => {
@@ -118,5 +118,78 @@ describe("jarReminders", () => {
 
   it("returns no reminders when there are no jars", () => {
     expect(jarReminders([], new Date(at))).toEqual([]);
+  });
+
+  it("orders reminders by their earliest deposit or deadline, with undated jars last", () => {
+    const jars = [
+      jar({ id: "undated" }),
+      jar({ id: "later", deadline: "2026-06-25" }),
+      jar({
+        id: "deposit",
+        deadline: "2026-06-30",
+        recurring: {
+          amount: 2500,
+          cadence: "weekly",
+          paused: false,
+          nextDate: "2026-06-16T12:00:00.000Z",
+        },
+      }),
+      jar({ id: "overdue", deadline: "2026-06-14" }),
+    ];
+    expect(
+      jarReminders(jars, new Date(at)).map(({ jar: goal }) => goal.id),
+    ).toEqual(["overdue", "deposit", "later", "undated"]);
+    expect(jars.map(({ id }) => id)).toEqual([
+      "undated",
+      "later",
+      "deposit",
+      "overdue",
+    ]);
+  });
+
+  it("ignores paused schedules when ordering reminders and preserves undated order", () => {
+    const reminders = jarReminders(
+      [
+        jar({ id: "unknown", deadline: "Someday" }),
+        jar({
+          id: "paused",
+          recurring: {
+            amount: 2500,
+            cadence: "weekly",
+            paused: true,
+            nextDate: at,
+          },
+        }),
+        jar({ id: "dated", deadline: "2026-07-01" }),
+      ],
+      new Date(at),
+    );
+    expect(reminders.map(({ jar: goal }) => goal.id)).toEqual([
+      "dated",
+      "unknown",
+      "paused",
+    ]);
+  });
+
+  it("separates remaining savings, next deposit, and deadline onto readable lines", () => {
+    const [reminder] = jarReminders(
+      [
+        jar({
+          deadline: "2026-06-25",
+          recurring: {
+            amount: 2500,
+            cadence: "weekly",
+            paused: false,
+            nextDate: at,
+          },
+        }),
+      ],
+      new Date(2026, 5, 15, 12),
+    );
+    const lines = reminder.detail.split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toContain("100.00 left to save");
+    expect(lines[1]).toContain("Next deposit:");
+    expect(lines[2]).toBe("Deadline: 10 days left.");
   });
 });
