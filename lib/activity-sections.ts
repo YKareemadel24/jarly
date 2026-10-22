@@ -2,6 +2,11 @@ import type { Entry, Jar } from "@/lib/savings-core";
 
 export type ActivityRowData = { entry: Entry; jar: Jar };
 export type ActivitySection = { title: string; data: ActivityRowData[] };
+export type ActivityFilters = {
+  jarId?: string;
+  direction?: "all" | Entry["direction"];
+  range?: "all" | "7days" | "30days";
+};
 
 function dayLabel(iso: string, now: Date): string {
   const date = new Date(iso);
@@ -25,11 +30,41 @@ function dayLabel(iso: string, now: Date): string {
 export function activitySections(
   jars: Jar[],
   now: Date = new Date(),
+  filters: ActivityFilters = {},
 ): ActivitySection[] {
+  const days =
+    filters.range === "7days" ? 7 : filters.range === "30days" ? 30 : undefined;
+  const since =
+    days === undefined
+      ? undefined
+      : new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - days + 1,
+        ).getTime();
+  const until = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  ).getTime();
   const rows = jars
-    .filter((jar) => !jar.archived)
+    .filter(
+      (jar) => !jar.archived && (!filters.jarId || jar.id === filters.jarId),
+    )
     .flatMap((jar) => jar.entries.map((entry) => ({ entry, jar })))
-    .sort((a, b) => b.entry.at.localeCompare(a.entry.at));
+    .filter(({ entry }) => {
+      if (
+        filters.direction &&
+        filters.direction !== "all" &&
+        entry.direction !== filters.direction
+      )
+        return false;
+      const at = new Date(entry.at).getTime();
+      return since === undefined || (at >= since && at < until);
+    })
+    .sort(
+      (a, b) => new Date(b.entry.at).getTime() - new Date(a.entry.at).getTime(),
+    );
   const sections: ActivitySection[] = [];
   for (const row of rows) {
     const title = dayLabel(row.entry.at, now);

@@ -11,7 +11,20 @@
  * split into fixed-size frames and each frame is a self-describing string.
  */
 
-import type { Accent, Cadence, Entry, Jar, JarKind } from "../lib/savings-core";
+import type {
+  Accent,
+  Cadence,
+  Entry,
+  EntryRevision,
+  Jar,
+  JarKind,
+  JarReminder,
+} from "../lib/savings-core";
+import {
+  isValidEntryRevision,
+  validEntryAudit,
+} from "../lib/domain/transactions";
+import { isValidJarReminder } from "../lib/domain/reminder";
 
 /** Marker every frame starts with. Bumping it is a breaking format change. */
 export const TRANSFER_PREFIX = "JARLY1";
@@ -27,7 +40,7 @@ export const TRANSFER_PREFIX = "JARLY1";
 export const TRANSFER_CHUNK_CHARS = 400;
 
 /** Payload version this build writes. */
-export const TRANSFER_VERSION = 1;
+export const TRANSFER_VERSION = 2;
 
 export type TransferSnapshot = {
   version: number;
@@ -68,8 +81,11 @@ type WireEntry = [
   number,
   0 | 1,
   string,
-  (string | undefined)?,
-  (0 | 1 | undefined)?,
+  (string | null | undefined)?,
+  (0 | 1 | null | undefined)?,
+  (string | null | undefined)?,
+  (EntryRevision[] | null | undefined)?,
+  (string | null | undefined)?,
 ];
 
 type WireRecurring = { am: number; cd: Cadence; pa: 0 | 1; nd?: string };
@@ -79,6 +95,7 @@ type WireJar = {
   n: string;
   t: number;
   b: number;
+  ob?: number;
   a: Accent;
   c: string;
   ca?: string;
@@ -94,6 +111,7 @@ type WireJar = {
   /** archived */
   x?: boolean;
   r?: WireRecurring;
+  rm?: JarReminder;
   e: WireEntry[];
 };
 
@@ -111,27 +129,31 @@ type WireSnapshot = {
 function entryToWire(entry: Entry): WireEntry {
   // Built as a plain array first: annotating a literal this long as a tuple
   // makes every trailing optional slot a separate assignability complaint.
-  const wire: (number | string | undefined)[] = [
+  const wire: unknown[] = [
     entry.amount,
     entry.direction === "deposit" ? 1 : 0,
     entry.at,
   ];
   if (entry.note) wire[3] = entry.note;
   if (entry.source === "recurring") wire[4] = 1;
+  wire[5] = entry.id;
+  if (entry.revisions?.length) wire[6] = entry.revisions;
+  if (entry.undoOf) wire[7] = entry.undoOf;
   return wire as WireEntry;
 }
 
 function entryFromWire(wire: WireEntry, jarId: string, index: number): Entry {
-  const [amount, direction, at, note, source] = wire;
+  const [amount, direction, at, note, source, id, revisions, undoOf] = wire;
   return {
-    // Entry ids are only unique within a jar, and a transfer is the one moment
-    // where two devices' ids could collide, so rebuild them from the jar id.
-    id: `${jarId}-t${index}`,
+    // Preserve audit links; legacy tuples without IDs get stable jar-local IDs.
+    id: id ?? `${jarId}-t${index}`,
     amount: Number.isFinite(amount) ? amount : 0,
     direction: direction === 1 ? "deposit" : "withdrawal",
-    note,
+    note: note ?? undefined,
     at,
     source: source === 1 ? "recurring" : "manual",
+    revisions: revisions ?? undefined,
+    undoOf: undoOf ?? undefined,
   };
 }
 
@@ -152,6 +174,8 @@ function jarToWire(jar: Jar): WireJar {
   if (jar.lastDepositAt) wire.l = jar.lastDepositAt;
   if (jar.milestonesHit?.length) wire.h = jar.milestonesHit;
   if (jar.archived) wire.x = true;
+  if (jar.openingBalance !== undefined) wire.ob = jar.openingBalance;
+  if (jar.reminder) wire.rm = jar.reminder;
   if (jar.recurring) {
     wire.r = {
       am: jar.recurring.amount,
@@ -169,6 +193,7 @@ function jarFromWire(wire: WireJar, exportedAt: string): Jar {
     name: wire.n,
     target: wire.t,
     balance: wire.b,
+    openingBalance: wire.ob ?? (wire.e.length === 0 ? wire.b : 0),
     accent: wire.a,
     icon: wire.c,
     kind: wire.k,
@@ -178,6 +203,7 @@ function jarFromWire(wire: WireJar, exportedAt: string): Jar {
     lastDepositAt: wire.l,
     milestonesHit: wire.h ?? [],
     archived: wire.x === true,
+    reminder: wire.rm,
     recurring: wire.r
       ? {
           amount: wire.r.am,
@@ -281,6 +307,7 @@ function isWireJar(value: unknown): value is WireJar {
     (jar.t ?? 0) <= 0 ||
     !Number.isSafeInteger(jar.b) ||
     (jar.b ?? -1) < 0 ||
+    (jar.ob !== undefined && (!Number.isSafeInteger(jar.ob) || jar.ob < 0)) ||
     !["coral", "amber", "mint", "ocean", "berry", "clay"].includes(
       jar.a as string,
     ) ||
@@ -314,18 +341,31 @@ function isWireJar(value: unknown): value is WireJar {
       return false;
     if (rule.nd !== undefined && !validDate(rule.nd)) return false;
   }
+  if (jar.rm !== undefined && !isValidJarReminder(jar.rm)) return false;
   return jar.e.every(
     (entry) =>
       Array.isArray(entry) &&
       entry.length >= 3 &&
-      entry.length <= 5 &&
+      entry.length <= 8 &&
       Number.isSafeInteger(entry[0]) &&
       entry[0] > 0 &&
       (entry[1] === 0 || entry[1] === 1) &&
       validDate(entry[2]) &&
-      (entry[3] === undefined ||
+      (entry[3] == null ||
         (typeof entry[3] === "string" && entry[3].length <= 500)) &&
-      (entry[4] === undefined || entry[4] === 0 || entry[4] === 1),
+      (entry[4] == null || entry[4] === 0 || entry[4] === 1) &&
+      (entry[5] == null ||
+        (typeof entry[5] === "string" &&
+          entry[5].length > 0 &&
+          entry[5].length <= 256)) &&
+      (entry[6] == null ||
+        (Array.isArray(entry[6]) &&
+          entry[6].length <= 1000 &&
+          entry[6].every(isValidEntryRevision))) &&
+      (entry[7] == null ||
+        (typeof entry[7] === "string" &&
+          entry[7].length > 0 &&
+          entry[7].length <= 256)),
   );
 }
 
@@ -422,7 +462,7 @@ export function decodeTransferFrames(
       return assembly;
     }
     if (
-      snapshot.v !== TRANSFER_VERSION ||
+      (snapshot.v !== 1 && snapshot.v !== TRANSFER_VERSION) ||
       snapshot.jars.some((jar) => !isWireJar(jar))
     ) {
       assembly.error = "That transfer contains invalid jar data.";
@@ -438,11 +478,17 @@ export function decodeTransferFrames(
         "That transfer contains duplicate or excessive jar history.";
       return assembly;
     }
+    const jars = typedJars.map((jar) => jarFromWire(jar, snapshot.at!));
+    if (jars.some((jar) => !validEntryAudit(jar.entries))) {
+      assembly.error =
+        "That transfer contains invalid correction or Undo history.";
+      return assembly;
+    }
     assembly.snapshot = {
       version: snapshot.v,
       exportedAt: snapshot.at,
       currency: snapshot.cur,
-      jars: typedJars.map((jar) => jarFromWire(jar, snapshot.at!)),
+      jars,
     };
   } catch {
     assembly.error = "That code could not be read.";

@@ -8,6 +8,9 @@ import { ActionSheet } from "@/components/action-sheet";
 import { CelebrationModal } from "@/components/celebration-modal";
 import { DepositSheet } from "@/components/deposit-sheet";
 import { EditJarSheet } from "@/components/edit-jar-sheet";
+import { EditEntrySheet } from "@/components/edit-entry-sheet";
+import { SavingsPlan } from "@/components/savings-plan";
+import { JarReminderSettings } from "@/components/jar-reminder-settings";
 import { JarVessel } from "@/components/jar-vessel";
 import { RecurringSheet } from "@/components/recurring-sheet";
 import { ScreenContainer } from "@/components/screen-container";
@@ -28,6 +31,7 @@ import {
   useSavings,
 } from "@/lib/savings-store";
 import { SUPPORTED_CURRENCIES, useSettings } from "@/lib/settings-store";
+import { effectiveEntries, parseDeadline } from "@/lib/savings-core";
 
 export default function JarDetail() {
   const colors = useColors();
@@ -37,7 +41,8 @@ export default function JarDetail() {
     id: string;
     action?: string;
   }>();
-  const { jars, addEntry, archiveJar, editJar } = useSavings();
+  const { jars, addEntry, archiveJar, editJar, correctEntry, undoEntry } =
+    useSavings();
   const format = useMoney();
   const { currency } = useSettings();
   const currencySymbol =
@@ -59,13 +64,18 @@ export default function JarDetail() {
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState("");
   const [editTarget, setEditTarget] = useState("");
+  const [editDeadline, setEditDeadline] = useState("");
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [coinKey, setCoinKey] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
-  // A withdrawal stays reversible for a few seconds instead of demanding a confirm dialog.
+  // Both directions can be undone without deleting their audit history.
   const [undo, setUndo] = useState<{
     jarId: string;
     name: string;
     amount: number;
+    entryId: string;
+    direction: "deposit" | "withdrawal";
   } | null>(null);
   // Quick deposits derived from this jar's own state: neaten the balance, land on
   // the next milestone, follow the jar's own pace, or repeat the last deposit.
@@ -94,6 +104,7 @@ export default function JarDetail() {
   const progress = percent(jar);
   const accent = accents[jar.accent as Accent] ?? accents.ocean;
   const remaining = Math.max(jar.target - jar.balance, 0);
+  const editingEntry = jar.entries.find((entry) => entry.id === editingEntryId);
   const amountMinor = toMinor(sanitizeAmountInput(amount));
   const withdrawPreview =
     direction === "withdrawal" && amountMinor
@@ -125,16 +136,29 @@ export default function JarDetail() {
       );
     }
 
-    const reached = addEntry(jar.id, value, chosen, note.trim() || undefined);
+    const result = addEntry(jar.id, value, chosen, note.trim() || undefined);
+    if (!result) {
+      feedback.error();
+      setError(
+        "The transaction could not be saved. Check the amount and available balance.",
+      );
+      return;
+    }
+    const reached = result.reached;
     if (reached) feedback.milestone();
     else if (chosen === "withdrawal") feedback.medium();
     else feedback.success();
     setAmount("");
     setNote("");
     setError("");
-    if (chosen === "withdrawal")
-      setUndo({ jarId: jar.id, name: jar.name, amount: value });
-    else setCoinKey((key) => key + 1);
+    setUndo({
+      jarId: jar.id,
+      name: jar.name,
+      amount: value,
+      entryId: result.id,
+      direction: chosen,
+    });
+    if (chosen === "deposit") setCoinKey((key) => key + 1);
     setDirection(null);
     // Snapshot the progress at celebration time so the overlay stays truthful
     // even if the jar changes underneath it.
@@ -146,9 +170,17 @@ export default function JarDetail() {
   };
   const performUndo = () => {
     if (!undo) return;
-    // Compensating entry keeps an honest audit trail; milestones already hit are never re-triggered.
-    addEntry(undo.jarId, undo.amount, "deposit", "Withdrawal undone");
-    feedback.success();
+    if (undoEntry(undo.jarId, undo.entryId)) {
+      feedback.success();
+      setNotice(
+        "Transaction undone. The original and reversal remain in your history.",
+      );
+    } else {
+      feedback.error();
+      setNotice(
+        "Undo is unavailable because the balance changed or this transaction was already undone.",
+      );
+    }
     setUndo(null);
   };
   const saveRecurring = () => {
@@ -188,6 +220,7 @@ export default function JarDetail() {
   const openEdit = () => {
     setEditName(jar.name);
     setEditTarget(String(jar.target > 0 ? jar.target / 100 : ""));
+    setEditDeadline(jar.deadline ?? "");
     setEditVisible(true);
   };
   const saveEdit = () => {
@@ -195,7 +228,13 @@ export default function JarDetail() {
     const target = toMinor(sanitizeAmountInput(editTarget));
     if (!name || !target || target <= 0)
       return setError("Add a name and a target greater than zero.");
-    editJar(jar.id, { name, target });
+    if (editDeadline.trim() && !parseDeadline(editDeadline.trim()))
+      return setError("Enter a valid date or month and year.");
+    editJar(jar.id, {
+      name,
+      target,
+      deadline: editDeadline.trim() || undefined,
+    });
     setError("");
     setEditVisible(false);
   };
@@ -203,7 +242,7 @@ export default function JarDetail() {
   const menuActions = [
     {
       label: "Edit jar",
-      detail: "Rename it or change its target.",
+      detail: "Change its name, target, or deadline.",
       icon: "edit",
       onPress: openEdit,
     },
@@ -320,8 +359,9 @@ export default function JarDetail() {
                 <Text style={styles.statLabel}>DEPOSITS</Text>
                 <Text style={styles.statValue}>
                   {
-                    jar.entries.filter((entry) => entry.direction === "deposit")
-                      .length
+                    effectiveEntries(jar.entries).filter(
+                      (entry) => entry.direction === "deposit",
+                    ).length
                   }
                 </Text>
               </View>
@@ -435,18 +475,25 @@ export default function JarDetail() {
                 />
               </Pressable>
             )}
+            <SavingsPlan jar={jar} />
+            <JarReminderSettings jar={jar} />
             <View style={styles.activityHeader}>
               <View>
                 <Text style={styles.activityTitle}>Activity</Text>
                 <Text style={styles.activitySub}>
-                  Every contribution tells the story.
+                  Tap a transaction to correct it or view its history.
                 </Text>
               </View>
             </View>
           </>
         }
         renderItem={({ item }) => (
-          <View style={styles.entry}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`View ${item.direction} of ${format(item.amount)} on ${new Date(item.at).toLocaleDateString()}`}
+            onPress={() => setEditingEntryId(item.id)}
+            style={({ pressed }) => [styles.entry, pressed && styles.pressed]}
+          >
             <View
               style={[
                 styles.entryIcon,
@@ -466,11 +513,15 @@ export default function JarDetail() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.entryTitle}>
-                {item.direction === "deposit"
-                  ? item.source === "recurring"
-                    ? "Scheduled deposit"
-                    : "Money added"
-                  : "Money withdrawn"}
+                {item.undoOf
+                  ? "Undo record"
+                  : jar.entries.some((entry) => entry.undoOf === item.id)
+                    ? "Transaction undone"
+                    : item.direction === "deposit"
+                      ? item.source === "recurring"
+                        ? "Scheduled deposit"
+                        : "Money added"
+                      : "Money withdrawn"}
               </Text>
               <Text style={styles.entryMeta}>
                 {new Date(item.at).toLocaleDateString(undefined, {
@@ -479,6 +530,7 @@ export default function JarDetail() {
                   year: "numeric",
                 })}
                 {item.note ? ` · ${item.note}` : ""}
+                {item.revisions?.length ? " · Corrected" : ""}
               </Text>
             </View>
             <Text
@@ -491,7 +543,7 @@ export default function JarDetail() {
               {item.direction === "deposit" ? "+" : "−"}
               {format(item.amount)}
             </Text>
-          </View>
+          </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
         ListEmptyComponent={
@@ -500,6 +552,33 @@ export default function JarDetail() {
           </Text>
         }
       />
+      {editingEntry ? (
+        <EditEntrySheet
+          key={editingEntry.id}
+          entry={editingEntry}
+          canEdit={
+            !editingEntry.undoOf &&
+            !jar.entries.some((entry) => entry.undoOf === editingEntry.id)
+          }
+          onSave={(input) => {
+            if (!correctEntry(jar.id, editingEntry.id, input)) return false;
+            setEditingEntryId(null);
+            setUndo(null);
+            setNotice(
+              "Correction saved. Previous values are kept in the transaction history.",
+            );
+            return true;
+          }}
+          onUndo={() => {
+            if (!undoEntry(jar.id, editingEntry.id)) return false;
+            setEditingEntryId(null);
+            setUndo(null);
+            setNotice("Transaction undone. Both records stay in your history.");
+            return true;
+          }}
+          onDismiss={() => setEditingEntryId(null)}
+        />
+      ) : null}
       <DepositSheet
         direction={direction}
         jarName={jar.name}
@@ -551,6 +630,7 @@ export default function JarDetail() {
         visible={editVisible}
         name={editName}
         target={editTarget}
+        deadline={editDeadline}
         kind={jar.kind}
         error={error}
         currencySymbol={currencySymbol}
@@ -560,6 +640,7 @@ export default function JarDetail() {
           setEditTarget(sanitizeAmountInput(raw));
           setError("");
         }}
+        onDeadlineChange={setEditDeadline}
         onKindChange={(kind) => editJar(jar.id, { kind })}
         onSave={saveEdit}
         onDismiss={() => {
@@ -584,11 +665,17 @@ export default function JarDetail() {
         onDismiss={() => setCelebration(null)}
       />
       <Toast
-        visible={undo !== null}
-        message={`${format(undo?.amount ?? 0)} withdrawn from ${undo?.name ?? "your jar"}`}
+        visible={undo !== null && celebration === null}
+        message={`${format(undo?.amount ?? 0)} ${undo?.direction === "deposit" ? "added to" : "withdrawn from"} ${undo?.name ?? "your jar"}`}
         actionLabel="Undo"
         onAction={performUndo}
         onDismiss={() => setUndo(null)}
+      />
+      <Toast
+        visible={notice !== null}
+        message={notice ?? ""}
+        onDismiss={() => setNotice(null)}
+        durationMs={8000}
       />
     </ScreenContainer>
   );

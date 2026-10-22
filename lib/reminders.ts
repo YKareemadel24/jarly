@@ -4,6 +4,7 @@ import {
   money,
   parseDeadline,
 } from "@/lib/savings-core";
+import { nextReminderDates } from "@/lib/domain/reminder";
 
 function nextReminderTime(jar: Jar): number {
   const rule = jar.recurring;
@@ -33,6 +34,20 @@ export function jarReminders(
       const details = [
         `${money(jar.target - jar.balance, currency)} left to save.`,
       ];
+      if (jar.reminder) {
+        const reminder = jar.reminder;
+        const [next] = nextReminderDates(reminder, now);
+        if (!reminder.enabled) details.push("Personal reminder: paused.");
+        else if (
+          reminder.snoozedUntil &&
+          new Date(reminder.snoozedUntil) > now
+        ) {
+          details.push(
+            `Personal reminder: snoozed until ${new Date(reminder.snoozedUntil).toLocaleString()}.`,
+          );
+        } else if (next)
+          details.push(`Personal reminder: ${next.toLocaleString()}.`);
+      }
       const rule = jar.recurring;
       if (rule && !rule.paused && rule.amount > 0) {
         const due = new Date(rule.nextDate ?? jar.createdAt);

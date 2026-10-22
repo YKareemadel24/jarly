@@ -7,7 +7,7 @@
  */
 
 import { money } from "./money";
-import { type Jar, MILESTONE_LEVELS } from "./jar";
+import { effectiveEntries, type Jar, MILESTONE_LEVELS } from "./jar";
 import { recurringPerWeek } from "./schedule";
 
 /** Identity for a one-tap deposit suggestion. */
@@ -82,7 +82,7 @@ export function quickPresets(
 
   // 3. The jar's own pace: trailing deposits, or its recurring schedule.
   let recent = 0;
-  for (const entry of jar.entries) {
+  for (const entry of effectiveEntries(jar.entries)) {
     if (entry.direction !== "deposit") continue;
     const at = new Date(entry.at).getTime();
     if (at >= now.getTime() - PACE_WINDOW_MS && at <= now.getTime())
@@ -102,7 +102,7 @@ export function quickPresets(
   }
 
   // 4. Repeat whatever was last added. Newest entries come first.
-  for (const entry of jar.entries) {
+  for (const entry of effectiveEntries(jar.entries)) {
     if (entry.direction !== "deposit") continue;
     suggestions.push({
       id: "repeat-last",

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { makeStyles } from "@/components/profile.styles";
 import { ActionSheet } from "@/components/action-sheet";
+import { BackupPanel } from "@/components/backup-panel";
 import { ScreenContainer } from "@/components/screen-container";
 import { type ThemeColorPalette } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
@@ -407,6 +408,8 @@ export default function ProfileScreen() {
           </View>
           <MaterialIcons name="chevron-right" size={20} color={colors.muted} />
         </Pressable>
+
+        <BackupPanel />
 
         <Text style={styles.sectionLabel}>ARCHIVED</Text>
         <View style={styles.group}>

@@ -5,7 +5,7 @@
  * whole catalogue stays derivable — nothing is stored or mutated to earn one.
  */
 
-import { type Jar } from "./jar";
+import { effectiveEntries, type Jar } from "./jar";
 
 /** Identity for an achievement badge. */
 export type BadgeId =
@@ -149,7 +149,7 @@ export function badgeStats(
     // As with the monthly chart, archived jars no longer count toward active
     // progress: unarchiving is the way back in.
     if (jar.archived) continue;
-    for (const entry of jar.entries) {
+    for (const entry of effectiveEntries(jar.entries)) {
       if (entry.direction !== "deposit") continue;
       deposits += 1;
       totalDeposited += entry.amount;

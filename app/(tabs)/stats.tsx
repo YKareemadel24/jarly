@@ -1,3 +1,4 @@
+import { effectiveEntries } from "@/lib/savings-core";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -111,7 +112,9 @@ export default function InsightsScreen() {
       active.reduce(
         (count, jar) =>
           count +
-          jar.entries.filter((entry) => entry.direction === "deposit").length,
+          effectiveEntries(jar.entries).filter(
+            (entry) => entry.direction === "deposit",
+          ).length,
         0,
       ),
     [active],

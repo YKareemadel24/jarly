@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useMemo } from "react";
-import { SectionList, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, SectionList, Text, View } from "react-native";
 import { makeActivityStyles } from "@/components/activity.styles";
 import { JarVessel } from "@/components/jar-vessel";
 import { ScreenContainer } from "@/components/screen-container";
@@ -8,6 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useJarAccents } from "@/hooks/use-jar-accents";
 import {
   activitySections,
+  type ActivityFilters,
   type ActivityRowData,
 } from "@/lib/activity-sections";
 import { useMoney, useSavings } from "@/lib/savings-store";
@@ -27,16 +28,17 @@ function ActivityRow({
 }) {
   const accent = accents[row.jar.accent];
   const isDeposit = row.entry.direction === "deposit";
-  const title = isDeposit
+  const movement = isDeposit
     ? row.entry.source === "recurring"
       ? "Scheduled deposit"
       : "Money added"
     : "Money withdrawn";
+  const title = row.entry.undoOf ? `Undo · ${movement}` : movement;
   const amountLabel = `${isDeposit ? "+" : "−"}${format(row.entry.amount)}`;
   return (
     <View
       style={styles.row}
-      accessibilityLabel={`${title} into ${row.jar.name}. ${amountLabel}.`}
+      accessibilityLabel={`${title} ${isDeposit ? "into" : "from"} ${row.jar.name}. ${amountLabel}.${row.entry.revisions?.length ? " Corrected." : ""}`}
     >
       <View
         style={[
@@ -50,10 +52,11 @@ function ActivityRow({
           color={isDeposit ? accent : colors.error}
         />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.rowBody}>
         <Text style={styles.rowTitle}>{row.jar.name}</Text>
         <Text style={styles.rowMeta}>
           {title}
+          {row.entry.revisions?.length ? " · Corrected" : ""}
           {row.entry.note ? ` · ${row.entry.note}` : ""}
         </Text>
       </View>
@@ -72,8 +75,20 @@ export default function ActivityScreen() {
   const styles = useMemo(() => makeActivityStyles(colors), [colors]);
   const { jars } = useSavings();
   const format = useMoney();
+  const [filters, setFilters] = useState<ActivityFilters>({});
+  const filtered = Boolean(
+    filters.jarId ||
+    (filters.direction && filters.direction !== "all") ||
+    (filters.range && filters.range !== "all"),
+  );
+  const hasActivity = jars.some(
+    (jar) => !jar.archived && jar.entries.length > 0,
+  );
 
-  const groups = useMemo(() => activitySections(jars), [jars]);
+  const groups = useMemo(
+    () => activitySections(jars, new Date(), filters),
+    [jars, filters],
+  );
 
   return (
     <ScreenContainer>
@@ -86,7 +101,146 @@ export default function ActivityScreen() {
         ListHeaderComponent={
           <>
             <Text style={styles.kicker}>ACTIVITY</Text>
-            <Text style={styles.title}>Every deposit,{`\n`}told simply.</Text>
+            <Text style={styles.title}>Every move,{`\n`}told simply.</Text>
+            <View style={styles.filters}>
+              <View style={styles.filterHeading}>
+                <Text style={styles.filterTitle}>Filter activity</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset activity filters"
+                  disabled={!filtered}
+                  onPress={() => setFilters({})}
+                  style={({ pressed }) => [
+                    styles.reset,
+                    !filtered && styles.disabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.resetText}>Reset</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.filterLabel}>Jar</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.jarChoices}
+              >
+                {[
+                  { id: "", name: "All jars" },
+                  ...jars.filter((jar) => !jar.archived),
+                ].map((jar) => {
+                  const selected = (filters.jarId ?? "") === jar.id;
+                  return (
+                    <Pressable
+                      key={jar.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Jar: ${jar.name}`}
+                      accessibilityState={{ selected }}
+                      onPress={() =>
+                        setFilters((current) => ({
+                          ...current,
+                          jarId: jar.id || undefined,
+                        }))
+                      }
+                      style={({ pressed }) => [
+                        styles.choice,
+                        selected && styles.choiceSelected,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.choiceText,
+                          selected && styles.choiceTextSelected,
+                        ]}
+                      >
+                        {jar.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Text style={styles.filterLabel}>Direction</Text>
+              <View style={styles.choices}>
+                {(
+                  [
+                    ["all", "All"],
+                    ["deposit", "Deposits"],
+                    ["withdrawal", "Withdrawals"],
+                  ] as const
+                ).map(([value, label]) => {
+                  const selected = (filters.direction ?? "all") === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Direction: ${label}`}
+                      accessibilityState={{ selected }}
+                      onPress={() =>
+                        setFilters((current) => ({
+                          ...current,
+                          direction: value,
+                        }))
+                      }
+                      style={({ pressed }) => [
+                        styles.choice,
+                        selected && styles.choiceSelected,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.choiceText,
+                          selected && styles.choiceTextSelected,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.filterLabel}>Date range</Text>
+              <View style={styles.choices}>
+                {(
+                  [
+                    ["all", "All time"],
+                    ["7days", "7 days"],
+                    ["30days", "30 days"],
+                  ] as const
+                ).map(([value, label]) => {
+                  const selected = (filters.range ?? "all") === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Date range: ${label}`}
+                      accessibilityState={{ selected }}
+                      onPress={() =>
+                        setFilters((current) => ({ ...current, range: value }))
+                      }
+                      style={({ pressed }) => [
+                        styles.choice,
+                        selected && styles.choiceSelected,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.choiceText,
+                          selected && styles.choiceTextSelected,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.filterHint}>
+                Date ranges include today. Archived jars stay in Profile.
+              </Text>
+            </View>
           </>
         }
         ListEmptyComponent={
@@ -97,9 +251,13 @@ export default function ActivityScreen() {
               progress={0}
               size="medium"
             />
-            <Text style={styles.emptyTitle}>Nothing saved yet.</Text>
+            <Text style={styles.emptyTitle}>
+              {hasActivity ? "No matching activity." : "No activity yet."}
+            </Text>
             <Text style={styles.emptyCopy}>
-              Your deposits will appear here.
+              {hasActivity
+                ? "Try another filter or reset to see every move."
+                : "Your deposits and withdrawals will appear here."}
             </Text>
           </View>
         }

@@ -5,7 +5,7 @@
  * returns data — callers format the words. Integer minor units throughout.
  */
 
-import { type Jar, MILESTONE_LEVELS } from "./jar";
+import { effectiveEntries, type Jar, MILESTONE_LEVELS } from "./jar";
 import { recurringPerWeek } from "./schedule";
 
 export type MonthTotal = { label: string; total: number };
@@ -68,7 +68,7 @@ export function monthlyDeposits(
     // Archived jars are their own history section on the profile screen; the
     // insights chart reports on active saving only.
     if (jar.archived) continue;
-    for (const entry of jar.entries) {
+    for (const entry of effectiveEntries(jar.entries)) {
       if (entry.direction !== "deposit") continue;
       const at = new Date(entry.at);
       const ago =
@@ -170,7 +170,7 @@ export function depositTotalWithin(
   const since = now.getTime() - windowMs;
   let total = 0;
   for (const jar of jars) {
-    for (const entry of jar.entries) {
+    for (const entry of effectiveEntries(jar.entries)) {
       if (entry.direction !== "deposit") continue;
       const at = new Date(entry.at).getTime();
       if (at >= since && at <= now.getTime()) total += entry.amount;
@@ -232,15 +232,14 @@ export function paceProjection(
       pacePerWeekMinor: 0,
     };
 
-  const weeksLeft = Math.max(
-    1,
-    Math.ceil((calendarDay(date) - calendarDay(now)) / 7),
+  const daysLeft = BigInt(Math.max(7, calendarDay(date) - calendarDay(now)));
+  const requiredPerWeekMinor = Number(
+    (BigInt(remaining) * 7n + daysLeft - 1n) / daysLeft,
   );
-  const requiredPerWeekMinor = Math.ceil(remaining / weeksLeft);
 
   const cutoff = now.getTime() - 28 * 86_400_000;
   let recent = 0;
-  for (const entry of jar.entries) {
+  for (const entry of effectiveEntries(jar.entries)) {
     if (entry.direction !== "deposit") continue;
     const at = new Date(entry.at).getTime();
     if (at >= cutoff && at <= now.getTime()) recent += entry.amount;
@@ -252,9 +251,12 @@ export function paceProjection(
   if (pacePerWeekMinor <= 0)
     return { status: "no-pace", requiredPerWeekMinor, pacePerWeekMinor: 0 };
 
-  const projectedDate = new Date(
+  const projected = new Date(
     now.getTime() + (remaining / pacePerWeekMinor) * WEEK_MS,
-  ).toISOString();
+  );
+  if (!Number.isFinite(projected.getTime()))
+    return { status: "behind", requiredPerWeekMinor, pacePerWeekMinor };
+  const projectedDate = projected.toISOString();
   // Day granularity: finishing on the deadline day itself counts as on-track,
   // so intraday clock time never flips the verdict.
   const startOfDay = (d: Date) =>

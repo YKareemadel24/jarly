@@ -20,6 +20,25 @@ const jar = (overrides: Partial<Jar> = {}): Jar => ({
 const at = "2026-06-15T12:00:00.000Z";
 
 describe("jarReminders", () => {
+  it("shows personal reminder state while keeping deposit schedules separate", () => {
+    const custom = jar({
+      reminder: { enabled: false, hour: 18, minute: 30, weekdays: [1] },
+    });
+    expect(jarReminders([custom], new Date(at))[0].detail).toContain(
+      "Personal reminder: paused",
+    );
+    const snoozed = {
+      ...custom,
+      reminder: {
+        ...custom.reminder!,
+        enabled: true,
+        snoozedUntil: "2026-06-17T12:00:00.000Z",
+      },
+    };
+    expect(jarReminders([snoozed], new Date(at))[0].detail).toContain(
+      "Personal reminder: snoozed until",
+    );
+  });
   it("shows the remaining amount for every unfinished jar without a schedule", () => {
     const reminders = jarReminders(
       [

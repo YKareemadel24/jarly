@@ -22,6 +22,12 @@ import { reportError } from "@/lib/error-reporting";
 import { mergeTransferJars } from "@/lib/transfer-merge";
 import { useSettings } from "@/lib/settings-store";
 import {
+  correctEntry as correctJarEntry,
+  undoEntry as undoJarEntry,
+  type EntryCorrection,
+} from "@/lib/domain/transactions";
+import { isValidJarReminder } from "@/lib/domain/reminder";
+import {
   CADENCES,
   type Accent,
   type Badge,
@@ -99,6 +105,7 @@ type JarInput = Pick<
   "name" | "target" | "accent" | "icon" | "kind" | "deadline" | "streak"
 > & {
   recurring?: Jar["recurring"];
+  reminder?: Jar["reminder"];
 };
 
 type Store = {
@@ -122,6 +129,7 @@ type Store = {
         | "deadline"
         | "streak"
         | "recurring"
+        | "reminder"
       >
     >,
   ) => void;
@@ -130,14 +138,20 @@ type Store = {
   restoreJar: (id: string) => void;
   /** Permanently remove an archived jar and its history. */
   deleteJarPermanently: (id: string) => void;
-  /** Returns the highest milestone newly reached, or undefined when rejected. */
+  correctEntry: (
+    id: string,
+    entryId: string,
+    input: EntryCorrection,
+  ) => boolean;
+  undoEntry: (id: string, entryId: string) => boolean;
+  /** Returns the created entry ID and milestone, or undefined when rejected. */
   addEntry: (
     id: string,
     amountMinor: number,
     direction: Entry["direction"],
     note?: string,
     source?: Entry["source"],
-  ) => number | undefined;
+  ) => { id: string; reached?: number } | undefined;
   /**
    * Everything on this device, ready to be handed to another device as QR
    * frames.
@@ -216,6 +230,17 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const store = useMemo<Store>(() => {
+    const saveJar = (updated: Jar): boolean => {
+      const next = jarsRef.current.map((item) =>
+        item.id === updated.id ? updated : item,
+      );
+      const total = next
+        .filter((item) => !item.archived)
+        .reduce((sum, item) => sum + item.balance, 0);
+      if (!Number.isSafeInteger(total)) return false;
+      commit(next);
+      return true;
+    };
     return {
       jars,
       localJars: jars,
@@ -226,6 +251,8 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
         .reduce((sum, jar) => sum + jar.balance, 0),
       addJar: (input) => {
         if (
+          (input.reminder !== undefined &&
+            !isValidJarReminder(input.reminder)) ||
           !input.name.trim() ||
           !Number.isSafeInteger(input.target) ||
           input.target <= 0 ||
@@ -253,6 +280,8 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
       },
       editJar: (id, input) => {
         if (
+          (input.reminder !== undefined &&
+            !isValidJarReminder(input.reminder)) ||
           (input.target !== undefined &&
             (!Number.isSafeInteger(input.target) || input.target <= 0)) ||
           (input.recurring !== undefined &&
@@ -327,6 +356,16 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
           skipped: merged.skipped,
         };
       },
+      correctEntry: (id, entryId, input) => {
+        const jar = jarsRef.current.find((item) => item.id === id);
+        const updated = jar && correctJarEntry(jar, entryId, input);
+        return Boolean(updated && saveJar(updated));
+      },
+      undoEntry: (id, entryId) => {
+        const jar = jarsRef.current.find((item) => item.id === id);
+        const updated = jar && undoJarEntry(jar, entryId);
+        return Boolean(updated && saveJar(updated));
+      },
       addEntry: (id, amountMinor, direction, note, source = "manual") => {
         const jar = jarsRef.current.find((candidate) => candidate.id === id);
         if (!jar || !Number.isSafeInteger(amountMinor) || amountMinor <= 0)
@@ -335,20 +374,13 @@ export function SavingsProvider({ children }: { children: React.ReactNode }) {
           return undefined;
         const applied = applyEntry(jar, amountMinor, direction, note, source);
         if (!applied) return undefined;
-        const nextTotal = jarsRef.current
-          .filter((item) => !item.archived)
-          .reduce(
-            (total, item) =>
-              total + (item.id === id ? applied.jar.balance : item.balance),
-            0,
-          );
-        if (!Number.isSafeInteger(nextTotal)) return undefined;
-        commit(
-          jarsRef.current.map((item) => (item.id === id ? applied.jar : item)),
-        );
-        return applied.reached.length
-          ? Math.max(...applied.reached)
-          : undefined;
+        if (!saveJar(applied.jar)) return undefined;
+        return {
+          id: applied.jar.entries[0].id,
+          reached: applied.reached.length
+            ? Math.max(...applied.reached)
+            : undefined,
+        };
       },
     };
   }, [jars, ready, storageError, commit]);

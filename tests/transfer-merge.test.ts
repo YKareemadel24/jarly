@@ -24,6 +24,34 @@ const jar = (entries: Jar["entries"], balance: number): Jar => ({
 });
 
 describe("transfer merge", () => {
+  it("rejects a withdrawal made before funds were available", () => {
+    const incoming = jar(
+      [
+        { ...entry("later", 100), at: "2026-01-03T00:00:00.000Z" },
+        { ...entry("earlier", 100), direction: "withdrawal" },
+      ],
+      0,
+    );
+    expect(mergeTransferJars([], [incoming]).error).toBeDefined();
+  });
+
+  it("preserves safe large balances without intermediate floating point rounding", () => {
+    const maximum = Number.MAX_SAFE_INTEGER;
+    const incoming = {
+      ...jar(
+        [
+          { ...entry("later", maximum - 1), at: "2026-01-03T00:00:00.000Z" },
+          { ...entry("earlier", maximum), direction: "withdrawal" as const },
+        ],
+        maximum - 1,
+      ),
+      openingBalance: maximum,
+    };
+    expect(mergeTransferJars([], [incoming])).toMatchObject({
+      added: 1,
+      jars: [incoming],
+    });
+  });
   it("rejects a currency mismatch without changing local jars", () => {
     const local = [jar([], 0)];
     expect(mergeTransferJars(local, [], "EUR", "USD")).toMatchObject({

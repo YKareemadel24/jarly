@@ -1,5 +1,6 @@
 import { type Jar, money, parseDeadline } from "@/lib/savings-core";
 import { reportError } from "@/lib/error-reporting";
+import { nextReminderDates } from "@/lib/domain/reminder";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 
@@ -65,17 +66,29 @@ function morningFire(due: Date, now: Date): string {
 /**
  * Pure derivation of schedulable nudges for active, unfinished jars.
  * Home reminders also show future schedules; OS deadline pings are due-day-only.
- * Max one ping per jar.
+ * Legacy jars get one ping. Custom schedules share a finite queue fairly.
  */
 export function dueNotifications(
   jars: Jar[],
   now: Date = new Date(),
   currency: string = "USD",
 ): DueNotification[] {
-  const pings: DueNotification[] = [];
+  const queues: DueNotification[][] = [];
   for (const jar of jars) {
     if (jar.archived) continue;
     if (jar.target > 0 && jar.balance >= jar.target) continue;
+
+    if (jar.reminder) {
+      queues.push(
+        nextReminderDates(jar.reminder, now, 63).map((date) => ({
+          jarId: jar.id,
+          fireDate: date.toISOString(),
+          title: `${jar.name} savings reminder`,
+          detail: "A little more today goes a long way.",
+        })),
+      );
+      continue;
+    }
 
     const rule = jar.recurring;
     if (rule && !rule.paused && rule.amount > 0) {
@@ -84,12 +97,14 @@ export function dueNotifications(
         : new Date(jar.createdAt);
       const days = Math.ceil((due.getTime() - now.getTime()) / DAY_MS);
       if (days >= 0 && days <= 1) {
-        pings.push({
-          jarId: jar.id,
-          fireDate: morningFire(due, now),
-          title: `${jar.name} is scheduled`,
-          detail: `${money(rule.amount, currency)} due today.`,
-        });
+        queues.push([
+          {
+            jarId: jar.id,
+            fireDate: morningFire(due, now),
+            title: `${jar.name} is scheduled`,
+            detail: `${money(rule.amount, currency)} due today.`,
+          },
+        ]);
         continue;
       }
     }
@@ -97,14 +112,29 @@ export function dueNotifications(
     if (jar.deadline) {
       const due = parseDeadline(jar.deadline);
       if (due && startOfDay(due) === startOfDay(now)) {
-        pings.push({
-          jarId: jar.id,
-          fireDate: morningFire(due, now),
-          title: `${jar.name} is due today`,
-          detail: "A little more today goes a long way.",
-        });
+        queues.push([
+          {
+            jarId: jar.id,
+            fireDate: morningFire(due, now),
+            title: `${jar.name} is due today`,
+            detail: "A little more today goes a long way.",
+          },
+        ]);
       }
     }
+  }
+  // shortcut: the OS queue is finite; foreground resync replenishes upcoming dates.
+  const pings: DueNotification[] = [];
+  for (let index = 0; index < 63 && pings.length < 63; index++) {
+    let added = false;
+    for (const queue of queues) {
+      if (queue[index]) {
+        pings.push(queue[index]);
+        added = true;
+      }
+      if (pings.length === 63) break;
+    }
+    if (!added) break;
   }
   return pings;
 }
@@ -130,6 +160,7 @@ async function rebuildNotifications(
   await api.cancelAllScheduledNotificationsAsync();
   if (!opts.enabled) return;
   await ensureAndroidChannel(api);
+  if (!(await api.getPermissionsAsync()).granted) return;
   const now = opts.now ?? new Date();
   const total = jars
     .filter((jar) => !jar.archived)

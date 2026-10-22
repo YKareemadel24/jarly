@@ -11,6 +11,21 @@ export type Accent = "coral" | "amber" | "mint" | "ocean" | "berry" | "clay";
 export type Cadence = "daily" | "weekly" | "biweekly" | "monthly";
 export type JarKind = "goal" | "habit";
 
+export type EntryRevision = {
+  amount: number;
+  at: string;
+  note?: string;
+  changedAt: string;
+};
+
+export type JarReminder = {
+  enabled: boolean;
+  hour: number;
+  minute: number;
+  weekdays: number[];
+  snoozedUntil?: string;
+};
+
 export type Entry = {
   id: string;
   /** Integer minor units. Always positive; direction carries the sign. */
@@ -19,6 +34,9 @@ export type Entry = {
   note?: string;
   at: string;
   source?: "manual" | "recurring";
+  revisions?: EntryRevision[];
+  /** The entry reversed by this compensating transaction. */
+  undoOf?: string;
 };
 
 export type RecurringRule = {
@@ -37,6 +55,8 @@ export type Jar = {
   target: number;
   /** Integer minor units. */
   balance: number;
+  /** Legacy savings recorded before a transaction ledger existed. */
+  openingBalance?: number;
   accent: Accent;
   icon: string;
   kind: JarKind;
@@ -47,12 +67,23 @@ export type Jar = {
   milestonesHit: number[];
   archived?: boolean;
   recurring?: RecurringRule;
+  reminder?: JarReminder;
   entries: Entry[];
 };
 
 export const MILESTONE_LEVELS = [25, 50, 75, 100] as const;
 
 export const CADENCES: Cadence[] = ["daily", "weekly", "biweekly", "monthly"];
+
+/** Real contributions, excluding both sides of an Undo while retaining the full ledger. */
+export function effectiveEntries<T extends Pick<Entry, "id" | "undoOf">>(
+  entries: T[],
+): T[] {
+  const reversed = new Set(
+    entries.flatMap((entry) => (entry.undoOf ? [entry.undoOf] : [])),
+  );
+  return entries.filter((entry) => !entry.undoOf && !reversed.has(entry.id));
+}
 
 /** Progress toward the target, 0–100 clamped. Zero when there is no target. */
 export function percent(jar: Pick<Jar, "balance" | "target">): number {
@@ -214,18 +245,36 @@ export function normaliseJar(jar: LegacyJar, scaleToMinor = false): Jar {
     jar.recurring && typeof jar.recurring === "object"
       ? { ...jar.recurring, amount: scale(jar.recurring.amount) }
       : undefined;
+  const entries = (Array.isArray(jar.entries) ? jar.entries : []).map(
+    (entry) => ({ ...entry, amount: scale(entry.amount) }),
+  );
+  const balance = scale(jar.balance);
+  let openingBalance =
+    jar.openingBalance === undefined ? undefined : scale(jar.openingBalance);
+  if (
+    openingBalance === undefined &&
+    Number.isSafeInteger(balance) &&
+    entries.every((entry) => Number.isSafeInteger(entry.amount))
+  ) {
+    const opening = entries.reduce(
+      (total, entry) =>
+        total -
+        BigInt(entry.amount) * (entry.direction === "deposit" ? 1n : -1n),
+      BigInt(balance),
+    );
+    if (opening >= 0n && opening <= BigInt(Number.MAX_SAFE_INTEGER))
+      openingBalance = Number(opening);
+  }
   return {
     ...jar,
     accent: accentAliases[jar.accent] ?? "ocean",
     kind: jar.kind ?? (scaledRecurring ? "habit" : "goal"),
     createdAt: jar.createdAt ?? new Date().toISOString(),
     target: scale(jar.target),
-    balance: scale(jar.balance),
+    balance,
+    openingBalance,
     recurring: scaledRecurring,
     milestonesHit: Array.isArray(jar.milestonesHit) ? jar.milestonesHit : [],
-    entries: (Array.isArray(jar.entries) ? jar.entries : []).map((entry) => ({
-      ...entry,
-      amount: scale(entry.amount),
-    })),
+    entries,
   } as Jar;
 }

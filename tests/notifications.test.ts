@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   dueNotifications,
   requestPermissionAndEnable,
@@ -41,7 +41,16 @@ const jar = (overrides: Partial<Jar> = {}): Jar => ({
   ...overrides,
 });
 
-const at = "2026-06-15T12:00:00.000Z";
+const at = new Date(2026, 5, 15, 12).toISOString();
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(Notifications.getPermissionsAsync)
+    .mockReset()
+    .mockResolvedValue({ granted: true } as Awaited<
+      ReturnType<typeof Notifications.getPermissionsAsync>
+    >);
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -49,6 +58,59 @@ afterEach(() => {
 });
 
 describe("dueNotifications", () => {
+  it("uses personal weekdays and snooze instead of legacy due pings", () => {
+    const now = new Date(2026, 5, 15, 12);
+    const custom = jar({
+      deadline: "2026-06-15",
+      reminder: {
+        enabled: true,
+        hour: 18,
+        minute: 30,
+        weekdays: [1, 3],
+        snoozedUntil: new Date(2026, 5, 16, 12).toISOString(),
+      },
+    });
+    const pings = dueNotifications([custom], now);
+    expect(pings.length).toBeGreaterThan(2);
+    expect(
+      pings.every(
+        (ping) =>
+          new Date(ping.fireDate) >= new Date(custom.reminder!.snoozedUntil!),
+      ),
+    ).toBe(true);
+    expect(new Date(pings[0].fireDate).getDay()).toBe(3);
+    expect(new Date(pings[0].fireDate).getHours()).toBe(18);
+    expect(
+      dueNotifications(
+        [{ ...custom, reminder: { ...custom.reminder!, enabled: false } }],
+        now,
+      ),
+    ).toEqual([]);
+  });
+
+  it("shares at most 63 jar slots fairly and suppresses archived or funded personal reminders", () => {
+    const custom = jar({
+      reminder: {
+        enabled: true,
+        hour: 18,
+        minute: 0,
+        weekdays: [0, 1, 2, 3, 4, 5, 6],
+      },
+    });
+    const pings = dueNotifications(
+      [
+        custom,
+        { ...custom, id: "b" },
+        { ...custom, id: "c" },
+        { ...custom, id: "archived", archived: true },
+        { ...custom, id: "complete", balance: custom.target },
+      ],
+      new Date(at),
+    );
+    expect(pings).toHaveLength(63);
+    for (const id of ["trip", "b", "c"])
+      expect(pings.filter((ping) => ping.jarId === id)).toHaveLength(21);
+  });
   it("returns empty when nothing is due", () => {
     expect(dueNotifications([jar()], new Date(at))).toEqual([]);
   });
@@ -164,6 +226,55 @@ describe("dueNotifications", () => {
 });
 
 describe("notification resync", () => {
+  it("replaces personal dates on pause, funding, archive and global disable", async () => {
+    const scheduled: unknown[] = [];
+    vi.mocked(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).mockImplementation(async () => {
+      scheduled.length = 0;
+    });
+    vi.mocked(Notifications.scheduleNotificationAsync).mockImplementation(
+      async (request) => {
+        scheduled.push(request);
+        return "scheduled";
+      },
+    );
+    const custom = jar({
+      reminder: { enabled: true, hour: 18, minute: 0, weekdays: [1] },
+    });
+    await resyncNotifications([custom], { enabled: true, now: new Date(at) });
+    expect(scheduled).toHaveLength(64);
+    for (const next of [
+      { ...custom, reminder: { ...custom.reminder!, enabled: false } },
+      { ...custom, archived: true },
+      { ...custom, balance: custom.target },
+    ]) {
+      await resyncNotifications([next], { enabled: true, now: new Date(at) });
+      expect(scheduled).toHaveLength(1);
+    }
+    await resyncNotifications([custom], { enabled: false, now: new Date(at) });
+    expect(scheduled).toHaveLength(0);
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+  it("cancels existing schedules and refuses new ones without OS permission", async () => {
+    vi.mocked(Notifications.getPermissionsAsync).mockResolvedValueOnce({
+      granted: false,
+    } as Awaited<ReturnType<typeof Notifications.getPermissionsAsync>>);
+    await resyncNotifications([jar()], { enabled: true });
+    expect(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).toHaveBeenCalledOnce();
+    expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it("is a web no-op even with personal settings", async () => {
+    Object.defineProperty(Platform, "OS", { configurable: true, value: "web" });
+    await resyncNotifications([jar()], { enabled: true });
+    expect(
+      Notifications.cancelAllScheduledNotificationsAsync,
+    ).not.toHaveBeenCalled();
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
+  });
   it("lets a disable supersede a rebuild waiting on the OS", async () => {
     Object.defineProperty(Platform, "OS", {
       configurable: true,

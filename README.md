@@ -47,6 +47,15 @@ The primary loop is intentionally short:
 
 ## Recent upgrades
 
+### App 2.1.0: prioritized saving features
+
+- Correct transaction amounts, dates, and notes with retained previous values; Undo works for deposits and withdrawals through linked reversal records. Undone transactions stay visible in history but do not inflate contribution statistics.
+- Export/restore local `.jarly` backup files from Profile. Restore previews the merge and refuses conflicting histories or currency mismatches; security settings are excluded.
+- Jar details show a weekly savings plan and qualified finish estimates, with a deadline editor and separate amounts for deadlines less than a week away. Activity can filter by jar, direction, and local 7/30-day ranges.
+- Personal reminders support local time, weekdays, pause, and one-day snooze. Native notifications use a finite queue that refreshes on foreground/settings changes; reopen the app before scheduled reminders run out.
+- **A new native development/production build is required:** SDK-compatible `expo-document-picker`, `expo-file-system`, and `expo-sharing` provide file selection/export. App/runtime version is now 2.1.0 to keep these changes off older native runtimes.
+- Transfer payload v2 preserves entry IDs, correction/Undo history, personal reminders, and migrated starting balances; this reader still accepts v1. Older app versions must upgrade before receiving a v2 transfer.
+
 ### Expo SDK 57 / React Native 0.86
 
 - **Runtime jump** — Expo SDK 54 → 57, React Native 0.81 → 0.86, React 19.2, TypeScript 6.0, `react-native-reanimated` 4 with `react-native-worklets`, `expo-updates`, and `expo-dev-client` (a dev build is now required for native, since Expo Go no longer covers these versions).
@@ -59,7 +68,7 @@ The primary loop is intentionally short:
 
 ### Earlier milestones
 
-- Savings core split into focused modules under `lib/domain/` (`money`, `jar`, `schedule`, `insights`, `presets`, `badges`) with `lib/savings-core.ts` kept as the public entry point.
+- Savings core split into focused modules under `lib/domain/` (`money`, `jar`, `schedule`, `insights`, `presets`, `badges`, `transactions`, `reminder`) with `lib/savings-core.ts` kept as the public entry point.
 - App lock (biometric or PIN), currency selection, and reminders.
 
 ### Reliability, accessibility, and scale
@@ -81,8 +90,12 @@ The primary loop is intentionally short:
 - **Recurring saving** — schedule automatic deposits on a daily, weekly, biweekly, or monthly cadence, with deterministic catch-up of missed occurrences.
 - **Milestones** — progress is tracked at 25/50/75/100%, with a celebratory overlay when a level is crossed.
 - **Insights dashboard** — total saved, active/completed jars, best streak, deposit count, and closest-to-goal view.
-- **Activity feed** — a chronological log of every deposit and withdrawal across your jars.
+- **Activity feed** — a chronological log of deposits, withdrawals, corrections, and Undo records, filtered by jar, direction, and 7/30-day local date ranges.
 - **Badges & nudges** — a badge catalogue driven by the pure domain layer, plus deadline countdowns and pace hints.
+- **Transaction correction** — tap a jar-history entry to edit its amount/date/note or inspect previous values. A linked Undo record preserves the audit trail and rejects duplicate reversals.
+- **File backups** — save or choose a `.jarly` file in Profile, review its date/currency/jars/history and planned merge, then explicitly restore. Existing jars are kept; malformed, oversized, mixed-currency, or conflicting data is refused.
+- **Savings plans** — integer weekly requirements, recent deposit pace, and estimated completion after deposits on two recent days. Estimates are qualified and deadlines can be edited.
+- **Personal reminders** — per-jar local time/weekdays, pause and one-day snooze; custom schedules stay separate from automatically recorded recurring deposits.
 - **Device-to-device transfer** — move personal jars to a new phone over chained QR frames. No account, no server, no cable.
 - **App lock** — optional biometric or PIN lock. The PIN is stored as a salted SHA-256 in `SecureStore`, with an escalating lockout after five failed attempts.
 - **Reminders** — a daily 9 AM local savings check-in showing the active-jar total, plus local notifications for due recurring deposits and deadlines. Notifications resync when the app opens or savings change.
@@ -96,17 +109,17 @@ The primary loop is intentionally short:
 
 ## Tech stack
 
-| Layer           | Technology                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| App framework   | [Expo](https://expo.dev) SDK 57 (React Native 0.86, React 19.2)                                                                     |
-| Routing         | [Expo Router](https://docs.expo.dev/router/introduction/) v7 (file-based, typed routes)                                             |
-| Styling         | [NativeWind](https://www.nativewind.dev/) v4 (Tailwind CSS 3) + custom design tokens, plus `boxShadow` for cross-platform elevation |
-| Animation       | `react-native-reanimated` 4 + `react-native-worklets`, `react-native-gesture-handler`, `expo-haptics`, `react-native-svg`           |
-| Device features | `expo-local-authentication` + `expo-secure-store` (app lock), `expo-notifications` (reminders), `expo-updates`, `expo-dev-client`   |
-| Client state    | React Context + `AsyncStorage` (savings, settings)                                                                                  |
-| Testing         | [Vitest](https://vitest.dev) 5 (Vite 8)                                                                                             |
-| Tooling         | TypeScript 6, ESLint 9 (Expo flat config), Prettier 3                                                                               |
-| Package manager | pnpm 9.12                                                                                                                           |
+| Layer           | Technology                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App framework   | [Expo](https://expo.dev) SDK 57 (React Native 0.86, React 19.2)                                                                                                                                         |
+| Routing         | [Expo Router](https://docs.expo.dev/router/introduction/) v7 (file-based, typed routes)                                                                                                                 |
+| Styling         | [NativeWind](https://www.nativewind.dev/) v4 (Tailwind CSS 3) + custom design tokens, plus `boxShadow` for cross-platform elevation                                                                     |
+| Animation       | `react-native-reanimated` 4 + `react-native-worklets`, `react-native-gesture-handler`, `expo-haptics`, `react-native-svg`                                                                               |
+| Device features | `expo-local-authentication` + `expo-secure-store` (app lock), `expo-notifications` (reminders), `expo-updates`, `expo-dev-client`, `expo-document-picker`, `expo-file-system`, `expo-sharing` (backups) |
+| Client state    | React Context + `AsyncStorage` (savings, settings)                                                                                                                                                      |
+| Testing         | [Vitest](https://vitest.dev) 5 (Vite 8)                                                                                                                                                                 |
+| Tooling         | TypeScript 6, ESLint 9 (Expo flat config), Prettier 3                                                                                                                                                   |
+| Package manager | pnpm 9.12                                                                                                                                                                                               |
 
 ---
 
@@ -126,7 +139,7 @@ The project is a **local-first Expo app**: an Expo Router client with all data s
 
 Key decisions:
 
-- **Domain logic is pure and isolated** behind `lib/savings-core.ts`, which re-exports the focused modules in `lib/domain/` (`money`, `jar`, `schedule`, `insights`, `presets`, `badges`). This layer has no React or I/O, which keeps it fully unit-testable, and screens import only from the entry point so the split stays internal.
+- **Domain logic is pure and isolated** behind `lib/savings-core.ts`, which re-exports the focused modules in `lib/domain/` (`money`, `jar`, `schedule`, `insights`, `presets`, `badges`, `transactions`, `reminder`). This layer has no React or I/O, which keeps it fully unit-testable, and screens import only from the entry point so the split stays internal.
 - **The React store** (`lib/savings-store.tsx`) is a thin context wrapper around the pure domain layer, persisting to `AsyncStorage`. Settings that are not jars (appearance, reminders, app lock, currency) live separately in `lib/settings-store.tsx`.
 - **All savings data is device-local.** Jars live only in `AsyncStorage` — there is no server and no account system.
 - **Money is always integer minor units** (cents). Floats are never used for balances; see [Domain & data model](#domain--data-model).
@@ -167,28 +180,37 @@ jarly/
 │   ├── lock-screen.tsx         # Biometric / PIN app lock
 │   ├── qr-code.tsx             # QR rendering + scanning for transfers
 │   ├── deposit-sheet.tsx       # Deposit / withdrawal sheet
+│   ├── edit-entry-sheet.tsx    # Transaction correction, Undo and audit history
+│   ├── edit-entry.styles.ts    # Transaction sheet styles
+│   ├── backup-panel.tsx        # Local file export and restore preview
+│   ├── backup.styles.ts        # Backup controls and preview styles
+│   ├── savings-plan.tsx        # Weekly requirement and qualified finish estimate
+│   ├── savings-plan.styles.ts  # Plan card styles
+│   ├── jar-reminder-settings.tsx # Collapsible time/day/snooze editor
+│   ├── jar-reminder.styles.ts  # Personal reminder styles
 │   ├── edit-jar-sheet.tsx      # Rename, retarget, restyle
 │   ├── recurring-sheet.tsx     # Recurring cadence editor
 │   ├── toast.tsx               # Transient messages with an optional action
 │   ├── storage-warning.tsx     # Persistent warning when jar storage fails
 │   ├── screen-container.tsx    # Safe-area aware screen wrapper
 │   ├── themed-view.tsx         # Theme-aware View
-│   ├── notification-resync.tsx # Reschedules reminders when the jar list changes
-│   └── ui/                     # Low-level primitives (icons, collapsible, …)
+│   └── notification-resync.tsx # Reschedules reminders when the jar list changes
 ├── constants/                  # Public constants (theme tokens)
 ├── docs/superpowers/           # Design specs and implementation plans
 ├── hooks/                      # use-colors, use-color-scheme, use-jar-accents
 ├── lib/                        # Client domain + infrastructure
 │   ├── savings-core.ts         # Public entry point re-exporting lib/domain
 │   ├── activity-sections.ts   # Pure local-day grouping for the Activity list
-│   ├── domain/                 # PURE modules: money, jar, schedule, insights, presets, badges
+│   ├── domain/                 # PURE modules: money, jar, schedule, insights, presets, badges, transactions, reminder
 │   ├── savings-store.tsx       # Jar context provider + AsyncStorage persistence
 │   ├── lock-policy.ts          # Fail-closed app lock decisions
 │   ├── transfer-merge.ts       # Safe merge for matching transfer histories
+│   ├── backup.ts              # Bounded versioned backup validation and merge preview
+│   ├── backup-files.ts        # Browser downloads and native picker/share APIs
 │   ├── savings-storage.ts      # Recovery selection + ordered jar writes
 │   ├── settings-store.tsx      # Appearance, currency, reminders, biometric/PIN lock
 │   ├── notifications.ts        # Lazy expo-notifications wrapper + scheduling
-│   ├── reminders.ts            # Which reminder, if any, is due
+│   ├── reminders.ts            # Sorted Home reminders and personal schedule summaries
 │   ├── theme-provider.tsx      # Light/dark/system theme provider
 │   ├── store-error.ts          # Typed store error seam
 │   ├── error-reporting.ts      # Client-side error capture
@@ -214,7 +236,7 @@ jarly/
 
 ### 1. Install dependencies
 
-**Node.js 20+** and **pnpm 9.12** (`corepack enable` picks up the version declared in `package.json`) are required. **Expo Go** on a device, or a simulator, for native development.
+**Node.js 20+** and **pnpm 9.12** (`corepack enable` picks up the version declared in `package.json`) are required. A native development build on a device or simulator is needed for native development.
 
 ```bash
 pnpm install
@@ -334,7 +356,7 @@ Design tokens (`theme.config.js`):
 | `background` | `#F6F1E8` | `#201B18` |
 | `surface`    | `#FFFDF9` | `#2D2722` |
 | `foreground` | `#2C231D` | `#F6EDE2` |
-| `muted`      | `#7E7167` | `#C5B7AA` |
+| `muted`      | `#6B5F55` | `#C5B7AA` |
 | `border`     | `#E6DCD0` | `#4A4039` |
 | `success`    | `#4A9579` | `#7BC6A7` |
 | `warning`    | `#B88322` | `#E4BD61` |
@@ -363,7 +385,9 @@ All four checks (typecheck, format, lint, tests) run on every push to `master` a
 - `saving-jar.helpers.test.ts` — progress helpers, currency formatting, accent colors.
 - `badges.test.ts`, `quick-presets.test.ts` — badge thresholds and deposit presets.
 - `notifications.test.ts`, `reminders.test.ts` — ordered reminder scheduling, hydration and error handling, permission flow, and calendar-day deadlines.
-- `activity-sections.test.ts` — day grouping and transaction ordering for the virtualized Activity list.
+- `activity-sections.test.ts` — local-day grouping, transaction ordering, and combined filters.
+- `transactions.test.ts`, `transfer.test.ts`, `backup.test.ts` — safe corrections/Undo, audit/legacy balance round trips, bounded backup parsing and restore conflicts.
+- `savings-plan.test.ts`, `savings-planning.test.ts`, `reminder-settings.test.ts` — qualified projections, exact partial-week requirements, and local reminder/snooze boundaries.
 
 ---
 

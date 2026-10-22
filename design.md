@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-22
 
 ## Experience direction
 
@@ -26,6 +26,14 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 The user opens the home screen, taps a reminder or a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
 
+### Correct or undo a recorded transaction
+
+A success toast offers Undo for either deposits or withdrawals; milestone celebrations finish before its timer starts. Tapping an entry in a jar’s history opens its amount/date/note editor, previous values, and an Undo action. Corrections preserve original values with a correction timestamp. Undo adds a linked opposite entry instead of deleting data, and cannot be repeated. Both audit rows remain visible; statistics, pace, and habit streaks exclude reversed contributions. Corrections reject future/invalid dates, unsafe money, and changes that leave an effective historical withdrawal unfunded. Legacy starting balances are preserved.
+
+### Recover from a file backup
+
+Profile exports a versioned `.jarly` file containing all jars and history, including archived/completed jars, reminders, and correction records. Export uses a browser download or the native share sheet; the user chooses where to save it. Restore picks a local file, validates its bounded contents, and previews export date, currency, counts, balance and merge outcome before an explicit Restore. Conflicts and mismatched currencies are refused atomically; unrelated local jars remain. PINs and app security settings are excluded. Backup files contain readable savings data and should be kept private.
+
 ### Create a goal jar
 
 The user opens the create-jar sheet from the dashboard, names the goal, picks an emoji and semantic color, sets a target, and optionally enters a deadline. The preview updates throughout the flow. On creation, the goal appears immediately in the jar collection and becomes available for deposits.
@@ -42,11 +50,17 @@ If local jar storage cannot be read or a save fails, a persistent warning explai
 
 The app lock stays visible while security settings load or when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
 
+### Saving plans and activity filters
+
+Jar details show an integer weekly amount based on actual calendar days left, recent deposits averaged over 28 days, and a qualified finish estimate after deposits on two separate recent days. A deadline within six days shows the full remaining amount by the deadline; due-today, overdue, undated and funded states have specific copy. The estimate may use the recurring schedule and can be delayed by withdrawals. Jar options allow editing or clearing the deadline. Activity filters combine jar, direction, and all/7/30-day local date ranges; Reset restores the full log and no-match states differ from no-history states.
+
 ### Gentle support: reminders and OS notifications
 
-Home provides one compact reminder card per active, unfinished jar (`jarReminders`), ordered by the earliest active deposit or deadline, with undated jars last. The first two appear by default; a labeled expand/collapse control exposes all reminders and announces its expanded state to assistive technology. Remaining savings, next scheduled deposit (when active), and deadline (when set) appear on separate lines. Each reminder has a visible `+ Add` action and opens that jar's deposit sheet. These cards stay available independently of the OS notification toggle. Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
+Home provides one compact reminder card per active, unfinished jar (`jarReminders`), ordered by the earliest active deposit or deadline, with undated jars last. The first two appear by default; a labeled expand/collapse control exposes all reminders and announces its expanded state to assistive technology. Remaining savings, next scheduled deposit (when active), and deadline (when set) appear on separate lines. Each reminder has a visible `+ Add` action and opens that jar's deposit sheet. These cards stay available independently of the OS notification toggle. Completed and archived jars never remind. OS local notifications also include a daily 09:00 local savings check-in with the total balance from active jars, plus at most one due-deposit or due-day deadline ping per jar using default reminders. The total reflects the latest app sync; local notifications cannot refresh savings while the app is closed.
 
 The schedule is rebuilt on every app foreground and on every jars/settings change (cancel-all-then-schedule, so edits and deposits self-heal). Scheduling waits for both savings and settings to hydrate, and overlapping rebuilds coalesce so the latest setting wins. Scheduler errors go through the existing error capture; permission-check failures show an in-app notice. The Profile toggle requests OS permission on enable; denial leaves the toggle off with a note pointing at system Settings, and disabling is an instant kill-switch. Web is a no-op; Android uses a `reminders` channel. No push or background tasks.
+
+Personal reminder settings start collapsed in jar detail. A labeled Set/Edit action exposes 24-hour local time, weekdays, enable/pause, one-day snooze and clear snooze. Saving preserves the pause state; these reminders never record deposits or change automatic recurring saving. The global Profile toggle and OS permission still govern native delivery; web only saves settings. Custom schedules share 63 one-shot OS slots, allocated round-robin across eligible jars, plus the separate repeating 09:00 summary. The queue is replenished on foreground and jar/settings changes; the app must be reopened before it is exhausted and after timezone changes. With more than 63 eligible jars, some jars have no queued slot. Local times skipped by daylight saving are omitted. Existing jars without custom settings keep their prior due-deposit/deadline behavior.
 
 ### Lock, currency, and archiving
 
@@ -62,7 +76,7 @@ Below the jar-detail hero sit two compact stat cards — **Remaining** (amount t
 
 ## Color choices
 
-The neutral app base is warm paper and dark cocoa: background **#F6F1E8**, elevated surface **#FFFDF9**, primary ink **#2C231D**, secondary ink **#7E7167**, and soft border **#E6DCD0**. The action color is cocoa **#3B2D24**. Six jar accents provide identity without changing application chrome: coral **#DE7D68**, amber **#E5B847**, mint **#73BDA3**, ocean **#6FA8BF**, berry **#B981AB**, and clay **#B68767**.
+The neutral app base is warm paper and dark cocoa: background **#F6F1E8**, elevated surface **#FFFDF9**, primary ink **#2C231D**, secondary ink **#6B5F55**, and soft border **#E6DCD0**. The action color is cocoa **#3B2D24**. Six jar accents provide identity without changing application chrome: coral **#DE7D68**, amber **#E5B847**, mint **#73BDA3**, ocean **#6FA8BF**, berry **#B981AB**, and clay **#B68767**.
 
 Dark mode retains warm charcoal rather than blue-black, using **#201B18** for the canvas, **#2D2722** for surfaces, **#F6EDE2** for primary text, and muted warm-gray borders. Jar colors remain recognizable in both themes.
 

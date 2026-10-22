@@ -1,0 +1,68 @@
+import { StyleSheet } from "react-native";
+import { type ThemeColorPalette } from "@/constants/theme";
+
+export const makeStyles = (c: ThemeColorPalette) =>
+  StyleSheet.create({
+    card: {
+      marginTop: 18,
+      padding: 18,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 20,
+      backgroundColor: c.surface,
+    },
+    title: { color: c.foreground, fontSize: 19, fontWeight: "700" },
+    copy: { color: c.muted, fontSize: 12, lineHeight: 18 },
+    label: { color: c.foreground, fontSize: 13, fontWeight: "600" },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    time: { flexDirection: "row", alignItems: "center", gap: 8 },
+    input: {
+      minHeight: 44,
+      width: 64,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      color: c.foreground,
+      backgroundColor: c.background,
+      textAlign: "center",
+      fontSize: 17,
+    },
+    days: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    day: {
+      minWidth: 44,
+      minHeight: 44,
+      paddingHorizontal: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+    },
+    dayText: { color: c.foreground, fontSize: 12, fontWeight: "600" },
+    selected: { backgroundColor: c.primary, borderColor: c.primary },
+    selectedText: { color: "#FFFDF9" },
+    button: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: c.primary,
+    },
+    buttonText: { color: "#FFFDF9", fontWeight: "700", fontSize: 14 },
+    secondary: {
+      minHeight: 44,
+      paddingHorizontal: 12,
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+    },
+  });

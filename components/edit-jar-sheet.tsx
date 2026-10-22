@@ -9,12 +9,14 @@ type Props = {
   visible: boolean;
   name: string;
   target: string;
+  deadline: string;
   kind: JarKind;
   error: string;
   currencySymbol: string;
   accent: string;
   onNameChange: (name: string) => void;
   onTargetChange: (raw: string) => void;
+  onDeadlineChange: (raw: string) => void;
   onKindChange: (kind: JarKind) => void;
   onSave: () => void;
   onDismiss: () => void;
@@ -24,12 +26,14 @@ export function EditJarSheet({
   visible,
   name,
   target,
+  deadline,
   kind,
   error,
   currencySymbol,
   accent,
   onNameChange,
   onTargetChange,
+  onDeadlineChange,
   onKindChange,
   onSave,
   onDismiss,
@@ -50,7 +54,7 @@ export function EditJarSheet({
           <Text style={styles.sheetEyebrow}>EDIT JAR</Text>
           <Text style={styles.sheetTitle}>Adjust your goal.</Text>
           <Text style={styles.sheetCopy}>
-            Rename it or change its target. Your history stays untouched.
+            Change its name, target, or deadline. Your history stays untouched.
           </Text>
           <TextInput
             accessibilityLabel="Jar name"
@@ -73,6 +77,15 @@ export function EditJarSheet({
               style={styles.sheetAmountInput}
             />
           </View>
+          <TextInput
+            accessibilityLabel="Jar deadline"
+            value={deadline}
+            onChangeText={onDeadlineChange}
+            placeholder="Deadline (YYYY-MM-DD or Month Year, optional)"
+            placeholderTextColor={colors.muted}
+            maxLength={40}
+            style={styles.noteInput}
+          />
           <View style={styles.cadences}>
             {(["goal", "habit"] as JarKind[]).map((item) => (
               <Pressable

@@ -1,4 +1,36 @@
 import type { Jar } from "@/lib/domain";
+import { validTransactionHistory } from "@/lib/domain/transactions";
+
+function jarSettings(jar: Jar) {
+  return {
+    name: jar.name,
+    target: jar.target,
+    accent: jar.accent,
+    icon: jar.icon,
+    kind: jar.kind,
+    deadline: jar.deadline || undefined,
+    recurring: jar.recurring
+      ? {
+          amount: jar.recurring.amount,
+          cadence: jar.recurring.cadence,
+          nextDate: jar.recurring.nextDate,
+          paused: Boolean(jar.recurring.paused),
+        }
+      : undefined,
+    reminder: jar.reminder
+      ? {
+          enabled: jar.reminder.enabled,
+          hour: jar.reminder.hour,
+          minute: jar.reminder.minute,
+          weekdays: [...jar.reminder.weekdays].sort(),
+          snoozedUntil: jar.reminder.snoozedUntil,
+        }
+      : undefined,
+    openingBalance:
+      jar.openingBalance ?? (jar.entries.length === 0 ? jar.balance : 0),
+    archived: Boolean(jar.archived),
+  };
+}
 
 export function mergeTransferJars(
   current: Jar[],
@@ -21,18 +53,14 @@ export function mergeTransferJars(
   if (new Set(incoming.map((jar) => jar.id)).size !== incoming.length)
     return { ...unchanged, error: "This transfer contains duplicate jars." };
   if (
-    incoming.some((jar) => {
-      if (jar.entries.length === 0) return false; // Older jars may have a starting balance without a ledger.
-      const balance = jar.entries.reduce(
-        (total, entry) =>
-          total +
-          (entry.direction === "deposit" ? entry.amount : -entry.amount),
-        0,
-      );
-      return (
-        !Number.isSafeInteger(balance) || balance < 0 || balance !== jar.balance
-      );
-    })
+    incoming.some(
+      (jar) =>
+        !validTransactionHistory({
+          ...jar,
+          openingBalance:
+            jar.openingBalance ?? (jar.entries.length === 0 ? jar.balance : 0),
+        }),
+    )
   )
     return {
       ...unchanged,
@@ -53,27 +81,7 @@ export function mergeTransferJars(
       added += 1;
       continue;
     }
-    const localDetails = {
-      name: local.name,
-      target: local.target,
-      accent: local.accent,
-      icon: local.icon,
-      kind: local.kind,
-      deadline: local.deadline,
-      recurring: local.recurring,
-      archived: local.archived,
-    };
-    const incomingDetails = {
-      name: jar.name,
-      target: jar.target,
-      accent: jar.accent,
-      icon: jar.icon,
-      kind: jar.kind,
-      deadline: jar.deadline,
-      recurring: jar.recurring,
-      archived: jar.archived,
-    };
-    if (JSON.stringify(localDetails) !== JSON.stringify(incomingDetails))
+    if (JSON.stringify(jarSettings(local)) !== JSON.stringify(jarSettings(jar)))
       return {
         ...unchanged,
         error: `Jar “${jar.name}” has conflicting settings. Resolve the copies before importing.`,
@@ -84,7 +92,9 @@ export function mergeTransferJars(
       a.direction === b.direction &&
       a.at === b.at &&
       a.note === b.note &&
-      a.source === b.source;
+      (a.source ?? "manual") === (b.source ?? "manual") &&
+      a.undoOf === b.undoOf &&
+      JSON.stringify(a.revisions ?? []) === JSON.stringify(b.revisions ?? []);
     const localSuffix =
       jar.entries.length >= local.entries.length &&
       local.entries.every((entry, index) =>

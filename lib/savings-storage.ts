@@ -1,4 +1,6 @@
 import { normaliseJar, type Jar } from "@/lib/domain";
+import { validEntryAudit } from "@/lib/domain/transactions";
+import { isValidJarReminder } from "@/lib/domain/reminder";
 
 export type KeyValueStorage = {
   getItem: (key: string) => Promise<string | null>;
@@ -39,7 +41,11 @@ function validStoredJar(jar: Jar): boolean {
     jar.target > 0 &&
     Number.isSafeInteger(jar.balance) &&
     jar.balance >= 0 &&
+    (jar.openingBalance === undefined ||
+      (Number.isSafeInteger(jar.openingBalance) && jar.openingBalance >= 0)) &&
     Array.isArray(jar.entries) &&
+    validEntryAudit(jar.entries) &&
+    (jar.reminder === undefined || isValidJarReminder(jar.reminder)) &&
     jar.entries.every(
       (entry) =>
         Number.isSafeInteger(entry.amount) &&
