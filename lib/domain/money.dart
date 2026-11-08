@@ -37,13 +37,32 @@ int? toMinor(Object? value) {
 /// Convert minor units back to a whole-currency number for display inputs.
 double fromMinor(int minor) => minor / 100;
 
+/// Display symbols matching the original app's Intl output; unknown codes
+/// render as-is.
+const Map<String, String> _currencySymbols = {
+  'USD': r'$',
+  'EUR': '€',
+  'GBP': '£',
+  'EGP': 'EGP',
+  'SAR': 'SAR',
+  'AED': 'AED',
+  'JPY': '¥',
+  'INR': '₹',
+  'CAD': r'CA$',
+  'AUD': r'A$',
+};
+
 /// Format minor units as a currency string, falling back when Intl lacks the currency.
 String money(int minor, [String currency = 'USD']) {
   try {
+    final symbol = _currencySymbols[currency] ?? currency;
+    // Multi-character symbols read better with a narrow space, matching the
+    // original app's Intl output ("EGP 25.00" vs "$25.00").
+    final pattern = symbol.length > 1 ? '\u00A4\u00A0#,##0.00' : '\u00A4#,##0.00';
     final format = NumberFormat.currency(
       locale: Intl.getCurrentLocale(),
-      name: currency,
-      customPattern: '\u00A4#,##0.00',
+      symbol: symbol,
+      customPattern: pattern,
     );
     return format.format(fromMinor(minor));
   } catch (_) {

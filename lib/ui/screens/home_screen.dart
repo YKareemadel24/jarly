@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/hex_color.dart';
+import '../../core/theme/jar_accents.dart';
 import '../../core/theme/palette.dart';
 import '../../domain/domain.dart';
 import '../../activity/jar_reminders.dart';
@@ -399,7 +400,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               children: [
                 JarVessel(
-                  accent: jarAccent['amber']!,
+                  accent: accentFor('amber', palette),
                   icon: 'star',
                   progress: 0,
                   size: JarVesselSize.medium,
@@ -453,7 +454,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _reminderCard(WidgetRef ref, Palette palette, JarReminderRow reminder) {
-    final accent = jarAccent[reminder.jar.accent] ?? jarAccent['ocean']!;
+    final accent = accentFor(reminder.jar.accent, palette);
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: _Pressable(
@@ -542,7 +543,7 @@ class GoalCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(paletteProvider);
     final progress = percent(jar);
-    final accent = jarAccent[jar.accent] ?? jarAccent['ocean']!;
+    final accent = accentFor(jar.accent, palette);
     final countdown = deadlineCountdown(jar.deadline);
     final urgent = isUrgentDeadline(countdown);
     final isHabitStreak = jar.kind == kindHabit && (jar.streak ?? 0) > 0;

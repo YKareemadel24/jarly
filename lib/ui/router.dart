@@ -86,7 +86,8 @@ Widget _slideFromRight(
         .animate(curved),
     child: FadeTransition(
       opacity: Tween<double>(begin: 0.4, end: 1).animate(curved),
-      child: child,
+      // Pushed routes have no Scaffold; Material keeps text styling sane.
+      child: Material(type: MaterialType.transparency, child: child),
     ),
   );
 }
@@ -102,7 +103,7 @@ Widget _slideFromBottom(
         .animate(curved),
     child: FadeTransition(
       opacity: Tween<double>(begin: 0.4, end: 1).animate(curved),
-      child: child,
+      child: Material(type: MaterialType.transparency, child: child),
     ),
   );
 }
