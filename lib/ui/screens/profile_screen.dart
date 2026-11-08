@@ -18,6 +18,7 @@ import '../../services/haptics.dart';
 import '../../services/notification_service.dart';
 import '../../state/providers.dart';
 import '../widgets/action_sheet.dart';
+import '../widgets/backup_panel.dart';
 import '../widgets/screen_container.dart';
 import '../widgets/sheet_scaffold.dart';
 
@@ -393,6 +394,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
                   ),
                 ),
+
+                const BackupPanel(),
 
                 _sectionLabel(palette, 'ARCHIVED'),
                 _group(

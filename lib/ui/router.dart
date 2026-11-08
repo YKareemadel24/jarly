@@ -15,6 +15,8 @@ import 'screens/new_jar_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/tab_shell.dart';
 import 'screens/transfer_hub_screen.dart';
+import 'screens/transfer_receive_screen.dart';
+import 'screens/transfer_send_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -61,6 +63,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const TransferHubScreen(),
+          transitionsBuilder: _slideFromRight,
+        ),
+      ),
+      GoRoute(
+        path: '/transfer/send',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const TransferSendScreen(),
+          transitionsBuilder: _slideFromRight,
+        ),
+      ),
+      GoRoute(
+        path: '/transfer/receive',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const TransferReceiveScreen(),
           transitionsBuilder: _slideFromRight,
         ),
       ),
