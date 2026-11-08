@@ -7,8 +7,12 @@ import 'package:jarly/transfer/transfer.dart';
 
 import 'helpers.dart';
 
-Matcher throwsWith(String fragment) =>
-    throwsA(predicate((e) => e.toString().contains(fragment), 'message contains "$fragment"'));
+Matcher throwsWith(String fragment) => throwsA(
+  predicate(
+    (e) => e.toString().contains(fragment),
+    'message contains "$fragment"',
+  ),
+);
 
 final Jar backupJar = jar(
   id: 'trip',
@@ -29,30 +33,35 @@ final Jar backupJar = jar(
 );
 
 List<String> frames(List<Jar> jars, [String currency = 'USD']) =>
-    encodeTransferFrames(TransferSnapshot(
-      version: 1,
-      exportedAt: '2026-01-03T00:00:00.000Z',
-      currency: currency,
-      jars: jars,
-    ));
+    encodeTransferFrames(
+      TransferSnapshot(
+        version: 1,
+        exportedAt: '2026-01-03T00:00:00.000Z',
+        currency: currency,
+        jars: jars,
+      ),
+    );
 
 void main() {
   group('file backups', () {
-    test('recognizes an unchanged local jar after optional flags round-trip', () {
-      final local = backupJar.copyWith(
-        archived: null,
-        recurring: const RecurringRule(
-          amount: 100,
-          cadence: 'weekly',
-          nextDate: '2026-02-01',
-          paused: false,
-        ),
-      );
-      final backup = parseBackup(createBackup(frames([local])));
-      final result = previewBackup(backup, [local], 'USD');
-      expect(result.skipped, 1);
-      expect(result.error, isNull);
-    });
+    test(
+      'recognizes an unchanged local jar after optional flags round-trip',
+      () {
+        final local = backupJar.copyWith(
+          archived: null,
+          recurring: const RecurringRule(
+            amount: 100,
+            cadence: 'weekly',
+            nextDate: '2026-02-01',
+            paused: false,
+          ),
+        );
+        final backup = parseBackup(createBackup(frames([local])));
+        final result = previewBackup(backup, [local], 'USD');
+        expect(result.skipped, 1);
+        expect(result.error, isNull);
+      },
+    );
 
     test('round-trips an empty backup with its currency and date', () {
       final backup = parseBackup(createBackup(frames([])));
@@ -67,7 +76,12 @@ void main() {
     test('includes archived, completed and empty jars and preserves the original frames', () {
       final original = frames([
         backupJar,
-        backupJar.copyWith(id: 'empty', balance: 0, archived: false, entries: []),
+        backupJar.copyWith(
+          id: 'empty',
+          balance: 0,
+          archived: false,
+          entries: [],
+        ),
       ]);
       final backup = parseBackup(createBackup(original));
       expect(backup.frames, original);
@@ -89,8 +103,11 @@ void main() {
         '{"format":"jarly-backup","version":1,"frames":["no"]}',
       ];
       for (final text in malformed) {
-        expect(() => parseBackup(text), throwsA(isA<BackupParseException>()),
-            reason: 'should reject: $text');
+        expect(
+          () => parseBackup(text),
+          throwsA(isA<BackupParseException>()),
+          reason: 'should reject: $text',
+        );
       }
     });
 
@@ -101,14 +118,20 @@ void main() {
       );
     });
 
-    test('rejects stray invalid frames instead of silently ignoring damage', () {
-      final text = createBackup(frames([]));
-      final damaged = text.replaceFirst(
-        '"frames":[',
-        '"frames":["damaged frame",',
-      );
-      expect(() => parseBackup(damaged), throwsA(isA<BackupParseException>()));
-    });
+    test(
+      'rejects stray invalid frames instead of silently ignoring damage',
+      () {
+        final text = createBackup(frames([]));
+        final damaged = text.replaceFirst(
+          '"frames":[',
+          '"frames":["damaged frame",',
+        );
+        expect(
+          () => parseBackup(damaged),
+          throwsA(isA<BackupParseException>()),
+        );
+      },
+    );
 
     test('totals archived jars exactly when their combined balances exceed safe numbers', () {
       final large = backupJar.copyWith(balance: maxSafeInteger, entries: []);
@@ -119,19 +142,27 @@ void main() {
     });
 
     test('rejects missing frames, missing currency, and altered balances', () {
-      expect(() => createBackup(frames([backupJar]).sublist(1)),
-          throwsA(isA<BackupParseException>()));
       expect(
-        () => createBackup(encodeTransferFrames(const TransferSnapshot(
-          version: 1,
-          exportedAt: '2026-01-03T00:00:00.000Z',
-          jars: [],
-        ))),
+        () => createBackup(frames([backupJar]).sublist(1)),
+        throwsA(isA<BackupParseException>()),
+      );
+      expect(
+        () => createBackup(
+          encodeTransferFrames(
+            const TransferSnapshot(
+              version: 1,
+              exportedAt: '2026-01-03T00:00:00.000Z',
+              jars: [],
+            ),
+          ),
+        ),
         throwsWith("currency"),
       );
       expect(
-        () => parseBackup('{"format":"jarly-backup","version":1,"frames":'
-            '${jsonEncode(frames([backupJar.copyWith(balance: 400)]))}}'),
+        () => parseBackup(
+          '{"format":"jarly-backup","version":1,"frames":'
+          '${jsonEncode(frames([backupJar.copyWith(balance: 400)]))}}',
+        ),
         throwsWith("balance"),
       );
     });
@@ -152,19 +183,20 @@ void main() {
       expect(second.jars[1].balance, 500);
     });
 
-    test('refuses currency or history conflicts without changing local jars', () {
-      final backup = parseBackup(createBackup(frames([backupJar])));
-      expect(previewBackup(backup, [], 'EUR').error, contains('currency'));
-      final local = [
-        backupJar.copyWith(
-          entries: [
-            backupJar.entries[0].copyWith(note: 'Different'),
-          ],
-        ),
-      ];
-      final result = previewBackup(backup, local, 'USD');
-      expect(result.error, isNotNull);
-      expect(result.jars, same(local));
-    });
+    test(
+      'refuses currency or history conflicts without changing local jars',
+      () {
+        final backup = parseBackup(createBackup(frames([backupJar])));
+        expect(previewBackup(backup, [], 'EUR').error, contains('currency'));
+        final local = [
+          backupJar.copyWith(
+            entries: [backupJar.entries[0].copyWith(note: 'Different')],
+          ),
+        ];
+        final result = previewBackup(backup, local, 'USD');
+        expect(result.error, isNotNull);
+        expect(result.jars, same(local));
+      },
+    );
   });
 }

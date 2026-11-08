@@ -77,19 +77,19 @@ class SettingsState {
     int? pinLockedUntil,
     bool clearPinLockedUntil = false,
     String? currency,
-  }) =>
-      SettingsState(
-        ready: ready ?? this.ready,
-        remindersEnabled: remindersEnabled ?? this.remindersEnabled,
-        biometricAvailable: biometricAvailable ?? this.biometricAvailable,
-        biometricLockEnabled: biometricLockEnabled ?? this.biometricLockEnabled,
-        pinLockEnabled: pinLockEnabled ?? this.pinLockEnabled,
-        hasPin: hasPin ?? this.hasPin,
-        pinLength: clearPinLength ? null : (pinLength ?? this.pinLength),
-        pinLockedUntil:
-            clearPinLockedUntil ? null : (pinLockedUntil ?? this.pinLockedUntil),
-        currency: currency ?? this.currency,
-      );
+  }) => SettingsState(
+    ready: ready ?? this.ready,
+    remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+    biometricAvailable: biometricAvailable ?? this.biometricAvailable,
+    biometricLockEnabled: biometricLockEnabled ?? this.biometricLockEnabled,
+    pinLockEnabled: pinLockEnabled ?? this.pinLockEnabled,
+    hasPin: hasPin ?? this.hasPin,
+    pinLength: clearPinLength ? null : (pinLength ?? this.pinLength),
+    pinLockedUntil: clearPinLockedUntil
+        ? null
+        : (pinLockedUntil ?? this.pinLockedUntil),
+    currency: currency ?? this.currency,
+  );
 }
 
 class SettingsController extends AsyncNotifier<SettingsState> {
@@ -128,8 +128,8 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       final validCodes = supportedCurrencies.map((c) => c.code).toSet();
       final restoredCurrency =
           currencyRaw != null && validCodes.contains(currencyRaw)
-              ? currencyRaw
-              : 'USD';
+          ? currencyRaw
+          : 'USD';
 
       return SettingsState(
         ready: true,
@@ -143,13 +143,15 @@ class SettingsController extends AsyncNotifier<SettingsState> {
         pinLength: pinLengthOf(pinRecord),
         pinLockedUntil:
             attempts.lockedUntil > DateTime.now().millisecondsSinceEpoch
-                ? attempts.lockedUntil
-                : null,
+            ? attempts.lockedUntil
+            : null,
         currency: restoredCurrency,
       );
     } catch (_) {
       // Keep the app gate closed if lock preferences could not be read.
-      return SettingsState.initial.copyWith(biometricAvailable: biometricAvailable);
+      return SettingsState.initial.copyWith(
+        biometricAvailable: biometricAvailable,
+      );
     }
   }
 
@@ -219,7 +221,9 @@ class SettingsController extends AsyncNotifier<SettingsState> {
     final now = DateTime.now().millisecondsSinceEpoch;
     final attempts = await readAttempts(storage);
     if (attempts.lockedUntil > now) {
-      state = AsyncData(_current.copyWith(pinLockedUntil: attempts.lockedUntil));
+      state = AsyncData(
+        _current.copyWith(pinLockedUntil: attempts.lockedUntil),
+      );
       return 'locked';
     }
 
@@ -233,10 +237,14 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       final lockMs = lockoutMsFor(failures);
       final lockedUntil = lockMs > 0 ? now + lockMs : 0;
       await writeAttempts(
-          storage, PinAttemptState(failures: failures, lockedUntil: lockedUntil));
-      state = AsyncData(_current.copyWith(
-        pinLockedUntil: lockedUntil > now ? lockedUntil : null,
-      ));
+        storage,
+        PinAttemptState(failures: failures, lockedUntil: lockedUntil),
+      );
+      state = AsyncData(
+        _current.copyWith(
+          pinLockedUntil: lockedUntil > now ? lockedUntil : null,
+        ),
+      );
       return lockedUntil > now ? 'locked' : 'wrong';
     }
 

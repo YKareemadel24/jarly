@@ -129,14 +129,14 @@ class SavingsState {
     bool? writable,
     String? storageError,
     bool clearStorageError = false,
-  }) =>
-      SavingsState(
-        jars: jars ?? this.jars,
-        ready: ready ?? this.ready,
-        writable: writable ?? this.writable,
-        storageError:
-            clearStorageError ? null : (storageError ?? this.storageError),
-      );
+  }) => SavingsState(
+    jars: jars ?? this.jars,
+    ready: ready ?? this.ready,
+    writable: writable ?? this.writable,
+    storageError: clearStorageError
+        ? null
+        : (storageError ?? this.storageError),
+  );
 }
 
 class SavingsController extends AsyncNotifier<SavingsState> {
@@ -154,25 +154,32 @@ class SavingsController extends AsyncNotifier<SavingsState> {
   void _schedulePersist(List<Jar> jars) {
     final current = state.value;
     final storage = _storage;
-    if (current == null || !current.ready || !current.writable || storage == null) {
+    if (current == null ||
+        !current.ready ||
+        !current.writable ||
+        storage == null) {
       return;
     }
-    _persister.persist(storage, jars).then(
-      (_) {
-        final latest = state.value;
-        if (latest != null) {
-          state = AsyncData(latest.copyWith(clearStorageError: true));
-        }
-      },
-      onError: (Object error) {
-        final latest = state.value;
-        if (latest != null) {
-          state = AsyncData(latest.copyWith(
-            storageError: 'Your latest changes could not be saved.',
-          ));
-        }
-      },
-    );
+    _persister
+        .persist(storage, jars)
+        .then(
+          (_) {
+            final latest = state.value;
+            if (latest != null) {
+              state = AsyncData(latest.copyWith(clearStorageError: true));
+            }
+          },
+          onError: (Object error) {
+            final latest = state.value;
+            if (latest != null) {
+              state = AsyncData(
+                latest.copyWith(
+                  storageError: 'Your latest changes could not be saved.',
+                ),
+              );
+            }
+          },
+        );
   }
 
   bool _saveJar(Jar updated) {
@@ -201,7 +208,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
           jars: caughtUp,
           ready: true,
           writable: false,
-          storageError: 'Saved data could not be read. Changes will not be saved.',
+          storageError:
+              'Saved data could not be read. Changes will not be saved.',
         );
       }
       return SavingsState(jars: caughtUp, ready: true, writable: true);
@@ -210,7 +218,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         jars: [],
         ready: true,
         writable: false,
-        storageError: 'Saved data could not be read. Changes will not be saved.',
+        storageError:
+            'Saved data could not be read. Changes will not be saved.',
       );
     }
   }
@@ -225,7 +234,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
                 input.recurring!.amount <= 0))) {
       throw StoreException('invalid-amount', 'Enter a valid target amount.');
     }
-    final id = 'jar-${DateTime.now().millisecondsSinceEpoch}-${_randomIdSuffix()}';
+    final id =
+        'jar-${DateTime.now().millisecondsSinceEpoch}-${_randomIdSuffix()}';
     _commit([
       ..._jars,
       Jar(
@@ -280,21 +290,21 @@ class SavingsController extends AsyncNotifier<SavingsState> {
   }
 
   void archiveJar(String id) => _commit([
-        for (final jar in _jars)
-          if (jar.id == id) jar.copyWith(archived: true) else jar,
-      ]);
+    for (final jar in _jars)
+      if (jar.id == id) jar.copyWith(archived: true) else jar,
+  ]);
 
   /// Bring an archived jar back into the active list.
   void restoreJar(String id) => _commit([
-        for (final jar in _jars)
-          if (jar.id == id) jar.copyWith(archived: false) else jar,
-      ]);
+    for (final jar in _jars)
+      if (jar.id == id) jar.copyWith(archived: false) else jar,
+  ]);
 
   /// Permanently remove an archived jar and its history.
   void deleteJarPermanently(String id) => _commit([
-        for (final jar in _jars)
-          if (jar.id != id) jar,
-      ]);
+    for (final jar in _jars)
+      if (jar.id != id) jar,
+  ]);
 
   bool correctEntry(String id, String entryId, EntryCorrection input) {
     final jar = _jars.where((item) => item.id == id).firstOrNull;
@@ -324,13 +334,19 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     if (direction == directionWithdrawal && amountMinor > jar.balance) {
       return null;
     }
-    final applied = applyEntry(jar, amountMinor, direction,
-        note: note, source: source);
+    final applied = applyEntry(
+      jar,
+      amountMinor,
+      direction,
+      note: note,
+      source: source,
+    );
     if (applied == null || !_saveJar(applied.jar)) return null;
     return AddEntryResult(
       id: applied.jar.entries[0].id,
-      reached:
-          applied.reached.isNotEmpty ? applied.reached.reduce((a, b) => a > b ? a : b) : null,
+      reached: applied.reached.isNotEmpty
+          ? applied.reached.reduce((a, b) => a > b ? a : b)
+          : null,
     );
   }
 
@@ -352,11 +368,19 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     final assembly = decodeTransferFrames(frames);
     if (assembly == null) {
       return const ImportResult(
-          added: 0, updated: 0, skipped: 0,
-          error: 'That does not look like a Saving Jar code.');
+        added: 0,
+        updated: 0,
+        skipped: 0,
+        error: 'That does not look like a Saving Jar code.',
+      );
     }
     if (assembly.error != null) {
-      return ImportResult(added: 0, updated: 0, skipped: 0, error: assembly.error);
+      return ImportResult(
+        added: 0,
+        updated: 0,
+        skipped: 0,
+        error: assembly.error,
+      );
     }
     if (assembly.snapshot == null) {
       final missing = assembly.missing.length;
@@ -375,17 +399,26 @@ class SavingsController extends AsyncNotifier<SavingsState> {
       currentCurrency,
     );
     if (merged.error != null) {
-      return ImportResult(added: 0, updated: 0, skipped: 0, error: merged.error);
+      return ImportResult(
+        added: 0,
+        updated: 0,
+        skipped: 0,
+        error: merged.error,
+      );
     }
     if (merged.added > 0 || merged.updated > 0) _commit(merged.jars);
     return ImportResult(
-        added: merged.added, updated: merged.updated, skipped: merged.skipped);
+      added: merged.added,
+      updated: merged.updated,
+      skipped: merged.skipped,
+    );
   }
 }
 
 String _randomIdSuffix() {
   const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
   final random = Random();
-  return String.fromCharCodes(List.generate(
-      6, (_) => chars.codeUnitAt(random.nextInt(chars.length))));
+  return String.fromCharCodes(
+    List.generate(6, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
+  );
 }

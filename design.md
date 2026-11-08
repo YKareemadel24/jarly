@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-10-22
+**Last updated:** 2026-11-08 (Flutter port)
 
 ## Experience direction
 
@@ -64,7 +64,7 @@ Personal reminder settings start collapsed in jar detail. A labeled Set/Edit act
 
 ### Lock, currency, and archiving
 
-Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (SecureStore on native, AsyncStorage on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
+Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (secure storage on native, shared_preferences on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
 
 ## Layout and interaction rules
 
@@ -88,4 +88,6 @@ The reusable visual system contains a `Jar` component with a glass silhouette, t
 
 ## Implementation decisions
 
-Savings data is device-local: jars persist to AsyncStorage (`saving-jar:v3`, one-generation backup, migrates legacy v1/v2 float stores to integer minor units); PIN uses SecureStore on native. Money is always integer minor units. Withdrawals never roll back milestones or streaks. Recurring rules (daily/weekly/biweekly/monthly, pausable) catch up deterministically, capped at 366 occurrences per call. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. Insights derives entirely from local entries (6-month `monthlyDeposits`, streaks, closest goal). There is no server — the app is purely local/device-only.
+Savings data is device-local: jars persist to key/value storage via shared_preferences (`saving-jar:v3`, one-generation backup, migrates legacy v1/v2 float stores to integer minor units); the PIN record uses secure storage on native. Money is always integer minor units. Withdrawals never roll back milestones or streaks. Recurring rules (daily/weekly/biweekly/monthly, pausable) catch up deterministically, capped at 366 occurrences per call. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. Insights derives entirely from local entries (6-month `monthlyDeposits`, streaks, closest goal). There is no server — the app is purely local/device-only.
+
+The app is implemented in Flutter 3.47 (Material 3) with go_router navigation, Riverpod controllers over a pure Dart domain layer, and flutter_local_notifications for reminders. The visual system above is reproduced 1:1: the same tokens, sheet behaviour, press feedback (opacity + 0.98 scale), and jar vessel animation as the original React Native build. Launcher icons and the native splash are generated from the same brand assets.

@@ -14,10 +14,12 @@ Future<void> saveBackupFile(String text, String filename) async {
   final file = io.File('${dir.path}/$filename');
   await file.writeAsString(text);
   checkBackupSize(await file.length());
-  await SharePlus.instance.share(ShareParams(
-    files: [XFile(file.path, mimeType: 'application/json')],
-    subject: 'Save your Saving Jar backup',
-  ));
+  await SharePlus.instance.share(
+    ShareParams(
+      files: [XFile(file.path, mimeType: 'application/json')],
+      subject: 'Save your Saving Jar backup',
+    ),
+  );
   // Dismissing the sheet is not a failure — a copy is saved only when the
   // user actually chose a destination, which the notice on the panel explains.
 }

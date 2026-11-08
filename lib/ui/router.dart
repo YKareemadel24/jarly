@@ -25,18 +25,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => TabShell(shell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/activity', builder: (context, state) => const ActivityScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/stats', builder: (context, state) => const InsightsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/activity',
+                builder: (context, state) => const ActivityScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/stats',
+                builder: (context, state) => const InsightsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
@@ -87,14 +107,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 Widget _slideFromRight(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child) {
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
   final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
   return SlideTransition(
-    position: Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
-        .animate(curved),
+    position: Tween<Offset>(
+      begin: const Offset(0.06, 0),
+      end: Offset.zero,
+    ).animate(curved),
     child: FadeTransition(
       opacity: Tween<double>(begin: 0.4, end: 1).animate(curved),
       // Pushed routes have no Scaffold; Material keeps text styling sane.
@@ -104,14 +127,17 @@ Widget _slideFromRight(
 }
 
 Widget _slideFromBottom(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child) {
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
   final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
   return SlideTransition(
-    position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
-        .animate(curved),
+    position: Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(curved),
     child: FadeTransition(
       opacity: Tween<double>(begin: 0.4, end: 1).animate(curved),
       child: Material(type: MaterialType.transparency, child: child),

@@ -37,15 +37,23 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     final savings = ref.watch(savingsProvider).value;
     final jars = savings?.jars ?? const <Jar>[];
     final format = ref.watch(moneyFormatterProvider);
-    final hasActivity = jars.any((jar) => !jar.isArchived && jar.entries.isNotEmpty);
+    final hasActivity = jars.any(
+      (jar) => !jar.isArchived && jar.entries.isNotEmpty,
+    );
     final groups = activitySections(jars, DateTime.now(), _filters);
 
     final rows = <_SectionedRow>[];
     for (final group in groups) {
       rows.add(_SectionedRow.header(group.title));
       for (var index = 0; index < group.data.length; index++) {
-        rows.add(_SectionedRow.row(group.data[index], index,
-            index == group.data.length - 1, group.data.length));
+        rows.add(
+          _SectionedRow.row(
+            group.data[index],
+            index,
+            index == group.data.length - 1,
+            group.data.length,
+          ),
+        );
       }
     }
 
@@ -59,18 +67,24 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ACTIVITY',
-                      style: TextStyle(
-                          color: palette.muted,
-                          fontSize: 10,
-                          letterSpacing: 1.4,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    'ACTIVITY',
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontSize: 10,
+                      letterSpacing: 1.4,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 7),
-                  Text('Every move,\ntold simply.',
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 31,
-                          height: 36 / 31)),
+                  Text(
+                    'Every move,\ntold simply.',
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontSize: 31,
+                      height: 36 / 31,
+                    ),
+                  ),
                   const SizedBox(height: 22),
                   _FilterPanel(
                     filters: _filters,
@@ -95,12 +109,15 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                   if (item.isHeader) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 22, bottom: 9),
-                      child: Text(item.headerTitle!,
-                          style: TextStyle(
-                              color: palette.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.9)),
+                      child: Text(
+                        item.headerTitle!,
+                        style: TextStyle(
+                          color: palette.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.9,
+                        ),
+                      ),
                     );
                   }
                   return _GroupCard(
@@ -136,16 +153,21 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             size: JarVesselSize.medium,
           ),
           const SizedBox(height: 14),
-          Text(hasActivity ? 'No matching activity.' : 'No activity yet.',
-              style: TextStyle(color: palette.foreground, fontSize: 22)),
+          Text(
+            hasActivity ? 'No matching activity.' : 'No activity yet.',
+            style: TextStyle(color: palette.foreground, fontSize: 22),
+          ),
           const SizedBox(height: 8),
           Text(
             hasActivity
                 ? 'Try another filter or reset to see every move.'
                 : 'Your deposits and withdrawals will appear here.',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13),
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 19 / 13,
+            ),
           ),
         ],
       ),
@@ -155,12 +177,12 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
 class _SectionedRow {
   const _SectionedRow.header(this.headerTitle)
-      : row = null,
-        isFirst = false,
-        isLast = false;
+    : row = null,
+      isFirst = false,
+      isLast = false;
   const _SectionedRow.row(this.row, int index, this.isLast, int count)
-      : headerTitle = null,
-        isFirst = index == 0;
+    : headerTitle = null,
+      isFirst = index == 0;
 
   bool get isHeader => headerTitle != null;
 
@@ -193,30 +215,39 @@ class _FilterPanel extends ConsumerWidget {
         Row(
           children: [
             Expanded(
-              child: Text('Filter activity',
-                  style: TextStyle(
-                      color: palette.foreground,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800)),
+              child: Text(
+                'Filter activity',
+                style: TextStyle(
+                  color: palette.foreground,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
             PressableChip(
               onTap: filtered ? () => onChanged(const ActivityFilters()) : null,
               semantics: 'Reset activity filters',
-              child: Text('Reset',
-                  style: TextStyle(
-                      color: palette.primary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: null)),
+              child: Text(
+                'Reset',
+                style: TextStyle(
+                  color: palette.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: null,
+                ),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        Text('Jar',
-            style: TextStyle(
-                color: palette.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700)),
+        Text(
+          'Jar',
+          style: TextStyle(
+            color: palette.muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         // Horizontal jar selector, matching the original's horizontal ScrollView.
         SingleChildScrollView(
@@ -227,27 +258,37 @@ class _FilterPanel extends ConsumerWidget {
               _choice(
                 label: 'All jars',
                 selected: (filters.jarId ?? '').isEmpty,
-                onTap: () => onChanged(ActivityFilters(
-                    direction: filters.direction, range: filters.range)),
+                onTap: () => onChanged(
+                  ActivityFilters(
+                    direction: filters.direction,
+                    range: filters.range,
+                  ),
+                ),
               ),
               for (final jar in jars.where((jar) => !jar.isArchived))
                 _choice(
                   label: jar.name,
                   selected: filters.jarId == jar.id,
-                  onTap: () => onChanged(ActivityFilters(
+                  onTap: () => onChanged(
+                    ActivityFilters(
                       jarId: jar.id,
                       direction: filters.direction,
-                      range: filters.range)),
+                      range: filters.range,
+                    ),
+                  ),
                 ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        Text('Direction',
-            style: TextStyle(
-                color: palette.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700)),
+        Text(
+          'Direction',
+          style: TextStyle(
+            color: palette.muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -261,19 +302,25 @@ class _FilterPanel extends ConsumerWidget {
               _choice(
                 label: label,
                 selected: (filters.direction ?? 'all') == value,
-                onTap: () => onChanged(ActivityFilters(
+                onTap: () => onChanged(
+                  ActivityFilters(
                     jarId: filters.jarId,
                     direction: value,
-                    range: filters.range)),
+                    range: filters.range,
+                  ),
+                ),
               ),
           ],
         ),
         const SizedBox(height: 12),
-        Text('Date range',
-            style: TextStyle(
-                color: palette.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700)),
+        Text(
+          'Date range',
+          style: TextStyle(
+            color: palette.muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -287,16 +334,21 @@ class _FilterPanel extends ConsumerWidget {
               _choice(
                 label: label,
                 selected: (filters.range ?? 'all') == value,
-                onTap: () => onChanged(ActivityFilters(
+                onTap: () => onChanged(
+                  ActivityFilters(
                     jarId: filters.jarId,
                     direction: filters.direction,
-                    range: value)),
+                    range: value,
+                  ),
+                ),
               ),
           ],
         ),
         const SizedBox(height: 9),
-        Text('Date ranges include today. Archived jars stay in Profile.',
-            style: TextStyle(color: palette.muted, fontSize: 12, height: 18 / 12)),
+        Text(
+          'Date ranges include today. Archived jars stay in Profile.',
+          style: TextStyle(color: palette.muted, fontSize: 12, height: 18 / 12),
+        ),
       ],
     );
   }
@@ -317,16 +369,22 @@ class _FilterPanel extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           alignment: Alignment.centerLeft,
           decoration: BoxDecoration(
-            color: selected ? hexAlpha(toRrggbb(palette.primary), '16') : palette.surface,
+            color: selected
+                ? hexAlpha(toRrggbb(palette.primary), '16')
+                : palette.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: selected ? palette.primary : palette.border),
+              color: selected ? palette.primary : palette.border,
+            ),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  color: selected ? palette.primary : palette.foreground,
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? palette.primary : palette.foreground,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );
@@ -388,12 +446,11 @@ class _GroupCard extends ConsumerWidget {
     final isDeposit = row.entry.direction == directionDeposit;
     final movement = isDeposit
         ? (row.entry.source == sourceRecurring
-            ? 'Scheduled deposit'
-            : 'Money added')
+              ? 'Scheduled deposit'
+              : 'Money added')
         : 'Money withdrawn';
     final title = row.entry.undoOf != null ? 'Undo · $movement' : movement;
-    final amountLabel =
-        '${isDeposit ? '+' : '−'}${format(row.entry.amount)}';
+    final amountLabel = '${isDeposit ? '+' : '−'}${format(row.entry.amount)}';
     final corrected = row.entry.revisions?.isNotEmpty ?? false;
 
     return Container(
@@ -441,21 +498,23 @@ class _GroupCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(row.jar.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: palette.foreground,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          row.jar.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           '$title${corrected ? ' · Corrected' : ''}'
                           '${row.entry.note != null && row.entry.note!.isNotEmpty ? ' · ${row.entry.note}' : ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              TextStyle(color: palette.muted, fontSize: 11),
+                          style: TextStyle(color: palette.muted, fontSize: 11),
                         ),
                       ],
                     ),

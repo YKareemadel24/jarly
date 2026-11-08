@@ -33,7 +33,11 @@ String _morningFire(DateTime due, DateTime now) {
 /// Schedulable nudges for active, unfinished jars. Home reminders also show
 /// future schedules; OS deadline pings are due-day-only. Legacy jars get one
 /// ping. Custom schedules share a finite queue fairly.
-List<DueNotification> dueNotifications(List<Jar> jars, [DateTime? now, String currency = 'USD']) {
+List<DueNotification> dueNotifications(
+  List<Jar> jars, [
+  DateTime? now,
+  String currency = 'USD',
+]) {
   final nowDate = now ?? DateTime.now();
   final queues = <List<DueNotification>>[];
   for (final jar in jars) {
@@ -55,8 +59,13 @@ List<DueNotification> dueNotifications(List<Jar> jars, [DateTime? now, String cu
 
     final rule = jar.recurring;
     if (rule != null && !rule.paused && rule.amount > 0) {
-      final due = rule.nextDate != null ? parseIso(rule.nextDate!) : parseIso(jar.createdAt);
-      final days = ((due.millisecondsSinceEpoch - nowDate.millisecondsSinceEpoch) / _dayMs).ceil();
+      final due = rule.nextDate != null
+          ? parseIso(rule.nextDate!)
+          : parseIso(jar.createdAt);
+      final days =
+          ((due.millisecondsSinceEpoch - nowDate.millisecondsSinceEpoch) /
+                  _dayMs)
+              .ceil();
       if (days >= 0 && days <= 1) {
         queues.add([
           DueNotification(
@@ -72,8 +81,7 @@ List<DueNotification> dueNotifications(List<Jar> jars, [DateTime? now, String cu
 
     if (jar.deadline != null) {
       final due = parseDeadline(jar.deadline!);
-      if (due != null &&
-          startOfDayMs(due) == startOfDayMs(nowDate)) {
+      if (due != null && startOfDayMs(due) == startOfDayMs(nowDate)) {
         queues.add([
           DueNotification(
             jarId: jar.id,

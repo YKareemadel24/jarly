@@ -55,8 +55,9 @@ class SheetScaffold extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Material(
               color: palette.background,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(30)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
                 constraints: BoxConstraints(

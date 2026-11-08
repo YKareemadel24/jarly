@@ -58,8 +58,11 @@ class QrCodeView extends StatelessWidget {
         width: size,
         height: size,
         child: CustomPaint(
-          painter:
-              _QrPainter(matrix: matrix, color: color, background: background),
+          painter: _QrPainter(
+            matrix: matrix,
+            color: color,
+            background: background,
+          ),
         ),
       ),
     );
@@ -90,8 +93,14 @@ class _QrPainter extends CustomPainter {
       final row = matrix.modules[y];
       for (var x = 0; x < matrix.count; x++) {
         if (!row[x]) continue;
-        path.addRect(Rect.fromLTWH((x + quiet) * scale, (y + quiet) * scale,
-            scale + 0.01, scale + 0.01));
+        path.addRect(
+          Rect.fromLTWH(
+            (x + quiet) * scale,
+            (y + quiet) * scale,
+            scale + 0.01,
+            scale + 0.01,
+          ),
+        );
       }
     }
     canvas.drawPath(path, Paint()..color = color);

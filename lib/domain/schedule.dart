@@ -22,8 +22,15 @@ DateTime addCadence(DateTime from, String cadence) {
       final day = from.day;
       final nextMonth = DateTime(from.year, from.month + 1, 1);
       final lastDay = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
-      return DateTime(nextMonth.year, nextMonth.month, day.clamp(1, lastDay),
-          from.hour, from.minute, from.second, from.millisecond);
+      return DateTime(
+        nextMonth.year,
+        nextMonth.month,
+        day.clamp(1, lastDay),
+        from.hour,
+        from.minute,
+        from.second,
+        from.millisecond,
+      );
     default:
       return from;
   }
@@ -72,9 +79,7 @@ RecurringRunResult runDueRecurring(Jar jar, [DateTime? now]) {
   if (applied == 0) return RecurringRunResult(jar: jar, applied: 0);
 
   return RecurringRunResult(
-    jar: current.copyWith(
-      recurring: rule.copyWith(nextDate: toIso(cursor)),
-    ),
+    jar: current.copyWith(recurring: rule.copyWith(nextDate: toIso(cursor))),
     applied: applied,
   );
 }

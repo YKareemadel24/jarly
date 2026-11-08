@@ -49,15 +49,21 @@ class BackupParseException implements Exception {
 /// Parse and fully validate a `.jarly` backup file's text.
 Backup parseBackup(String text) {
   if (text.length > maxBackupBytes) {
-    throw BackupParseException('This backup is too large. Choose a file under 512 KB.');
+    throw BackupParseException(
+      'This backup is too large. Choose a file under 512 KB.',
+    );
   }
   Object? value;
   try {
     value = jsonDecode(text);
   } catch (_) {
-    throw BackupParseException('This file is not a readable Saving Jar backup.');
+    throw BackupParseException(
+      'This file is not a readable Saving Jar backup.',
+    );
   }
-  if (value is! Map) throw BackupParseException('This file is not a Saving Jar backup.');
+  if (value is! Map) {
+    throw BackupParseException('This file is not a Saving Jar backup.');
+  }
   final data = value.cast<String, dynamic>();
   if (data['format'] != 'jarly-backup' || data['version'] != 1) {
     throw BackupParseException(
@@ -68,8 +74,12 @@ Backup parseBackup(String text) {
   if (framesRaw is! List ||
       framesRaw.isEmpty ||
       framesRaw.length > maxTransferFrames ||
-      framesRaw.any((frame) => frame is! String || frame.length > maxTransferFrameLength)) {
-    throw BackupParseException('This backup contains invalid or excessive transfer data.');
+      framesRaw.any(
+        (frame) => frame is! String || frame.length > maxTransferFrameLength,
+      )) {
+    throw BackupParseException(
+      'This backup contains invalid or excessive transfer data.',
+    );
   }
   final frames = framesRaw.cast<String>();
   final assembly = decodeTransferFrames(frames);
@@ -96,10 +106,16 @@ Backup parseBackup(String text) {
     snapshot: snapshot,
     summary: BackupSummary(
       jars: snapshot.jars.length,
-      entries: snapshot.jars.fold<int>(0, (total, jar) => total + jar.entries.length),
+      entries: snapshot.jars.fold<int>(
+        0,
+        (total, jar) => total + jar.entries.length,
+      ),
       archived: snapshot.jars.where((jar) => jar.isArchived).length,
       totalMinor: snapshot.jars
-          .fold<BigInt>(BigInt.zero, (total, jar) => total + BigInt.from(jar.balance))
+          .fold<BigInt>(
+            BigInt.zero,
+            (total, jar) => total + BigInt.from(jar.balance),
+          )
           .toString(),
     ),
   );
@@ -107,11 +123,20 @@ Backup parseBackup(String text) {
 
 /// Serialize frames into a backup file, round-trip validating itself.
 String createBackup(List<String> frames) {
-  final text = jsonEncode({'format': 'jarly-backup', 'version': 1, 'frames': frames});
+  final text = jsonEncode({
+    'format': 'jarly-backup',
+    'version': 1,
+    'frames': frames,
+  });
   parseBackup(text);
   return text;
 }
 
 /// Dry-run the merge for the restore preview UI.
 MergeResult previewBackup(Backup backup, List<Jar> current, String currency) =>
-    mergeTransferJars(current, backup.snapshot.jars, backup.snapshot.currency, currency);
+    mergeTransferJars(
+      current,
+      backup.snapshot.jars,
+      backup.snapshot.currency,
+      currency,
+    );

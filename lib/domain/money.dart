@@ -58,7 +58,9 @@ String money(int minor, [String currency = 'USD']) {
     final symbol = _currencySymbols[currency] ?? currency;
     // Multi-character symbols read better with a narrow space, matching the
     // original app's Intl output ("EGP 25.00" vs "$25.00").
-    final pattern = symbol.length > 1 ? '\u00A4\u00A0#,##0.00' : '\u00A4#,##0.00';
+    final pattern = symbol.length > 1
+        ? '\u00A4\u00A0#,##0.00'
+        : '\u00A4#,##0.00';
     final format = NumberFormat.currency(
       locale: Intl.getCurrentLocale(),
       symbol: symbol,

@@ -9,9 +9,10 @@ import '../../domain/domain.dart' show jarAccent, jarAccentDark;
 import 'palette.dart';
 
 Map<String, String> accentMapFor(Palette palette) =>
-      identical(palette, Palette.dark) || palette.background == Palette.dark.background
-        ? jarAccentDark
-        : jarAccent;
+    identical(palette, Palette.dark) ||
+        palette.background == Palette.dark.background
+    ? jarAccentDark
+    : jarAccent;
 
 /// Resolve one accent name against the active scheme.
 String accentFor(String name, Palette palette) =>

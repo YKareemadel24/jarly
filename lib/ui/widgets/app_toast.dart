@@ -69,7 +69,10 @@ class _AppToastState extends State<AppToast> {
             borderRadius: BorderRadius.circular(17),
             boxShadow: const [
               BoxShadow(
-                  color: Color(0x47201B18), blurRadius: 14, offset: Offset(0, 6)),
+                color: Color(0x47201B18),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
             ],
           ),
           child: Row(
@@ -79,10 +82,11 @@ class _AppToastState extends State<AppToast> {
                   widget.message,
                   maxLines: 2,
                   style: TextStyle(
-                      color: palette.background,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 18 / 13),
+                    color: palette.background,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 18 / 13,
+                  ),
                 ),
               ),
               if (widget.actionLabel != null && widget.onAction != null)
@@ -94,18 +98,27 @@ class _AppToastState extends State<AppToast> {
                   },
                   semantics: widget.actionLabel,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.undo, size: 15, color: Color(0xFFFFFDF9)),
+                        const Icon(
+                          Icons.undo,
+                          size: 15,
+                          color: Color(0xFFFFFDF9),
+                        ),
                         const SizedBox(width: 5),
-                        Text(widget.actionLabel!,
-                            style: const TextStyle(
-                                color: Color(0xFFFFFDF9),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          widget.actionLabel!,
+                          style: const TextStyle(
+                            color: Color(0xFFFFFDF9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ],
                     ),
                   ),

@@ -5,32 +5,46 @@ import 'helpers.dart';
 
 void main() {
   group('runDueRecurring', () {
-    test('applies each missed occurrence once and advances nextDate past now', () {
-      final weekly = jar(
-        createdAt: '2026-06-01T00:00:00.000Z',
-        recurring: const RecurringRule(amount: 500, cadence: 'weekly', paused: false),
-      );
-      final now = DateTime.parse('2026-06-16T00:00:00.000Z').toLocal();
-      final result = runDueRecurring(weekly, now);
-      // Due on Jun 1, 8, 15 -> three deposits; next due Jun 22.
-      expect(result.applied, 3);
-      expect(result.jar.balance, 1500);
-      expect(
-        parseIso(result.jar.recurring!.nextDate!).toUtc().toIso8601String(),
-        '2026-06-22T00:00:00.000Z',
-      );
-      expect(
-        result.jar.entries.where((entry) => entry.source == sourceRecurring),
-        hasLength(3),
-      );
-    });
+    test(
+      'applies each missed occurrence once and advances nextDate past now',
+      () {
+        final weekly = jar(
+          createdAt: '2026-06-01T00:00:00.000Z',
+          recurring: const RecurringRule(
+            amount: 500,
+            cadence: 'weekly',
+            paused: false,
+          ),
+        );
+        final now = DateTime.parse('2026-06-16T00:00:00.000Z').toLocal();
+        final result = runDueRecurring(weekly, now);
+        // Due on Jun 1, 8, 15 -> three deposits; next due Jun 22.
+        expect(result.applied, 3);
+        expect(result.jar.balance, 1500);
+        expect(
+          parseIso(result.jar.recurring!.nextDate!).toUtc().toIso8601String(),
+          '2026-06-22T00:00:00.000Z',
+        );
+        expect(
+          result.jar.entries.where((entry) => entry.source == sourceRecurring),
+          hasLength(3),
+        );
+      },
+    );
 
     test('does nothing when paused or when nothing is due', () {
       final paused = jar(
-        recurring: const RecurringRule(amount: 500, cadence: 'daily', paused: true),
+        recurring: const RecurringRule(
+          amount: 500,
+          cadence: 'daily',
+          paused: true,
+        ),
       );
       expect(
-        runDueRecurring(paused, DateTime.parse('2027-01-01T00:00:00.000Z')).applied,
+        runDueRecurring(
+          paused,
+          DateTime.parse('2027-01-01T00:00:00.000Z'),
+        ).applied,
         0,
       );
 
@@ -44,7 +58,10 @@ void main() {
         ),
       );
       expect(
-        runDueRecurring(future, DateTime.parse('2026-06-01T00:00:00.000Z')).applied,
+        runDueRecurring(
+          future,
+          DateTime.parse('2026-06-01T00:00:00.000Z'),
+        ).applied,
         0,
       );
     });
@@ -52,9 +69,16 @@ void main() {
     test('advances monthly schedules by calendar month', () {
       final monthly = jar(
         createdAt: '2026-01-31T00:00:00.000Z',
-        recurring: const RecurringRule(amount: 1200, cadence: 'monthly', paused: false),
+        recurring: const RecurringRule(
+          amount: 1200,
+          cadence: 'monthly',
+          paused: false,
+        ),
       );
-      final result = runDueRecurring(monthly, DateTime.parse('2026-03-15T00:00:00.000Z'));
+      final result = runDueRecurring(
+        monthly,
+        DateTime.parse('2026-03-15T00:00:00.000Z'),
+      );
       // Jan 31 and Feb 28 (clamped) are both due by Mar 15.
       expect(result.applied, 2);
       expect(result.jar.balance, 2400);
@@ -64,30 +88,41 @@ void main() {
       ]);
     });
 
-    test('keeps the first unapplied occurrence when catch-up reaches its cap', () {
-      final daily = jar(
-        createdAt: '2024-01-01T00:00:00.000Z',
-        recurring: const RecurringRule(amount: 1, cadence: 'daily', paused: false),
-      );
-      final now = DateTime.parse('2025-01-02T00:00:00.000Z');
-      final first = runDueRecurring(daily, now);
-      final second = runDueRecurring(first.jar, now);
-      expect(first.applied, 366);
-      expect(first.jar.recurring!.nextDate, '2025-01-01T00:00:00.000Z');
-      expect(first.applied + second.applied, 368);
-      expect(second.jar.balance, 368);
-    });
+    test(
+      'keeps the first unapplied occurrence when catch-up reaches its cap',
+      () {
+        final daily = jar(
+          createdAt: '2024-01-01T00:00:00.000Z',
+          recurring: const RecurringRule(
+            amount: 1,
+            cadence: 'daily',
+            paused: false,
+          ),
+        );
+        final now = DateTime.parse('2025-01-02T00:00:00.000Z');
+        final first = runDueRecurring(daily, now);
+        final second = runDueRecurring(first.jar, now);
+        expect(first.applied, 366);
+        expect(first.jar.recurring!.nextDate, '2025-01-01T00:00:00.000Z');
+        expect(first.applied + second.applied, 368);
+        expect(second.jar.balance, 368);
+      },
+    );
 
     test('skips recurring catch-up that would overflow the active total', () {
       final nearLimit = jar(id: 'near', balance: maxSafeInteger - 500);
       final due = jar(
         id: 'due',
-        recurring: const RecurringRule(amount: 1000, cadence: 'daily', paused: false),
+        recurring: const RecurringRule(
+          amount: 1000,
+          cadence: 'daily',
+          paused: false,
+        ),
       );
-      expect(
-        runDueRecurringSafely([nearLimit, due], DateTime(2026, 1, 2)),
-        [nearLimit, due],
-      );
+      expect(runDueRecurringSafely([nearLimit, due], DateTime(2026, 1, 2)), [
+        nearLimit,
+        due,
+      ]);
     });
   });
 
@@ -102,7 +137,12 @@ void main() {
         nextDate: '2026-06-20T12:00:00.000Z',
       );
       expect(
-        nextRecurringDate(previous: previous, amount: 500, cadence: 'weekly', now: now),
+        nextRecurringDate(
+          previous: previous,
+          amount: 500,
+          cadence: 'weekly',
+          now: now,
+        ),
         '2026-06-20T12:00:00.000Z',
       );
     });
@@ -115,11 +155,21 @@ void main() {
         nextDate: '2026-06-20T12:00:00.000Z',
       );
       expect(
-        nextRecurringDate(previous: previous, amount: 700, cadence: 'weekly', now: now),
+        nextRecurringDate(
+          previous: previous,
+          amount: 700,
+          cadence: 'weekly',
+          now: now,
+        ),
         '2026-06-22T12:00:00.000Z',
       );
       expect(
-        nextRecurringDate(previous: previous, amount: 500, cadence: 'monthly', now: now),
+        nextRecurringDate(
+          previous: previous,
+          amount: 500,
+          cadence: 'monthly',
+          now: now,
+        ),
         '2026-07-15T12:00:00.000Z',
       );
     });
@@ -132,7 +182,12 @@ void main() {
         nextDate: '2026-06-01T12:00:00.000Z',
       );
       expect(
-        nextRecurringDate(previous: previous, amount: 500, cadence: 'weekly', now: now),
+        nextRecurringDate(
+          previous: previous,
+          amount: 500,
+          cadence: 'weekly',
+          now: now,
+        ),
         '2026-06-22T12:00:00.000Z',
       );
     });

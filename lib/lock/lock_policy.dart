@@ -19,7 +19,11 @@ class LockPolicyInput {
 }
 
 class LockPolicy {
-  const LockPolicy({required this.required, required this.canBiometrics, required this.canPin});
+  const LockPolicy({
+    required this.required,
+    required this.canBiometrics,
+    required this.canPin,
+  });
   final bool required;
   final bool canBiometrics;
   final bool canPin;
@@ -27,9 +31,16 @@ class LockPolicy {
 
 LockPolicy lockPolicy(LockPolicyInput input) {
   return LockPolicy(
-    required: !input.ready || input.biometricLockEnabled || input.pinLockEnabled,
+    required:
+        !input.ready || input.biometricLockEnabled || input.pinLockEnabled,
     canBiometrics:
-        input.ready && input.biometricLockEnabled && input.biometricAvailable && input.native,
-    canPin: input.ready && input.hasPin && (input.pinLockEnabled || input.biometricLockEnabled),
+        input.ready &&
+        input.biometricLockEnabled &&
+        input.biometricAvailable &&
+        input.native,
+    canPin:
+        input.ready &&
+        input.hasPin &&
+        (input.pinLockEnabled || input.biometricLockEnabled),
   );
 }

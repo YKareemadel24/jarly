@@ -47,12 +47,15 @@ Future<void> _ensureAndroidChannel(FlutterLocalNotificationsPlugin api) async {
   if (defaultTargetPlatform != TargetPlatform.android) return;
   await api
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(const AndroidNotificationChannel(
-        remindersChannelId,
-        remindersChannelName,
-        importance: Importance.defaultImportance,
-      ));
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          remindersChannelId,
+          remindersChannelName,
+          importance: Importance.defaultImportance,
+        ),
+      );
 }
 
 /// Ask the OS for permission once. Returns true only when alerts can fire.
@@ -62,13 +65,17 @@ Future<bool> requestNotificationPermission() async {
   try {
     await _ensureAndroidChannel(api);
     if (defaultTargetPlatform == TargetPlatform.android) {
-      final android = api.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final android = api
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       return await android?.requestNotificationsPermission() ?? false;
     }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final ios = api.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
+      final ios = api
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
       final granted = await ios?.requestPermissions(
         alert: true,
         badge: false,
@@ -91,14 +98,16 @@ Future<bool> notificationsGranted() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return await api
               .resolvePlatformSpecificImplementation<
-                  AndroidFlutterLocalNotificationsPlugin>()
+                AndroidFlutterLocalNotificationsPlugin
+              >()
               ?.areNotificationsEnabled() ??
           false;
     }
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final permissions = await api
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.checkPermissions();
       return permissions?.isEnabled ?? false;
     }
@@ -148,8 +157,11 @@ Future<void> rebuildNotifications(
   await api.zonedSchedule(
     id: _checkInId,
     title: 'Your savings check-in',
-    body: 'Current savings: ${money(total, currency)}. Add a little more today.',
-    scheduledDate: _zoned(DateTime(nowDate.year, nowDate.month, nowDate.day, 9)),
+    body:
+        'Current savings: ${money(total, currency)}. Add a little more today.',
+    scheduledDate: _zoned(
+      DateTime(nowDate.year, nowDate.month, nowDate.day, 9),
+    ),
     notificationDetails: _details(),
     androidScheduleMode: AndroidScheduleMode.inexact,
     // Repeat every day at 09:00 local time, DST-correct.
@@ -172,14 +184,14 @@ Future<void> rebuildNotifications(
 const int _checkInId = 1;
 
 NotificationDetails _details() => const NotificationDetails(
-      android: AndroidNotificationDetails(
-        remindersChannelId,
-        remindersChannelName,
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
-      ),
-      iOS: DarwinNotificationDetails(),
-    );
+  android: AndroidNotificationDetails(
+    remindersChannelId,
+    remindersChannelName,
+    importance: Importance.defaultImportance,
+    priority: Priority.defaultPriority,
+  ),
+  iOS: DarwinNotificationDetails(),
+);
 
 tz.TZDateTime _zoned(DateTime local) => tz.TZDateTime.from(local, tz.local);
 
@@ -198,7 +210,12 @@ Future<void> resyncNotifications(
   DateTime? now,
 }) async {
   if (!notificationsSupported) return Future.value();
-  _pendingResync = (jars: jars, enabled: enabled, currency: currency, now: now ?? DateTime.now());
+  _pendingResync = (
+    jars: jars,
+    enabled: enabled,
+    currency: currency,
+    now: now ?? DateTime.now(),
+  );
   _resyncTask ??= () async {
     while (_pendingResync != null) {
       final request = _pendingResync!;

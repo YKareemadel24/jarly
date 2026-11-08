@@ -4,8 +4,18 @@ library;
 import '../domain/domain.dart' show parseIso;
 
 const List<String> _monthShorts = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /// "Nov 8, 2026" — JS toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}).

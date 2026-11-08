@@ -24,10 +24,10 @@ class _VesselMetrics {
 }
 
 _VesselMetrics _metricsFor(JarVesselSize size) => switch (size) {
-      JarVesselSize.small => const _VesselMetrics(74, 88, 24, 10),
-      JarVesselSize.medium => const _VesselMetrics(104, 126, 33, 11),
-      JarVesselSize.large => const _VesselMetrics(164, 198, 49, 13),
-    };
+  JarVesselSize.small => const _VesselMetrics(74, 88, 24, 10),
+  JarVesselSize.medium => const _VesselMetrics(104, 126, 33, 11),
+  JarVesselSize.large => const _VesselMetrics(164, 198, 49, 13),
+};
 
 const List<int> _tickLevels = [25, 50, 75];
 
@@ -67,7 +67,10 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
     _fillTarget = metrics.height * _clampedFill / 100;
     _fillController = AnimationController.unbounded(vsync: this)
       ..value = _fillTarget;
-    _coinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 760));
+    _coinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 760),
+    );
   }
 
   double get _clampedFill =>
@@ -78,8 +81,7 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
     final metrics = _metricsFor(widget.size);
     final target = metrics.height * _clampedFill / 100;
-    final reduceMotion =
-        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (oldWidget.progress != widget.progress ||
         oldWidget.size != widget.size) {
       final from = _fillController.value;
@@ -88,12 +90,14 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
       } else {
         _fillController
           ..reset()
-          ..animateWith(SpringSimulation(
-            const SpringDescription(mass: 1, stiffness: 105, damping: 20),
-            from,
-            target,
-            0,
-          ));
+          ..animateWith(
+            SpringSimulation(
+              const SpringDescription(mass: 1, stiffness: 105, damping: 20),
+              from,
+              target,
+              0,
+            ),
+          );
       }
     }
     if (widget.coinDropKey > oldWidget.coinDropKey &&
@@ -132,16 +136,23 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
             // spring settle up to 24% (approximated with easeOutBack).
             const fallEnd = 430 / 760;
             final y = t < fallEnd
-                ? _lerpEase(-36, metrics.height * 0.3, t / fallEnd,
-                    Curves.easeInQuad)
-                : _lerpEase(metrics.height * 0.3, metrics.height * 0.24,
+                ? _lerpEase(
+                    -36,
+                    metrics.height * 0.3,
+                    t / fallEnd,
+                    Curves.easeInQuad,
+                  )
+                : _lerpEase(
+                    metrics.height * 0.3,
+                    metrics.height * 0.24,
                     ((t - fallEnd) / (1 - fallEnd)).clamp(0.0, 1.0),
-                    Curves.easeOutBack);
+                    Curves.easeOutBack,
+                  );
             final opacity = t < 70 / 760
                 ? t / (70 / 760)
                 : t < 480 / 760
-                    ? 1.0
-                    : 1.0 - ((t - 480 / 760) / (260 / 760)).clamp(0.0, 1.0);
+                ? 1.0
+                : 1.0 - ((t - 480 / 760) / (260 / 760)).clamp(0.0, 1.0);
             final coinSize = metrics.icon * 0.52;
             return Opacity(
               opacity: opacity.clamp(0.0, 1.0),
@@ -155,7 +166,9 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
                       shape: BoxShape.circle,
                       color: const Color(0xFFE8BE5F),
                       border: Border.all(
-                          color: const Color(0xFFB8860B), width: 1.5),
+                        color: const Color(0xFFB8860B),
+                        width: 1.5,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x334A3324),
@@ -205,7 +218,10 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
               AnimatedBuilder(
                 animation: _fillController,
                 builder: (context, _) {
-                  final height = _fillController.value.clamp(0.0, metrics.height);
+                  final height = _fillController.value.clamp(
+                    0.0,
+                    metrics.height,
+                  );
                   return Positioned(
                     bottom: 0,
                     left: 0,
@@ -319,20 +335,20 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
                         ),
                         switch (rendered) {
                           JarIconFont(:final icon) => Icon(
-                              icon,
-                              size: metrics.icon,
-                              color: const Color(0xFFFFFDF9),
-                            ),
+                            icon,
+                            size: metrics.icon,
+                            color: const Color(0xFFFFFDF9),
+                          ),
                           JarIconText(:final text) => Text(
-                              text,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: metrics.icon * 0.9,
-                                height: 1.15 / 0.9,
-                                color: const Color(0xFFFFFDF9),
-                                fontFamily: null,
-                              ),
+                            text,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: metrics.icon * 0.9,
+                              height: 1.15 / 0.9,
+                              color: const Color(0xFFFFFDF9),
+                              fontFamily: null,
                             ),
+                          ),
                         },
                       ],
                     ),
@@ -386,7 +402,9 @@ class _JarVesselState extends State<JarVessel> with TickerProviderStateMixin {
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0x61201B18),
                         borderRadius: BorderRadius.circular(9),

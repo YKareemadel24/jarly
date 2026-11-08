@@ -12,9 +12,12 @@ import '../domain/util.dart';
 int _nextReminderTime(Jar jar) {
   final rule = jar.recurring;
   final deposit = (rule != null && !rule.paused && rule.amount > 0)
-      ? DateTime.tryParse(rule.nextDate ?? jar.createdAt)?.millisecondsSinceEpoch
+      ? DateTime.tryParse(rule.nextDate ?? jar.createdAt)
+            ?.millisecondsSinceEpoch
       : null;
-  final deadline = jar.deadline != null ? parseDeadline(jar.deadline!)?.millisecondsSinceEpoch : null;
+  final deadline = jar.deadline != null
+      ? parseDeadline(jar.deadline!)?.millisecondsSinceEpoch
+      : null;
   return _min(deposit, deadline);
 }
 
@@ -25,35 +28,45 @@ int _min(int? a, int? b) {
 }
 
 class JarReminderRow {
-  const JarReminderRow({required this.jar, required this.title, required this.detail});
+  const JarReminderRow({
+    required this.jar,
+    required this.title,
+    required this.detail,
+  });
   final Jar jar;
   final String title;
   final String detail;
 }
 
 /// One savings reminder for each active, unfinished jar.
-List<JarReminderRow> jarReminders(List<Jar> jars, [DateTime? now, String currency = 'USD']) {
+List<JarReminderRow> jarReminders(
+  List<Jar> jars, [
+  DateTime? now,
+  String currency = 'USD',
+]) {
   final nowDate = now ?? DateTime.now();
   final rows = jars
       .where((jar) => !jar.isArchived && jar.balance < jar.target)
       .toList();
-  stableSort(rows, (a, b) => _nextReminderTime(a).compareTo(_nextReminderTime(b)));
-  return [
-    for (final jar in rows)
-      _buildRow(jar, nowDate, currency),
-  ];
+  stableSort(
+    rows,
+    (a, b) => _nextReminderTime(a).compareTo(_nextReminderTime(b)),
+  );
+  return [for (final jar in rows) _buildRow(jar, nowDate, currency)];
 }
 
 JarReminderRow _buildRow(Jar jar, DateTime now, String currency) {
-  final details = <String>['${money(jar.target - jar.balance, currency)} left to save.'];
+  final details = <String>[
+    '${money(jar.target - jar.balance, currency)} left to save.',
+  ];
   final reminder = jar.reminder;
   if (reminder != null) {
     final next = nextReminderDates(reminder, now).firstOrNull;
     if (!reminder.enabled) {
       details.add('Personal reminder: paused.');
     } else if (reminder.snoozedUntil != null &&
-            DateTime.tryParse(reminder.snoozedUntil!) != null &&
-            DateTime.parse(reminder.snoozedUntil!).toLocal().isAfter(now)) {
+        DateTime.tryParse(reminder.snoozedUntil!) != null &&
+        DateTime.parse(reminder.snoozedUntil!).toLocal().isAfter(now)) {
       details.add(
         'Personal reminder: snoozed until ${_toLocaleString(DateTime.parse(reminder.snoozedUntil!).toLocal())}.',
       );
@@ -84,8 +97,18 @@ String _toLocaleString(DateTime date) {
 /// Mirrors the RN app's "Nov 8, 2026" next-deposit rendering.
 String _toDateString(DateTime date) {
   const monthShorts = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${monthShorts[date.month - 1]} ${date.day}, ${date.year}';
 }

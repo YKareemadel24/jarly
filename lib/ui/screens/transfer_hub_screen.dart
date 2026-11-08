@@ -31,7 +31,10 @@ class TransferHubScreen extends ConsumerWidget {
     final savings = ref.watch(savingsProvider).value;
     final jars = savings?.jars ?? const <Jar>[];
     final portable = jars.where((jar) => !jar.isArchived).toList();
-    final entries = portable.fold<int>(0, (sum, jar) => sum + jar.entries.length);
+    final entries = portable.fold<int>(
+      0,
+      (sum, jar) => sum + jar.entries.length,
+    );
 
     return ScreenContainer(
       scrollable: true,
@@ -51,21 +54,32 @@ class TransferHubScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
-            Text('MOVE YOUR JARS',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.4,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'MOVE YOUR JARS',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('Bring it\nwith you.',
-                style: TextStyle(
-                    color: palette.foreground, fontSize: 31, height: 36 / 31)),
+            Text(
+              'Bring it\nwith you.',
+              style: TextStyle(
+                color: palette.foreground,
+                fontSize: 31,
+                height: 36 / 31,
+              ),
+            ),
             const SizedBox(height: 10),
             Text(
               'Move your jars straight from one phone to another. Nothing is uploaded, and both devices can be offline.',
               style: TextStyle(
-                  color: palette.muted, fontSize: 13.5, height: 20 / 13.5),
+                color: palette.muted,
+                fontSize: 13.5,
+                height: 20 / 13.5,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -76,47 +90,55 @@ class TransferHubScreen extends ConsumerWidget {
                 color: hexAlpha(accentFor('ocean', palette), '12'),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                    color: hexAlpha(accentFor('ocean', palette), '33')),
+                  color: hexAlpha(accentFor('ocean', palette), '33'),
+                ),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
                       children: [
-                        Text('${portable.length}',
-                            style: TextStyle(
-                                color: palette.foreground,
-                                fontSize: 24,
-                                fontFamily: 'Georgia')),
+                        Text(
+                          '${portable.length}',
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontSize: 24,
+                            fontFamily: 'Georgia',
+                          ),
+                        ),
                         const SizedBox(height: 3),
                         Text(
-                            '${portable.length == 1 ? 'jar' : 'jars'} ready to move',
-                            style: TextStyle(
-                                color: palette.muted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
+                          '${portable.length == 1 ? 'jar' : 'jars'} ready to move',
+                          style: TextStyle(
+                            color: palette.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Container(
-                    width: 0.5,
-                    color: palette.border,
-                    height: 44,
-                  ),
+                  Container(width: 0.5, color: palette.border, height: 44),
                   Expanded(
                     child: Column(
                       children: [
-                        Text('$entries',
-                            style: TextStyle(
-                                color: palette.foreground,
-                                fontSize: 24,
-                                fontFamily: 'Georgia')),
+                        Text(
+                          '$entries',
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontSize: 24,
+                            fontFamily: 'Georgia',
+                          ),
+                        ),
                         const SizedBox(height: 3),
-                        Text('${entries == 1 ? 'entry' : 'entries'} of history',
-                            style: TextStyle(
-                                color: palette.muted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700)),
+                        Text(
+                          '${entries == 1 ? 'entry' : 'entries'} of history',
+                          style: TextStyle(
+                            color: palette.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -171,7 +193,10 @@ class TransferHubScreen extends ConsumerWidget {
                   child: Text(
                     'Jars you share with other people are not copied — they already live on your device.',
                     style: TextStyle(
-                        color: palette.muted, fontSize: 11.5, height: 17 / 11.5),
+                      color: palette.muted,
+                      fontSize: 11.5,
+                      height: 17 / 11.5,
+                    ),
                   ),
                 ),
               ],
@@ -213,17 +238,23 @@ class TransferHubScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(copy,
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 11.5,
-                        height: 16 / 11.5)),
+                Text(
+                  copy,
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 11.5,
+                    height: 16 / 11.5,
+                  ),
+                ),
               ],
             ),
           ),

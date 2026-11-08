@@ -40,8 +40,14 @@ void main() {
     });
 
     test('provides a visual accent for every selectable jar color', () {
-      expect(jarAccent.keys.toList(),
-          ['coral', 'amber', 'mint', 'ocean', 'berry', 'clay']);
+      expect(jarAccent.keys.toList(), [
+        'coral',
+        'amber',
+        'mint',
+        'ocean',
+        'berry',
+        'clay',
+      ]);
       expect(jarAccent['ocean'], startsWith('#'));
     });
   });

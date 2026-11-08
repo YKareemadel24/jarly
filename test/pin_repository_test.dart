@@ -54,7 +54,9 @@ void main() {
       expect(await readAttempts(storage).then((a) => a.failures), 0);
 
       await writeAttempts(
-          storage, const PinAttemptState(failures: 3, lockedUntil: 12345));
+        storage,
+        const PinAttemptState(failures: 3, lockedUntil: 12345),
+      );
       final state = await readAttempts(storage);
       expect(state.failures, 3);
       expect(state.lockedUntil, 12345);

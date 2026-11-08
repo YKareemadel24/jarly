@@ -68,28 +68,83 @@ class _BadgeSpec {
 
 /// The full badge catalogue, in display order.
 final List<_BadgeSpec> _badgeCatalogue = [
-  _BadgeSpec('first-deposit', '🌱', 'First Light', 'Log your first deposit',
-      (s) => (s.deposits, 1)),
-  _BadgeSpec('ten-deposits', '✨', 'Getting Going', 'Log 10 deposits',
-      (s) => (s.deposits, 10)),
-  _BadgeSpec('fifty-deposits', '🧱', 'Brick by Brick', 'Log 50 deposits',
-      (s) => (s.deposits, 50)),
-  _BadgeSpec('hundred-deposits', '🏛️', 'Centurion', 'Log 100 deposits',
-      (s) => (s.deposits, 100)),
-  _BadgeSpec('streak-3', '🔥', 'Three in a Row', 'Reach a 3-day streak',
-      (s) => (s.maxStreak, 3)),
-  _BadgeSpec('streak-7', '📅', 'Week Strong', 'Reach a 7-day streak',
-      (s) => (s.maxStreak, 7)),
-  _BadgeSpec('streak-30', '🛡️', 'Iron Jar', 'Reach a 30-day streak',
-      (s) => (s.maxStreak, 30)),
-  _BadgeSpec('saved-100', '💯', 'First Hundred', 'Save 100.00 in total',
-      (s) => (s.totalDeposited, 10000)),
-  _BadgeSpec('saved-1000', '🏔️', 'Four Figures', 'Save 1,000.00 in total',
-      (s) => (s.totalDeposited, 100000)),
-  _BadgeSpec('first-goal', '🎯', 'Goal Smasher', 'Complete a jar',
-      (s) => (s.completed, 1)),
-  _BadgeSpec('steady-months', '🗓️', 'Steady Hand', 'Save in 4 different months',
-      (s) => (s.months, 4)),
+  _BadgeSpec(
+    'first-deposit',
+    '🌱',
+    'First Light',
+    'Log your first deposit',
+    (s) => (s.deposits, 1),
+  ),
+  _BadgeSpec(
+    'ten-deposits',
+    '✨',
+    'Getting Going',
+    'Log 10 deposits',
+    (s) => (s.deposits, 10),
+  ),
+  _BadgeSpec(
+    'fifty-deposits',
+    '🧱',
+    'Brick by Brick',
+    'Log 50 deposits',
+    (s) => (s.deposits, 50),
+  ),
+  _BadgeSpec(
+    'hundred-deposits',
+    '🏛️',
+    'Centurion',
+    'Log 100 deposits',
+    (s) => (s.deposits, 100),
+  ),
+  _BadgeSpec(
+    'streak-3',
+    '🔥',
+    'Three in a Row',
+    'Reach a 3-day streak',
+    (s) => (s.maxStreak, 3),
+  ),
+  _BadgeSpec(
+    'streak-7',
+    '📅',
+    'Week Strong',
+    'Reach a 7-day streak',
+    (s) => (s.maxStreak, 7),
+  ),
+  _BadgeSpec(
+    'streak-30',
+    '🛡️',
+    'Iron Jar',
+    'Reach a 30-day streak',
+    (s) => (s.maxStreak, 30),
+  ),
+  _BadgeSpec(
+    'saved-100',
+    '💯',
+    'First Hundred',
+    'Save 100.00 in total',
+    (s) => (s.totalDeposited, 10000),
+  ),
+  _BadgeSpec(
+    'saved-1000',
+    '🏔️',
+    'Four Figures',
+    'Save 1,000.00 in total',
+    (s) => (s.totalDeposited, 100000),
+  ),
+  _BadgeSpec(
+    'first-goal',
+    '🎯',
+    'Goal Smasher',
+    'Complete a jar',
+    (s) => (s.completed, 1),
+  ),
+  _BadgeSpec(
+    'steady-months',
+    '🗓️',
+    'Steady Hand',
+    'Save in 4 different months',
+    (s) => (s.months, 4),
+  ),
 ];
 
 /// Roll a jar list up into the counters badges are earned from.
@@ -148,5 +203,7 @@ List<Badge> badges(List<Jar> jars, [DateTime? now]) {
 /// celebrating. Pass the ids the user has already been shown as [previous].
 List<Badge> newlyEarnedBadges(Iterable<String> previous, List<Badge> current) {
   final known = previous.toSet();
-  return current.where((badge) => badge.earned && !known.contains(badge.id)).toList();
+  return current
+      .where((badge) => badge.earned && !known.contains(badge.id))
+      .toList();
 }

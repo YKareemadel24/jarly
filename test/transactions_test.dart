@@ -6,22 +6,20 @@ import 'helpers.dart';
 final DateTime now = DateTime.parse('2026-10-22T12:00:00Z').toLocal();
 
 Jar empty({int? balance, String? kind}) => jar(
-      name: 'Trip',
-      target: 10000,
-      balance: balance ?? 0,
-      kind: kind ?? kindGoal,
-      createdAt: '2026-10-01T12:00:00Z',
-    );
+  name: 'Trip',
+  target: 10000,
+  balance: balance ?? 0,
+  kind: kind ?? kindGoal,
+  createdAt: '2026-10-01T12:00:00Z',
+);
 
-Jar record(Jar base, int amount, String direction, int day) =>
-    applyEntry(
-      base,
-      amount,
-      direction,
-      source: sourceManual,
-      now: DateTime.parse('2026-10-$day T12:00:00Z'.replaceAll(' ', '')),
-    )!
-        .jar;
+Jar record(Jar base, int amount, String direction, int day) => applyEntry(
+  base,
+  amount,
+  direction,
+  source: sourceManual,
+  now: DateTime.parse('2026-10-$day T12:00:00Z'.replaceAll(' ', '')),
+)!.jar;
 
 void main() {
   group('transaction corrections', () {
@@ -66,7 +64,12 @@ void main() {
     test('rejects a correction that makes a past withdrawal impossible even if the current balance stays positive', () {
       var base = record(empty(), 10000, directionDeposit, 18);
       final id = base.entries[0].id;
-      base = record(record(base, 8000, directionWithdrawal, 19), 10000, directionDeposit, 20);
+      base = record(
+        record(base, 8000, directionWithdrawal, 19),
+        10000,
+        directionDeposit,
+        20,
+      );
       expect(
         correctEntry(
           base,
@@ -138,7 +141,12 @@ void main() {
     test('refuses Undo funded only by a future deposit', () {
       var base = record(empty(), 10000, directionDeposit, 19);
       final originalId = base.entries[0].id;
-      base = record(record(base, 10000, directionWithdrawal, 20), 10000, directionDeposit, 23);
+      base = record(
+        record(base, 10000, directionWithdrawal, 20),
+        10000,
+        directionDeposit,
+        23,
+      );
       expect(undoEntry(base, originalId, now), isNull);
     });
 
@@ -150,14 +158,23 @@ void main() {
     test('allows note correction after Undo of an older deposit funded by later savings', () {
       var base = record(empty(), 10000, directionDeposit, 18);
       final originalId = base.entries[0].id;
-      base = record(record(base, 10000, directionWithdrawal, 19), 10000, directionDeposit, 20);
+      base = record(
+        record(base, 10000, directionWithdrawal, 19),
+        10000,
+        directionDeposit,
+        20,
+      );
       final later = base.entries[0];
       base = undoEntry(base, originalId, now)!;
       expect(base.balance, 0);
       final corrected = correctEntry(
         base,
         later.id,
-        EntryCorrection(amount: later.amount, at: later.at, note: 'Later deposit'),
+        EntryCorrection(
+          amount: later.amount,
+          at: later.at,
+          note: 'Later deposit',
+        ),
         now,
       );
       expect(corrected!.balance, 0);
@@ -193,21 +210,27 @@ void main() {
       );
     });
 
-    test('reverses a withdrawal without awarding extra progress or habit days', () {
-      var base = record(empty(kind: kindHabit), 5000, directionDeposit, 18);
-      base = record(base, 2000, directionWithdrawal, 19);
-      final undone = undoEntry(base, base.entries[0].id, now)!;
-      expect(undone.balance, 5000);
-      expect(undone.streak, 1);
-      expect(undone.lastDepositAt, base.lastDepositAt);
-      expect(undone.milestonesHit, base.milestonesHit);
-      expect(effectiveEntries(undone.entries), hasLength(1));
-    });
+    test(
+      'reverses a withdrawal without awarding extra progress or habit days',
+      () {
+        var base = record(empty(kind: kindHabit), 5000, directionDeposit, 18);
+        base = record(base, 2000, directionWithdrawal, 19);
+        final undone = undoEntry(base, base.entries[0].id, now)!;
+        expect(undone.balance, 5000);
+        expect(undone.streak, 1);
+        expect(undone.lastDepositAt, base.lastDepositAt);
+        expect(undone.milestonesHit, base.milestonesHit);
+        expect(effectiveEntries(undone.entries), hasLength(1));
+      },
+    );
 
-    test('rejects reversing a deposit when its money has since been withdrawn', () {
-      final funded = record(empty(), 5000, directionDeposit, 18);
-      final base = record(funded, 4000, directionWithdrawal, 19);
-      expect(undoEntry(base, funded.entries[0].id, now), isNull);
-    });
+    test(
+      'rejects reversing a deposit when its money has since been withdrawn',
+      () {
+        final funded = record(empty(), 5000, directionDeposit, 18);
+        final base = record(funded, 4000, directionWithdrawal, 19);
+        expect(undoEntry(base, funded.entries[0].id, now), isNull);
+      },
+    );
   });
 }

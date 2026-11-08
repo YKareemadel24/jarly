@@ -40,13 +40,16 @@ class PressableState extends State<Pressable> {
           if (widget.onLongPress != null)
             LongPressGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<
-                    LongPressGestureRecognizer>(
-              () => LongPressGestureRecognizer(duration: widget.longPressDelay),
-              (instance) => instance.onLongPress = () {
-                setState(() => _longFired = true);
-                widget.onLongPress!();
-              },
-            ),
+                  LongPressGestureRecognizer
+                >(
+                  () => LongPressGestureRecognizer(
+                    duration: widget.longPressDelay,
+                  ),
+                  (instance) => instance.onLongPress = () {
+                    setState(() => _longFired = true);
+                    widget.onLongPress!();
+                  },
+                ),
         },
         child: GestureDetector(
           onTap: _longFired ? null : widget.onTap,

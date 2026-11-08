@@ -32,7 +32,10 @@ List<Jar>? parseJars(String? raw, {bool legacy = false}) {
     }
     final jars = parsed
         .whereType<Map>()
-        .map((jar) => normaliseJar(jar.cast<String, dynamic>(), scaleToMinor: legacy))
+        .map(
+          (jar) =>
+              normaliseJar(jar.cast<String, dynamic>(), scaleToMinor: legacy),
+        )
         .toList();
     if (jars.any((jar) => !validStoredJar(jar))) return null;
     final activeTotal = jars
@@ -54,12 +57,14 @@ bool validStoredJar(Jar jar) {
           (isSafeInteger(jar.openingBalance!) && jar.openingBalance! >= 0)) &&
       validEntryAudit(jar.entries) &&
       (jar.reminder == null || isValidJarReminder(jar.reminder)) &&
-      jar.entries.every((entry) =>
-          isSafeInteger(entry.amount) &&
-          entry.amount > 0 &&
-          (entry.direction == directionDeposit ||
-              entry.direction == directionWithdrawal) &&
-          DateTime.tryParse(entry.at) != null) &&
+      jar.entries.every(
+        (entry) =>
+            isSafeInteger(entry.amount) &&
+            entry.amount > 0 &&
+            (entry.direction == directionDeposit ||
+                entry.direction == directionWithdrawal) &&
+            DateTime.tryParse(entry.at) != null,
+      ) &&
       (jar.recurring == null ||
           (isSafeInteger(jar.recurring!.amount) && jar.recurring!.amount > 0));
 }

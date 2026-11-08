@@ -39,12 +39,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _currencyPickerOpen = false;
   bool _pinBusy = false;
 
-  void _openPinPrompt(_PinPromptMode mode) =>
-      setState(() => _pinMode = mode);
+  void _openPinPrompt(_PinPromptMode mode) => setState(() => _pinMode = mode);
 
   void _closePinPrompt() => setState(() {
-        _pinMode = null;
-      });
+    _pinMode = null;
+  });
 
   void _showNotice(String message) => setState(() => _notice = message);
 
@@ -131,13 +130,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         controller.setBiometricLockEnabled(false);
       } else {
         _showNotice(
-            'Verify with biometrics before turning off fingerprint unlock.');
+          'Verify with biometrics before turning off fingerprint unlock.',
+        );
       }
     } else if (settings?.hasPin ?? false) {
       _openPinPrompt(_PinPromptMode.verifyBiometricDisable);
     } else {
       _showNotice(
-          'Authentication is unavailable. Restore device biometrics before changing this lock.');
+        'Authentication is unavailable. Restore device biometrics before changing this lock.',
+      );
     }
   }
 
@@ -153,7 +154,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         controller.setRemindersEnabled(true);
       } else {
         _showNotice(
-            'Saving reminders stays off until you allow notifications in system Settings.');
+          'Saving reminders stays off until you allow notifications in system Settings.',
+        );
       }
     } catch (_) {
       _showNotice('Could not check notification permission. Try again.');
@@ -167,8 +169,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final savings = ref.watch(savingsProvider).value;
     final jars = savings?.jars ?? const <Jar>[];
     final format = ref.watch(moneyFormatterProvider);
-    final appearance =
-        ref.watch(themeProvider).value ?? AppearanceMode.system;
+    final appearance = ref.watch(themeProvider).value ?? AppearanceMode.system;
     final currency = settings?.currency ?? 'USD';
     final activeCurrency = supportedCurrencies.firstWhere(
       (option) => option.code == currency,
@@ -185,18 +186,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('PROFILE',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 10,
-                        letterSpacing: 1.4,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  'PROFILE',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 10,
+                    letterSpacing: 1.4,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 7),
-                Text('Make it feel\nlike yours.',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 31,
-                        height: 36 / 31)),
+                Text(
+                  'Make it feel\nlike yours.',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 31,
+                    height: 36 / 31,
+                  ),
+                ),
                 const SizedBox(height: 23),
 
                 // Identity
@@ -218,24 +225,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: palette.primary,
                           borderRadius: BorderRadius.circular(17),
                         ),
-                        child: const Text('SJ',
-                            style: TextStyle(
-                                color: Color(0xFFFFFDF9), fontSize: 16)),
+                        child: const Text(
+                          'SJ',
+                          style: TextStyle(
+                            color: Color(0xFFFFFDF9),
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 13),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Your Saving Jar',
-                                style: TextStyle(
-                                    color: palette.foreground,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800)),
+                            Text(
+                              'Your Saving Jar',
+                              style: TextStyle(
+                                color: palette.foreground,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(height: 4),
-                            Text('A private progress tracker',
-                                style: TextStyle(
-                                    color: palette.muted, fontSize: 12)),
+                            Text(
+                              'A private progress tracker',
+                              style: TextStyle(
+                                color: palette.muted,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -245,20 +263,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 _sectionLabel(palette, 'APPEARANCE'),
                 _group(palette, [
-                  Text('Theme',
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    'Theme',
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Choose the view that feels most comfortable.',
-                      style: TextStyle(color: palette.muted, fontSize: 12)),
+                  Text(
+                    'Choose the view that feels most comfortable.',
+                    style: TextStyle(color: palette.muted, fontSize: 12),
+                  ),
                   const SizedBox(height: 14),
                   Row(
                     children: [
                       for (final mode in AppearanceMode.values) ...[
-                        if (mode != AppearanceMode.light) const SizedBox(width: 7),
-                        Expanded(child: _themeChoice(palette, mode, appearance)),
+                        if (mode != AppearanceMode.light)
+                          const SizedBox(width: 7),
+                        Expanded(
+                          child: _themeChoice(palette, mode, appearance),
+                        ),
                       ],
                     ],
                   ),
@@ -269,8 +295,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _Preference(
                     icon: Icons.notifications_none,
                     title: 'Saving reminders',
-                    detail:
-                        'Daily savings check-in plus due deposit and deadline nudges',
+                    detail: 'Daily savings check-in plus due deposit and deadline nudges',
                     value: settings?.remindersEnabled ?? false,
                     onChange: _onRemindersChange,
                     palette: palette,
@@ -282,7 +307,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     detail: settings?.biometricAvailable ?? false
                         ? 'Require your fingerprint or face to open your jar'
                         : 'Set up fingerprint or face unlock on this device to use this',
-                    value: (settings?.biometricLockEnabled ?? false) &&
+                    value:
+                        (settings?.biometricLockEnabled ?? false) &&
                         (settings?.biometricAvailable ?? false),
                     onChange: _onBiometricLockChange,
                     disabled: !(settings?.biometricAvailable ?? false),
@@ -292,8 +318,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _Preference(
                     icon: Icons.lock_outline,
                     title: 'PIN lock',
-                    detail:
-                        'Use a 4–12 digit code if you\'d rather not use biometrics',
+                    detail: 'Use a 4–12 digit code if you\'d rather not use biometrics',
                     value: settings?.pinLockEnabled ?? false,
                     onChange: _onPinLockChange,
                     palette: palette,
@@ -302,19 +327,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _prefAction(
                     palette,
                     icon: Icons.key,
-                    title: '${settings?.hasPin ?? false ? 'Change' : 'Set'} PIN',
+                    title:
+                        '${settings?.hasPin ?? false ? 'Change' : 'Set'} PIN',
                     detail: !(settings?.pinLockEnabled ?? false)
                         ? 'Turn on PIN lock first.'
                         : (settings?.hasPin ?? false)
-                            ? 'Update the code that unlocks your jar.'
-                            : 'Choose a code so only you can open it.',
+                        ? 'Update the code that unlocks your jar.'
+                        : 'Choose a code so only you can open it.',
                     enabled: settings?.pinLockEnabled ?? false,
                     showChevron: settings?.pinLockEnabled ?? false,
                     onTap: () {
                       if (!(settings?.pinLockEnabled ?? false)) return;
-                      _openPinPrompt(settings?.hasPin ?? false
-                          ? _PinPromptMode.change
-                          : _PinPromptMode.setup);
+                      _openPinPrompt(
+                        settings?.hasPin ?? false
+                            ? _PinPromptMode.change
+                            : _PinPromptMode.setup,
+                      );
                     },
                   ),
                 ]),
@@ -332,34 +360,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Default currency',
-                                style: TextStyle(
-                                    color: palette.foreground,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800)),
+                            Text(
+                              'Default currency',
+                              style: TextStyle(
+                                color: palette.foreground,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(height: 3),
                             Text(
-                                '${activeCurrency.code} — ${activeCurrency.name}',
-                                style: TextStyle(
-                                    color: palette.muted, fontSize: 11)),
+                              '${activeCurrency.code} — ${activeCurrency.name}',
+                              style: TextStyle(
+                                color: palette.muted,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 11, vertical: 7),
+                          horizontal: 11,
+                          vertical: 7,
+                        ),
                         decoration: BoxDecoration(
                           color: hexAlpha(toRrggbb(palette.primary), '14'),
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: Text(activeCurrency.code,
-                            style: TextStyle(
-                                color: palette.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800)),
+                        child: Text(
+                          activeCurrency.code,
+                          style: TextStyle(
+                            color: palette.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
-                      Icon(Icons.chevron_right,
-                          size: 20, color: palette.muted),
+                      Icon(Icons.chevron_right, size: 20, color: palette.muted),
                     ],
                   ),
                 ),
@@ -377,16 +415,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Move to another device',
-                                style: TextStyle(
-                                    color: palette.foreground,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800)),
+                            Text(
+                              'Move to another device',
+                              style: TextStyle(
+                                color: palette.foreground,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             const SizedBox(height: 3),
                             Text(
-                                'Pass your jars across with a code — no account, no network.',
-                                style: TextStyle(
-                                    color: palette.muted, fontSize: 11)),
+                              'Pass your jars across with a code — no account, no network.',
+                              style: TextStyle(
+                                color: palette.muted,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -404,8 +448,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ? [
                           Text(
                             'Nothing archived. Archiving removes a jar from your active goals while keeping its history.',
-                            style:
-                                TextStyle(color: palette.muted, fontSize: 12),
+                            style: TextStyle(
+                              color: palette.muted,
+                              fontSize: 12,
+                            ),
                           ),
                         ]
                       : [
@@ -423,8 +469,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
 
           // Overlays live in the same Stack so they cover the scroll view.
-          if (_currencyPickerOpen)
-            _currencySheet(palette, currency),
+          if (_currencyPickerOpen) _currencySheet(palette, currency),
           if (_pinMode != null)
             _PinSheet(
               mode: _pinMode!,
@@ -437,9 +482,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             visible: _notice != null,
             title: 'Notifications off',
             message: _notice ?? '',
-            actions: [
-              SheetAction(label: 'Got it', onPress: () {}),
-            ],
+            actions: [SheetAction(label: 'Got it', onPress: () {})],
             onDismiss: () => setState(() => _notice = null),
           ),
           ActionSheet(
@@ -457,7 +500,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onPress: () {
                   final jar = _pendingDelete;
                   if (jar != null) {
-                    ref.read(savingsProvider.notifier).deleteJarPermanently(jar.id);
+                    ref
+                        .read(savingsProvider.notifier)
+                        .deleteJarPermanently(jar.id);
                   }
                 },
               ),
@@ -475,12 +520,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _sectionLabel(Palette palette, String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 26, bottom: 9),
-      child: Text(text,
-          style: TextStyle(
-              color: palette.muted,
-              fontSize: 10,
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w800)),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: palette.muted,
+          fontSize: 10,
+          letterSpacing: 1.1,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 
@@ -500,10 +548,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _line(Palette palette) => Container(
-        height: 0.5,
-        margin: const EdgeInsets.only(left: 48),
-        color: palette.border,
-      );
+    height: 0.5,
+    margin: const EdgeInsets.only(left: 48),
+    color: palette.border,
+  );
 
   Widget _prefIcon(Palette palette, IconData icon) {
     return Container(
@@ -517,17 +565,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _themeChoice(Palette palette, AppearanceMode mode, AppearanceMode current) {
+  Widget _themeChoice(
+    Palette palette,
+    AppearanceMode mode,
+    AppearanceMode current,
+  ) {
     final selected = mode == current;
     return GestureDetector(
-      onTap: () =>
-          ref.read(themeProvider.notifier).setMode(mode),
+      onTap: () => ref.read(themeProvider.notifier).setMode(mode),
       child: Container(
         constraints: const BoxConstraints(minHeight: 40),
         decoration: BoxDecoration(
           color: selected ? palette.primary : null,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? palette.primary : palette.border),
+          border: Border.all(
+            color: selected ? palette.primary : palette.border,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -551,9 +604,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    color: selected ? const Color(0xFFFFFDF9) : palette.muted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800),
+                  color: selected ? const Color(0xFFFFFDF9) : palette.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -588,14 +642,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(title,
-                        style: TextStyle(
-                            color: palette.foreground,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800)),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: palette.foreground,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 3),
-                    Text(detail,
-                        style: TextStyle(color: palette.muted, fontSize: 11)),
+                    Text(
+                      detail,
+                      style: TextStyle(color: palette.muted, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
@@ -633,8 +692,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _archivedRow(
-      Palette palette, Jar jar, String Function(int) format) {
+  Widget _archivedRow(Palette palette, Jar jar, String Function(int) format) {
     return Container(
       constraints: const BoxConstraints(minHeight: 57),
       child: Row(
@@ -644,16 +702,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(jar.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  jar.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text('${format(jar.balance)} saved',
-                    style: TextStyle(color: palette.muted, fontSize: 11)),
+                Text(
+                  '${format(jar.balance)} saved',
+                  style: TextStyle(color: palette.muted, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -663,17 +726,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ref.read(savingsProvider.notifier).restoreJar(jar.id);
             },
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
               decoration: BoxDecoration(
                 color: hexAlpha(toRrggbb(palette.primary), '14'),
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Text('Restore',
-                  style: TextStyle(
-                      color: palette.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+              child: Text(
+                'Restore',
+                style: TextStyle(
+                  color: palette.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -699,9 +764,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: Text('Choose a currency',
-                    style:
-                        TextStyle(color: palette.foreground, fontSize: 20)),
+                child: Text(
+                  'Choose a currency',
+                  style: TextStyle(color: palette.foreground, fontSize: 20),
+                ),
               ),
               GestureDetector(
                 onTap: () => setState(() => _currencyPickerOpen = false),
@@ -710,8 +776,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text('All amounts in the app will display in this currency.',
-              style: TextStyle(color: palette.muted, fontSize: 12)),
+          Text(
+            'All amounts in the app will display in this currency.',
+            style: TextStyle(color: palette.muted, fontSize: 12),
+          ),
           const SizedBox(height: 12),
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 360),
@@ -723,7 +791,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
                         Haptics.tap();
-                        ref.read(settingsProvider.notifier).setCurrency(option.code);
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setCurrency(option.code);
                         setState(() => _currencyPickerOpen = false);
                       },
                       child: Container(
@@ -737,43 +807,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: option.code == currency
-                                    ? hexAlpha(
-                                        toRrggbb(palette.primary), '22')
+                                    ? hexAlpha(toRrggbb(palette.primary), '22')
                                     : palette.background,
                                 borderRadius: BorderRadius.circular(13),
                                 border: Border.all(
-                                    color: option.code == currency
-                                        ? palette.primary
-                                        : palette.border),
+                                  color: option.code == currency
+                                      ? palette.primary
+                                      : palette.border,
+                                ),
                               ),
-                              child: Text(option.symbol,
-                                  style: TextStyle(
-                                      color: option.code == currency
-                                          ? palette.primary
-                                          : palette.muted,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800)),
+                              child: Text(
+                                option.symbol,
+                                style: TextStyle(
+                                  color: option.code == currency
+                                      ? palette.primary
+                                      : palette.muted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 11),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(option.name,
-                                      style: TextStyle(
-                                          color: palette.foreground,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800)),
+                                  Text(
+                                    option.name,
+                                    style: TextStyle(
+                                      color: palette.foreground,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                   const SizedBox(height: 3),
-                                  Text(option.code,
-                                      style: TextStyle(
-                                          color: palette.muted, fontSize: 11)),
+                                  Text(
+                                    option.code,
+                                    style: TextStyle(
+                                      color: palette.muted,
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                             if (option.code == currency)
-                              Icon(Icons.check,
-                                  size: 20, color: palette.primary),
+                              Icon(
+                                Icons.check,
+                                size: 20,
+                                color: palette.primary,
+                              ),
                           ],
                         ),
                       ),
@@ -830,14 +913,19 @@ class _Preference extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(detail,
-                    style: TextStyle(color: palette.muted, fontSize: 11)),
+                Text(
+                  detail,
+                  style: TextStyle(color: palette.muted, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -848,8 +936,7 @@ class _Preference extends StatelessWidget {
             inactiveThumbColor: const Color(0xFFFFFDF9),
             activeTrackColor: hexAlpha(toRrggbb(palette.primary), '8C'),
             inactiveTrackColor: palette.border,
-            trackOutlineColor: const WidgetStatePropertyAll(
-                Color(0x00000000)),
+            trackOutlineColor: const WidgetStatePropertyAll(Color(0x00000000)),
           ),
         ],
       ),
@@ -896,7 +983,8 @@ class _PinSheetState extends State<_PinSheet> {
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette;
-    final verifying = widget.mode == _PinPromptMode.verifyPinDisable ||
+    final verifying =
+        widget.mode == _PinPromptMode.verifyPinDisable ||
         widget.mode == _PinPromptMode.verifyBiometricDisable;
     return SheetScaffold(
       visible: true,
@@ -910,14 +998,11 @@ class _PinSheetState extends State<_PinSheet> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  switch (widget.mode) {
-                    _PinPromptMode.setup => 'Choose your PIN',
-                    _PinPromptMode.change => 'Change your PIN',
-                    _ => 'Verify your PIN',
-                  },
-                  style: TextStyle(color: palette.foreground, fontSize: 20),
-                ),
+                child: Text(switch (widget.mode) {
+                  _PinPromptMode.setup => 'Choose your PIN',
+                  _PinPromptMode.change => 'Change your PIN',
+                  _ => 'Verify your PIN',
+                }, style: TextStyle(color: palette.foreground, fontSize: 20)),
               ),
               GestureDetector(
                 onTap: widget.onClose,
@@ -942,37 +1027,45 @@ class _PinSheetState extends State<_PinSheet> {
             onChanged: (_) => setState(() => _error = null),
             onSubmitted: (_) => _submit(),
             style: TextStyle(
-                color: palette.foreground,
-                fontSize: 22,
-                letterSpacing: 8),
+              color: palette.foreground,
+              fontSize: 22,
+              letterSpacing: 8,
+            ),
             decoration: InputDecoration(
               hintText: '••••',
               hintStyle: TextStyle(color: palette.muted),
               counterText: '',
               filled: true,
               fillColor: palette.background,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide(
-                    color: _error != null ? palette.error : palette.border),
+                  color: _error != null ? palette.error : palette.border,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide(
-                    color: _error != null ? palette.error : palette.border),
+                  color: _error != null ? palette.error : palette.border,
+                ),
               ),
             ),
           ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(_error!,
-                  style: TextStyle(
-                      color: palette.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700)),
+              child: Text(
+                _error!,
+                style: TextStyle(
+                  color: palette.error,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           GestureDetector(
             onTap: _pinBusyGuard,
@@ -989,16 +1082,21 @@ class _PinSheetState extends State<_PinSheet> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: palette.background))
+                        strokeWidth: 2,
+                        color: palette.background,
+                      ),
+                    )
                   : Text(
                       switch (widget.mode) {
                         _PinPromptMode.setup => 'Turn on PIN lock',
                         _ => verifying ? 'Verify PIN' : 'Save PIN',
                       },
                       style: const TextStyle(
-                          color: Color(0xFFFFFDF9),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800)),
+                        color: Color(0xFFFFFDF9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
             ),
           ),
         ],

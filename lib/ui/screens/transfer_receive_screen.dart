@@ -73,16 +73,19 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
   }
 
   void _addDraft() {
-    final lines =
-        _draft.text.split(RegExp(r'\s+')).where((line) => line.isNotEmpty);
+    final lines = _draft.text
+        .split(RegExp(r'\s+'))
+        .where((line) => line.isNotEmpty);
     var accepted = 0;
     for (final line in lines) {
       if (accept(line)) accepted += 1;
     }
     if (accepted == 0) {
       Haptics.error();
-      setState(() =>
-          _error = 'That is not a Saving Jar code. Check you copied the whole line.');
+      setState(
+        () => _error =
+            'That is not a Saving Jar code. Check you copied the whole line.',
+      );
       return;
     }
     Haptics.tap();
@@ -95,8 +98,9 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
 
   void _finish() {
     final currency = ref.read(settingsProvider).value?.currency;
-    final outcome = ref.read(savingsProvider.notifier).importTransfer(
-        List.of(_frames), currency);
+    final outcome = ref
+        .read(savingsProvider.notifier)
+        .importTransfer(List.of(_frames), currency);
     if (outcome.error != null) {
       Haptics.error();
       setState(() => _error = outcome.error);
@@ -126,9 +130,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
     final complete = assembly?.snapshot != null;
 
     if (_done && _result != null) {
-      return ScreenContainer(
-        child: _doneBody(palette),
-      );
+      return ScreenContainer(child: _doneBody(palette));
     }
 
     return ScreenContainer(
@@ -147,25 +149,32 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
                   onTap: () => context.pop(),
                 ),
                 const SizedBox(height: 18),
-                Text('RECEIVE',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 10,
-                        letterSpacing: 1.4,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  'RECEIVE',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 10,
+                    letterSpacing: 1.4,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Add the codes\nfrom the other phone.',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 29,
-                        height: 35 / 29)),
+                Text(
+                  'Add the codes\nfrom the other phone.',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 29,
+                    height: 35 / 29,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Text(
                   'Paste each code the other phone shows. They can go in any order, and adding one twice does nothing.',
                   style: TextStyle(
-                      color: palette.muted,
-                      fontSize: 13.5,
-                      height: 20 / 13.5),
+                    color: palette.muted,
+                    fontSize: 13.5,
+                    height: 20 / 13.5,
+                  ),
                 ),
 
                 if (assembly != null && assembly.total > 0) ...[
@@ -182,8 +191,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
                   enableSuggestions: false,
                   style: TextStyle(color: palette.foreground, fontSize: 12),
                   decoration: InputDecoration(
-                    hintText:
-                        'Paste a code starting with $transferPrefix.',
+                    hintText: 'Paste a code starting with $transferPrefix.',
                     hintStyle: TextStyle(color: palette.muted, fontSize: 12),
                     filled: true,
                     fillColor: palette.surface,
@@ -211,11 +219,14 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: Text(_error!,
-                        style: TextStyle(
-                            color: palette.error,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: palette.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
 
                 const SizedBox(height: 20),
@@ -236,9 +247,10 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
                       child: Text(
                         'Nothing is written to this device until every code has arrived, so a half-finished transfer leaves your jars exactly as they were.',
                         style: TextStyle(
-                            color: palette.muted,
-                            fontSize: 11.5,
-                            height: 17 / 11.5),
+                          color: palette.muted,
+                          fontSize: 11.5,
+                          height: 17 / 11.5,
+                        ),
                       ),
                     ),
                   ],
@@ -286,13 +298,20 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
               child: Icon(Icons.check_circle, size: 30, color: parseHex(mint)),
             ),
             const SizedBox(height: 18),
-            Text('They are here.',
-                style: TextStyle(color: palette.foreground, fontSize: 24)),
+            Text(
+              'They are here.',
+              style: TextStyle(color: palette.foreground, fontSize: 24),
+            ),
             const SizedBox(height: 8),
-            Text(parts.join(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: palette.muted, fontSize: 13, height: 19 / 13)),
+            Text(
+              parts.join(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 13,
+                height: 19 / 13,
+              ),
+            ),
             const SizedBox(height: 24),
             PressablePrimary(
               label: 'See my jars',
@@ -306,11 +325,14 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
               child: Container(
                 constraints: const BoxConstraints(minHeight: 46),
                 alignment: Alignment.center,
-                child: Text('Bring in more',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  'Bring in more',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -320,7 +342,10 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
   }
 
   Widget _progressCard(
-      Palette palette, TransferAssembly assembly, bool complete) {
+    Palette palette,
+    TransferAssembly assembly,
+    bool complete,
+  ) {
     final mint = accentFor('mint', palette);
     final missing = assembly.missing;
     return Container(
@@ -328,8 +353,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
       decoration: BoxDecoration(
         color: complete ? hexAlpha(mint, '12') : palette.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: complete ? parseHex(mint) : palette.border),
+        border: Border.all(color: complete ? parseHex(mint) : palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,18 +361,24 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(complete ? 'ALL CODES IN' : 'COLLECTING',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 10,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w800)),
-              ),
-              Text('${assembly.have.length} of ${assembly.total}',
+                child: Text(
+                  complete ? 'ALL CODES IN' : 'COLLECTING',
                   style: TextStyle(
-                      color: complete ? parseHex(mint) : palette.foreground,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800)),
+                    color: palette.muted,
+                    fontSize: 10,
+                    letterSpacing: 1.1,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                '${assembly.have.length} of ${assembly.total}',
+                style: TextStyle(
+                  color: complete ? parseHex(mint) : palette.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 11),
@@ -377,19 +407,23 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
               child: Text(
                 'Still need ${missing.take(8).join(', ')}${missing.length > 8 ? ' and ${missing.length - 8} more' : ''}.',
                 style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 11.5,
-                    height: 16 / 11.5),
+                  color: palette.muted,
+                  fontSize: 11.5,
+                  height: 16 / 11.5,
+                ),
               ),
             ),
           if (assembly.error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(assembly.error!,
-                  style: TextStyle(
-                      color: palette.error,
-                      fontSize: 11.5,
-                      height: 16 / 11.5)),
+              child: Text(
+                assembly.error!,
+                style: TextStyle(
+                  color: palette.error,
+                  fontSize: 11.5,
+                  height: 16 / 11.5,
+                ),
+              ),
             ),
         ],
       ),
@@ -421,11 +455,14 @@ class PressablePrimary extends StatelessWidget {
           color: palette.primary,
           borderRadius: BorderRadius.circular(15),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                color: Color(0xFFFFFDF9),
-                fontSize: 14,
-                fontWeight: FontWeight.w800)),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFFFFFDF9),
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }
@@ -464,11 +501,14 @@ class _PrimaryButton extends StatelessWidget {
             children: [
               const Icon(Icons.add, size: 19, color: Color(0xFFFFFDF9)),
               const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(
-                      color: Color(0xFFFFFDF9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFFFFFDF9),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
         ),
@@ -501,9 +541,7 @@ class _FinishButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: enabled ? parseHex(mint) : palette.surface,
           borderRadius: BorderRadius.circular(16),
-          border: enabled
-              ? null
-              : Border.all(color: palette.border),
+          border: enabled ? null : Border.all(color: palette.border),
         ),
         child: Text(
           enabled

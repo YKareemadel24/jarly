@@ -26,17 +26,22 @@ class InsightsScreen extends ConsumerWidget {
     final total = savings?.total ?? 0;
     final active = jars.where((jar) => !jar.isArchived).toList();
     final completed = active.where((jar) => percent(jar) >= 100).length;
-    final closest = active.fold<Jar?>(null,
-        (best, jar) => best == null || percent(jar) > percent(best) ? jar : best);
-    final streak =
-        active.fold<int>(0, (best, jar) => (jar.streak ?? 0) > best ? jar.streak ?? 0 : best);
+    final closest = active.fold<Jar?>(
+      null,
+      (best, jar) => best == null || percent(jar) > percent(best) ? jar : best,
+    );
+    final streak = active.fold<int>(
+      0,
+      (best, jar) => (jar.streak ?? 0) > best ? jar.streak ?? 0 : best,
+    );
     final depositCount = active.fold<int>(
-        0,
-        (count, jar) =>
-            count +
-            effectiveEntries(jar.entries)
-                .where((entry) => entry.direction == directionDeposit)
-                .length);
+      0,
+      (count, jar) =>
+          count +
+          effectiveEntries(jar.entries)
+              .where((entry) => entry.direction == directionDeposit)
+              .length,
+    );
     final months = monthlyDeposits(active);
     final badgeList = badges(active);
     final earnedCount = badgeList.where((badge) => badge.earned).length;
@@ -48,24 +53,35 @@ class InsightsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('INSIGHTS',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.4,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'INSIGHTS',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 7),
-            Text('Progress, made\nclear.',
-                style: TextStyle(
-                    color: palette.foreground, fontSize: 31, height: 36 / 31)),
+            Text(
+              'Progress, made\nclear.',
+              style: TextStyle(
+                color: palette.foreground,
+                fontSize: 31,
+                height: 36 / 31,
+              ),
+            ),
             _hero(palette, format, total, active.length),
             const SizedBox(height: 27),
-            Text('AT A GLANCE',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.15,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'AT A GLANCE',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10,
+                letterSpacing: 1.15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -115,21 +131,27 @@ class InsightsScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             _closestCard(palette, format, closest),
             const SizedBox(height: 27),
-            Text('MONTHLY CONTRIBUTIONS',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.15,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'MONTHLY CONTRIBUTIONS',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10,
+                letterSpacing: 1.15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 10),
             _MonthlyChart(months: months, palette: palette, format: format),
             const SizedBox(height: 27),
-            Text('BADGES',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.15,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'BADGES',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10,
+                letterSpacing: 1.15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 10),
             _badgeSummary(palette, badgeList.length, earnedCount),
             const SizedBox(height: 10),
@@ -141,7 +163,11 @@ class InsightsScreen extends ConsumerWidget {
   }
 
   Widget _hero(
-      Palette palette, String Function(int) format, int total, int activeCount) {
+    Palette palette,
+    String Function(int) format,
+    int total,
+    int activeCount,
+  ) {
     return Container(
       margin: const EdgeInsets.only(top: 23),
       padding: const EdgeInsets.all(22),
@@ -149,7 +175,11 @@ class InsightsScreen extends ConsumerWidget {
         color: const Color(0xFF3B2D24),
         borderRadius: BorderRadius.circular(27),
         boxShadow: const [
-          BoxShadow(color: Color(0x2E3B2D24), blurRadius: 16, offset: Offset(0, 10)),
+          BoxShadow(
+            color: Color(0x2E3B2D24),
+            blurRadius: 16,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
@@ -162,18 +192,24 @@ class InsightsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('TOTAL SAVED',
-                        style: TextStyle(
-                            color: Color(0xFFE8D9C8),
-                            fontSize: 10,
-                            letterSpacing: 1.1,
-                            fontWeight: FontWeight.w800)),
+                    const Text(
+                      'TOTAL SAVED',
+                      style: TextStyle(
+                        color: Color(0xFFE8D9C8),
+                        fontSize: 10,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 7),
-                    Text(format(total),
-                        style: const TextStyle(
-                            color: Color(0xFFFFFDF9),
-                            fontSize: 35,
-                            fontFeatures: [FontFeature.tabularFigures()])),
+                    Text(
+                      format(total),
+                      style: const TextStyle(
+                        color: Color(0xFFFFFDF9),
+                        fontSize: 35,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -184,8 +220,11 @@ class InsightsScreen extends ConsumerWidget {
                   color: const Color(0x2BFFFDF9),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.auto_graph,
-                    size: 23, color: Color(0xFFFFFDF9)),
+                child: const Icon(
+                  Icons.auto_graph,
+                  size: 23,
+                  color: Color(0xFFFFFDF9),
+                ),
               ),
             ],
           ),
@@ -194,14 +233,18 @@ class InsightsScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(top: 14),
             decoration: const BoxDecoration(
               border: Border(
-                  top: BorderSide(color: Color(0x38FFFDF9), width: 0.5)),
+                top: BorderSide(color: Color(0x38FFFDF9), width: 0.5),
+              ),
             ),
             child: Text(
               activeCount > 0
                   ? '$activeCount active ${activeCount == 1 ? 'jar' : 'jars'}, with every small deposit made visible.'
                   : 'Your progress will take shape as you begin saving.',
               style: const TextStyle(
-                  color: Color(0xFFE8D9C8), fontSize: 13, height: 19 / 13),
+                color: Color(0xFFE8D9C8),
+                fontSize: 13,
+                height: 19 / 13,
+              ),
             ),
           ),
         ],
@@ -210,7 +253,10 @@ class InsightsScreen extends ConsumerWidget {
   }
 
   Widget _closestCard(
-      Palette palette, String Function(int) format, Jar? closest) {
+    Palette palette,
+    String Function(int) format,
+    Jar? closest,
+  ) {
     if (closest == null) {
       return Container(
         constraints: const BoxConstraints(minHeight: 83),
@@ -229,24 +275,33 @@ class InsightsScreen extends ConsumerWidget {
                 color: hexAlpha(toRrggbb(palette.primary), '12'),
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: Icon(Icons.lightbulb_outlined,
-                  size: 19, color: palette.primary),
+              child: Icon(
+                Icons.lightbulb_outlined,
+                size: 19,
+                color: palette.primary,
+              ),
             ),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Your progress starts small.',
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    'Your progress starts small.',
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   Text(
                     'Create a jar, then let your next contribution be the first visible step.',
                     style: TextStyle(
-                        color: palette.muted, fontSize: 11, height: 16 / 11),
+                      color: palette.muted,
+                      fontSize: 11,
+                      height: 16 / 11,
+                    ),
                   ),
                 ],
               ),
@@ -282,20 +337,26 @@ class InsightsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CLOSEST GOAL',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 9,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  'CLOSEST GOAL',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 9,
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(closest.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  closest.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   '${format(closest.target - closest.balance > 0 ? closest.target - closest.balance : 0)} to goal',
@@ -325,11 +386,14 @@ class InsightsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 11),
-          Text('$progress%',
-              style: TextStyle(
-                  color: parseHex(accent),
-                  fontSize: 20,
-                  fontFeatures: const [FontFeature.tabularFigures()])),
+          Text(
+            '$progress%',
+            style: TextStyle(
+              color: parseHex(accent),
+              fontSize: 20,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
@@ -356,16 +420,22 @@ class InsightsScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('$earned',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontSize: 19,
-                        fontFeatures: const [FontFeature.tabularFigures()])),
-                Text('of $total',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  '$earned',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontSize: 19,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                Text(
+                  'of $total',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -378,20 +448,24 @@ class InsightsScreen extends ConsumerWidget {
                   earned == 0
                       ? 'Your first badge is close.'
                       : earned == total
-                          ? 'Every badge earned.'
-                          : earned >= total / 2
-                              ? 'More than halfway.'
-                              : 'Just getting started.',
+                      ? 'Every badge earned.'
+                      : earned >= total / 2
+                      ? 'More than halfway.'
+                      : 'Just getting started.',
                   style: TextStyle(
-                      color: palette.foreground,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800),
+                    color: palette.foreground,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Milestones you reach simply by saving, one deposit at a time.',
                   style: TextStyle(
-                      color: palette.muted, fontSize: 11, height: 15 / 11),
+                    color: palette.muted,
+                    fontSize: 11,
+                    height: 15 / 11,
+                  ),
                 ),
               ],
             ),
@@ -402,21 +476,23 @@ class InsightsScreen extends ConsumerWidget {
   }
 
   Widget _badgeGrid(Palette palette, List<Badge> badgeList) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const gap = 10.0;
-      final tileWidth = (constraints.maxWidth - gap) / 2;
-      return Wrap(
-        spacing: gap,
-        runSpacing: gap,
-        children: [
-          for (final badge in badgeList)
-            SizedBox(
-              width: tileWidth,
-              child: _BadgeCard(badge: badge, palette: palette),
-            ),
-        ],
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final tileWidth = (constraints.maxWidth - gap) / 2;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final badge in badgeList)
+              SizedBox(
+                width: tileWidth,
+                child: _BadgeCard(badge: badge, palette: palette),
+              ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -456,11 +532,14 @@ class _Metric extends StatelessWidget {
             child: Icon(icon, size: 18, color: palette.primary),
           ),
           const SizedBox(height: 11),
-          Text(value,
-              style: TextStyle(
-                  color: palette.foreground,
-                  fontSize: 22,
-                  fontFeatures: const [FontFeature.tabularFigures()])),
+          Text(
+            value,
+            style: TextStyle(
+              color: palette.foreground,
+              fontSize: 22,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
           const SizedBox(height: 3),
           Text(label, style: TextStyle(color: palette.muted, fontSize: 11)),
         ],
@@ -482,7 +561,10 @@ class _MonthlyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final peak = months.fold<int>(1, (best, m) => m.total > best ? m.total : best);
+    final peak = months.fold<int>(
+      1,
+      (best, m) => m.total > best ? m.total : best,
+    );
     final any = months.any((m) => m.total > 0);
     return Container(
       padding: const EdgeInsets.all(16),
@@ -547,18 +629,19 @@ class _Column extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-              color: palette.muted,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()]),
+            color: palette.muted,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
         const SizedBox(height: 4),
         Container(
           width: double.infinity,
           height: month.total > 0
               ? (month.total / peak) * 90 < 6
-                  ? 6
-                  : (month.total / peak) * 90
+                    ? 6
+                    : (month.total / peak) * 90
               : 0,
           decoration: BoxDecoration(
             color: month.total > 0 ? palette.primary : palette.border,
@@ -566,11 +649,14 @@ class _Column extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(month.label,
-            style: TextStyle(
-                color: palette.muted,
-                fontSize: 10,
-                fontWeight: FontWeight.w700)),
+        Text(
+          month.label,
+          style: TextStyle(
+            color: palette.muted,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -591,7 +677,7 @@ class _BadgeCard extends StatelessWidget {
       label: badge.earned
           ? '${badge.name}, earned. ${badge.description}.'
           : '${badge.name}, locked. ${badge.description}. '
-              '${badge.value > badge.target ? badge.target : badge.value} of ${badge.target}.',
+                '${badge.value > badge.target ? badge.target : badge.value} of ${badge.target}.',
       child: Container(
         constraints: const BoxConstraints(minHeight: 128),
         padding: const EdgeInsets.all(13),
@@ -599,9 +685,10 @@ class _BadgeCard extends StatelessWidget {
           color: palette.surface,
           borderRadius: BorderRadius.circular(19),
           border: Border.all(
-              color: badge.earned
-                  ? hexAlpha(toRrggbb(palette.success), '66')
-                  : palette.border),
+            color: badge.earned
+                ? hexAlpha(toRrggbb(palette.success), '66')
+                : palette.border,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,34 +703,47 @@ class _BadgeCard extends StatelessWidget {
                     : palette.border,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(badge.earned ? badge.glyph : '🔒',
-                  style: const TextStyle(fontSize: 17)),
+              child: Text(
+                badge.earned ? badge.glyph : '🔒',
+                style: const TextStyle(fontSize: 17),
+              ),
             ),
             const SizedBox(height: 10),
-            Text(badge.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: badge.earned ? palette.foreground : palette.muted,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              badge.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: badge.earned ? palette.foreground : palette.muted,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 3),
-            Text(badge.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: palette.muted, fontSize: 10.5, height: 14 / 10.5)),
+            Text(
+              badge.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 10.5,
+                height: 14 / 10.5,
+              ),
+            ),
             const SizedBox(height: 9),
             if (badge.earned)
               Row(
                 children: [
                   Icon(Icons.check, size: 12, color: palette.success),
                   const SizedBox(width: 3),
-                  Text('Earned',
-                      style: TextStyle(
-                          color: palette.success,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    'Earned',
+                    style: TextStyle(
+                      color: palette.success,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               )
             else

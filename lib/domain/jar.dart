@@ -34,7 +34,14 @@ bool listEquals<T>(List<T>? a, List<T>? b) {
 }
 
 /// Valid accent names, in the order the picker offers them.
-const List<String> accents = ['coral', 'amber', 'mint', 'ocean', 'berry', 'clay'];
+const List<String> accents = [
+  'coral',
+  'amber',
+  'mint',
+  'ocean',
+  'berry',
+  'clay',
+];
 
 /// Valid recurring cadences.
 const List<String> cadences = ['daily', 'weekly', 'biweekly', 'monthly'];
@@ -56,14 +63,17 @@ class EntryRevision {
   final String? note;
   final String changedAt;
 
-  EntryRevision copyWith({int? amount, String? at, String? note, String? changedAt}) =>
-      EntryRevision(
-        amount: amount ?? this.amount,
-        at: at ?? this.at,
-        note: note ?? this.note,
-        changedAt: changedAt ?? this.changedAt,
-      );
-
+  EntryRevision copyWith({
+    int? amount,
+    String? at,
+    String? note,
+    String? changedAt,
+  }) => EntryRevision(
+    amount: amount ?? this.amount,
+    at: at ?? this.at,
+    note: note ?? this.note,
+    changedAt: changedAt ?? this.changedAt,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -107,15 +117,19 @@ class JarReminder {
   final List<int> weekdays;
   final String? snoozedUntil;
 
-  JarReminder copyWith({bool? enabled, int? hour, int? minute, List<int>? weekdays, String? snoozedUntil}) =>
-      JarReminder(
-        enabled: enabled ?? this.enabled,
-        hour: hour ?? this.hour,
-        minute: minute ?? this.minute,
-        weekdays: weekdays ?? this.weekdays,
-        snoozedUntil: snoozedUntil ?? this.snoozedUntil,
-      );
-
+  JarReminder copyWith({
+    bool? enabled,
+    int? hour,
+    int? minute,
+    List<int>? weekdays,
+    String? snoozedUntil,
+  }) => JarReminder(
+    enabled: enabled ?? this.enabled,
+    hour: hour ?? this.hour,
+    minute: minute ?? this.minute,
+    weekdays: weekdays ?? this.weekdays,
+    snoozedUntil: snoozedUntil ?? this.snoozedUntil,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -127,7 +141,13 @@ class JarReminder {
       other.snoozedUntil == snoozedUntil;
 
   @override
-  int get hashCode => Object.hash(enabled, hour, minute, Object.hashAll(weekdays), snoozedUntil);
+  int get hashCode => Object.hash(
+    enabled,
+    hour,
+    minute,
+    Object.hashAll(weekdays),
+    snoozedUntil,
+  );
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
@@ -182,18 +202,16 @@ class Entry {
     String? source,
     List<EntryRevision>? revisions,
     String? undoOf,
-  }) =>
-      Entry(
-        id: id ?? this.id,
-        amount: amount ?? this.amount,
-        direction: direction ?? this.direction,
-        note: note ?? this.note,
-        at: at ?? this.at,
-        source: source ?? this.source,
-        revisions: revisions ?? this.revisions,
-        undoOf: undoOf ?? this.undoOf,
-      );
-
+  }) => Entry(
+    id: id ?? this.id,
+    amount: amount ?? this.amount,
+    direction: direction ?? this.direction,
+    note: note ?? this.note,
+    at: at ?? this.at,
+    source: source ?? this.source,
+    revisions: revisions ?? this.revisions,
+    undoOf: undoOf ?? this.undoOf,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -208,8 +226,8 @@ class Entry {
       other.undoOf == undoOf;
 
   @override
-  int get hashCode => Object.hash(
-      id, amount, direction, note, at, source, undoOf);
+  int get hashCode =>
+      Object.hash(id, amount, direction, note, at, source, undoOf);
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -218,7 +236,8 @@ class Entry {
     if (note != null) 'note': note,
     'at': at,
     if (source != null) 'source': source,
-    if (revisions != null) 'revisions': revisions!.map((r) => r.toJson()).toList(),
+    if (revisions != null)
+      'revisions': revisions!.map((r) => r.toJson()).toList(),
     if (undoOf != null) 'undoOf': undoOf,
   };
 
@@ -230,7 +249,10 @@ class Entry {
     at: json['at'] as String? ?? '',
     source: json['source'] as String?,
     revisions: (json['revisions'] as List?)
-        ?.map((value) => EntryRevision.fromJson((value as Map).cast<String, dynamic>()))
+        ?.map(
+          (value) =>
+              EntryRevision.fromJson((value as Map).cast<String, dynamic>()),
+        )
         .toList(),
     undoOf: json['undoOf'] as String?,
   );
@@ -250,13 +272,17 @@ class RecurringRule {
   final bool paused;
   final String? nextDate;
 
-  RecurringRule copyWith({int? amount, String? cadence, bool? paused, String? nextDate}) =>
-      RecurringRule(
-        amount: amount ?? this.amount,
-        cadence: cadence ?? this.cadence,
-        paused: paused ?? this.paused,
-        nextDate: nextDate ?? this.nextDate,
-      );
+  RecurringRule copyWith({
+    int? amount,
+    String? cadence,
+    bool? paused,
+    String? nextDate,
+  }) => RecurringRule(
+    amount: amount ?? this.amount,
+    cadence: cadence ?? this.cadence,
+    paused: paused ?? this.paused,
+    nextDate: nextDate ?? this.nextDate,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -350,26 +376,27 @@ class Jar {
     JarReminder? reminder,
     bool clearReminder = false,
     List<Entry>? entries,
-  }) =>
-      Jar(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        target: target ?? this.target,
-        balance: balance ?? this.balance,
-        openingBalance: clearOpeningBalance ? null : (openingBalance ?? this.openingBalance),
-        accent: accent ?? this.accent,
-        icon: icon ?? this.icon,
-        kind: kind ?? this.kind,
-        createdAt: createdAt ?? this.createdAt,
-        deadline: clearDeadline ? null : (deadline ?? this.deadline),
-        streak: streak ?? this.streak,
-        lastDepositAt: lastDepositAt ?? this.lastDepositAt,
-        milestonesHit: milestonesHit ?? this.milestonesHit,
-        archived: archived ?? this.archived,
-        recurring: clearRecurring ? null : (recurring ?? this.recurring),
-        reminder: clearReminder ? null : (reminder ?? this.reminder),
-        entries: entries ?? this.entries,
-      );
+  }) => Jar(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    target: target ?? this.target,
+    balance: balance ?? this.balance,
+    openingBalance: clearOpeningBalance
+        ? null
+        : (openingBalance ?? this.openingBalance),
+    accent: accent ?? this.accent,
+    icon: icon ?? this.icon,
+    kind: kind ?? this.kind,
+    createdAt: createdAt ?? this.createdAt,
+    deadline: clearDeadline ? null : (deadline ?? this.deadline),
+    streak: streak ?? this.streak,
+    lastDepositAt: lastDepositAt ?? this.lastDepositAt,
+    milestonesHit: milestonesHit ?? this.milestonesHit,
+    archived: archived ?? this.archived,
+    recurring: clearRecurring ? null : (recurring ?? this.recurring),
+    reminder: clearReminder ? null : (reminder ?? this.reminder),
+    entries: entries ?? this.entries,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -433,10 +460,14 @@ class Jar {
         .toList(),
     archived: json['archived'] as bool?,
     recurring: json['recurring'] is Map
-        ? RecurringRule.fromJson((json['recurring'] as Map).cast<String, dynamic>())
+        ? RecurringRule.fromJson(
+            (json['recurring'] as Map).cast<String, dynamic>(),
+          )
         : null,
     reminder: json['reminder'] is Map
-        ? JarReminder.fromJson((json['reminder'] as Map).cast<String, dynamic>())
+        ? JarReminder.fromJson(
+            (json['reminder'] as Map).cast<String, dynamic>(),
+          )
         : null,
     entries: ((json['entries'] as List?) ?? const [])
         .whereType<Map>()
@@ -451,7 +482,9 @@ List<Entry> effectiveEntries(List<Entry> entries) {
     for (final entry in entries)
       if (entry.undoOf != null) entry.undoOf!,
   };
-  return entries.where((entry) => entry.undoOf == null && !reversed.contains(entry.id)).toList();
+  return entries
+      .where((entry) => entry.undoOf == null && !reversed.contains(entry.id))
+      .toList();
 }
 
 /// Progress toward the target, 0–100 clamped. Zero when there is no target.
@@ -469,9 +502,11 @@ List<T> activeJars<T>(Iterable<T> jars, bool Function(T) isArchived) =>
 List<int> crossedMilestones(Jar jar, int nextBalance) {
   if (jar.target <= 0) return [];
   return milestoneLevels
-      .where((level) =>
-          !jar.milestonesHit.contains(level) &&
-          (nextBalance / jar.target) * 100 >= level)
+      .where(
+        (level) =>
+            !jar.milestonesHit.contains(level) &&
+            (nextBalance / jar.target) * 100 >= level,
+      )
       .toList();
 }
 
@@ -511,13 +546,17 @@ AppliedEntry? applyEntry(
   final nowDate = now ?? DateTime.now();
   if (!isSafeInteger(amountMinor) || amountMinor <= 0) return null;
   if (!isSafeInteger(jar.balance) || jar.balance < 0) return null;
-  if (direction == directionWithdrawal && amountMinor > jar.balance) return null;
+  if (direction == directionWithdrawal && amountMinor > jar.balance) {
+    return null;
+  }
 
   final nextBalance =
-      jar.balance + (direction == directionDeposit ? amountMinor : -amountMinor);
+      jar.balance +
+      (direction == directionDeposit ? amountMinor : -amountMinor);
   if (!isSafeInteger(nextBalance) || nextBalance < 0) return null;
-  final reached =
-      direction == directionDeposit ? crossedMilestones(jar, nextBalance) : <int>[];
+  final reached = direction == directionDeposit
+      ? crossedMilestones(jar, nextBalance)
+      : <int>[];
 
   int? streak = jar.streak;
   String? lastDepositAt = jar.lastDepositAt;
@@ -610,7 +649,9 @@ int? _scaleNum(Object? value, bool scaleToMinor, [int fallback = 0]) {
 /// whole-currency floats.
 Jar normaliseJar(Map<String, dynamic> raw, {bool scaleToMinor = false}) {
   Map<String, dynamic>? recurringRaw;
-  if (raw['recurring'] is Map) recurringRaw = (raw['recurring'] as Map).cast<String, dynamic>();
+  if (raw['recurring'] is Map) {
+    recurringRaw = (raw['recurring'] as Map).cast<String, dynamic>();
+  }
   RecurringRule? recurring = recurringRaw == null
       ? null
       : RecurringRule(
@@ -630,14 +671,17 @@ Jar normaliseJar(Map<String, dynamic> raw, {bool scaleToMinor = false}) {
       .toList();
 
   final balance = _scaleNum(raw['balance'], scaleToMinor) ?? 0;
-  int? openingBalance =
-      raw['openingBalance'] == null ? null : _scaleNum(raw['openingBalance'], scaleToMinor);
+  int? openingBalance = raw['openingBalance'] == null
+      ? null
+      : _scaleNum(raw['openingBalance'], scaleToMinor);
   if (openingBalance == null &&
       isSafeInteger(balance) &&
       entryList.every((entry) => isSafeInteger(entry.amount))) {
     var opening = BigInt.from(balance);
     for (final entry in entryList) {
-      final signed = BigInt.from(entry.amount) * (entry.direction == directionDeposit ? BigInt.one : BigInt.from(-1));
+      final signed =
+          BigInt.from(entry.amount) *
+          (entry.direction == directionDeposit ? BigInt.one : BigInt.from(-1));
       opening -= signed;
     }
     if (opening >= BigInt.zero && opening <= BigInt.from(maxSafeInteger)) {
@@ -653,7 +697,8 @@ Jar normaliseJar(Map<String, dynamic> raw, {bool scaleToMinor = false}) {
     openingBalance: openingBalance,
     accent: _accentAliases[raw['accent'] as String?] ?? 'ocean',
     icon: raw['icon'] as String? ?? '🫙',
-    kind: (raw['kind'] as String?) ?? (recurring != null ? kindHabit : kindGoal),
+    kind:
+        (raw['kind'] as String?) ?? (recurring != null ? kindHabit : kindGoal),
     createdAt: (raw['createdAt'] as String?) ?? toIso(DateTime.now()),
     deadline: raw['deadline'] as String?,
     streak: (raw['streak'] as num?)?.toInt(),

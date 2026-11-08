@@ -12,11 +12,10 @@ DateTime parseIso(String value) => DateTime.parse(value).toLocal();
 
 /// Serialize as a UTC ISO string with millisecond precision, mirroring JS
 /// `toISOString()`.
-String toIso(DateTime value) =>
-    DateTime.fromMillisecondsSinceEpoch(
-      value.millisecondsSinceEpoch,
-      isUtc: true,
-    ).toIso8601String();
+String toIso(DateTime value) => DateTime.fromMillisecondsSinceEpoch(
+  value.millisecondsSinceEpoch,
+  isUtc: true,
+).toIso8601String();
 
 /// Milliseconds since the local midnight that starts [value]'s calendar day.
 int startOfDayMs(DateTime value) =>
@@ -30,7 +29,8 @@ int calendarDayNumber(DateTime value) =>
 
 /// Local day key `year-month-day` with a zero-based month, exactly as JS
 /// template `${getFullYear()}-${getMonth()}-${getDate()}` produced.
-String dayKey(DateTime value) => '${value.year}-${value.month - 1}-${value.day}';
+String dayKey(DateTime value) =>
+    '${value.year}-${value.month - 1}-${value.day}';
 
 /// The local day key one calendar day before [key] (which is zero-based-month).
 String previousDayKey(String key) {

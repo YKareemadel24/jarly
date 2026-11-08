@@ -23,16 +23,18 @@ final Jar baseJar = jar(
 );
 
 TransferSnapshot snapshotOf(List<Jar> jars) => TransferSnapshot(
-      version: 1,
-      exportedAt: '2026-01-03T00:00:00.000Z',
-      currency: 'USD',
-      jars: jars,
-    );
+  version: 1,
+  exportedAt: '2026-01-03T00:00:00.000Z',
+  currency: 'USD',
+  jars: jars,
+);
 
 void main() {
   group('transfer codec', () {
     test('round-trips valid jars and their creation timestamp', () {
-      final decoded = decodeTransferFrames(encodeTransferFrames(snapshotOf([baseJar])));
+      final decoded = decodeTransferFrames(
+        encodeTransferFrames(snapshotOf([baseJar])),
+      );
       final restored = decoded!.snapshot!.jars[0];
       expect(restored.id, baseJar.id);
       expect(restored.balance, 500);
@@ -94,60 +96,62 @@ void main() {
     });
 
     test('rejects an unbounded frame count without iterating it', () {
-      expect(
-        decodeTransferFrames(['JARLY1.abcdef.1.999999999999.x']),
-        isNull,
-      );
+      expect(decodeTransferFrames(['JARLY1.abcdef.1.999999999999.x']), isNull);
     });
 
     test('rejects duplicate jar IDs in one snapshot', () {
       final decoded = decodeTransferFrames(
-        encodeTransferFrames(snapshotOf([baseJar, baseJar.copyWith(name: 'Duplicate')])),
+        encodeTransferFrames(
+          snapshotOf([baseJar, baseJar.copyWith(name: 'Duplicate')]),
+        ),
       );
       expect(decoded!.snapshot, isNull);
       expect(decoded.error, isNotNull);
     });
 
-    test('preserves correction history, undo links, and personal reminders', () {
-      const auditedReminder = JarReminder(
-        enabled: true,
-        hour: 18,
-        minute: 30,
-        weekdays: [1, 4],
-        snoozedUntil: '2026-02-01T12:00:00.000Z',
-      );
-      final audited = baseJar.copyWith(
-        reminder: auditedReminder,
-        balance: 0,
-        entries: [
-          baseJar.entries[0].copyWith(
-            revisions: [
-              const EntryRevision(
-                amount: 700,
-                at: '2026-01-01T12:00:00.000Z',
-                note: 'Original',
-                changedAt: '2026-01-02T12:00:00.000Z',
-              ),
-            ],
-          ),
-          const Entry(
-            id: 'reversal',
-            amount: 500,
-            direction: directionWithdrawal,
-            at: '2026-01-03T00:00:00.000Z',
-            undoOf: 'entry-a',
-          ),
-        ],
-      );
-      final restored = decodeTransferFrames(
-        encodeTransferFrames(snapshotOf([audited])),
-      )!.snapshot!.jars[0];
-      expect(restored.reminder, auditedReminder);
-      expect(restored.entries[0].id, 'entry-a');
-      expect(restored.entries[0].revisions, audited.entries[0].revisions);
-      expect(restored.entries[1].id, 'reversal');
-      expect(restored.entries[1].undoOf, 'entry-a');
-    });
+    test(
+      'preserves correction history, undo links, and personal reminders',
+      () {
+        const auditedReminder = JarReminder(
+          enabled: true,
+          hour: 18,
+          minute: 30,
+          weekdays: [1, 4],
+          snoozedUntil: '2026-02-01T12:00:00.000Z',
+        );
+        final audited = baseJar.copyWith(
+          reminder: auditedReminder,
+          balance: 0,
+          entries: [
+            baseJar.entries[0].copyWith(
+              revisions: [
+                const EntryRevision(
+                  amount: 700,
+                  at: '2026-01-01T12:00:00.000Z',
+                  note: 'Original',
+                  changedAt: '2026-01-02T12:00:00.000Z',
+                ),
+              ],
+            ),
+            const Entry(
+              id: 'reversal',
+              amount: 500,
+              direction: directionWithdrawal,
+              at: '2026-01-03T00:00:00.000Z',
+              undoOf: 'entry-a',
+            ),
+          ],
+        );
+        final restored = decodeTransferFrames(
+          encodeTransferFrames(snapshotOf([audited])),
+        )!.snapshot!.jars[0];
+        expect(restored.reminder, auditedReminder);
+        expect(restored.entries[0].id, 'entry-a');
+        expect(restored.entries[0].revisions, audited.entries[0].revisions);
+        expect(restored.entries[1].id, 'reversal');
+        expect(restored.entries[1].undoOf, 'entry-a');
+      },
+    );
 
     test('rejects invalid reminder settings and fabricated undo history', () {
       final invalidReminder = baseJar.copyWith(
@@ -159,14 +163,17 @@ void main() {
         ),
       );
       expect(
-        decodeTransferFrames(encodeTransferFrames(snapshotOf([invalidReminder])))!.snapshot,
+        decodeTransferFrames(
+          encodeTransferFrames(snapshotOf([invalidReminder])),
+        )!.snapshot,
         isNull,
       );
       final invalidUndo = baseJar.copyWith(
         entries: [baseJar.entries[0].copyWith(undoOf: 'missing')],
       );
       expect(
-        decodeTransferFrames(encodeTransferFrames(snapshotOf([invalidUndo])))!.snapshot,
+        decodeTransferFrames(encodeTransferFrames(snapshotOf([invalidUndo])))!
+            .snapshot,
         isNull,
       );
     });

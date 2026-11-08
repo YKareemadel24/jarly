@@ -29,14 +29,22 @@ ThemeData buildAppTheme(Palette p, Brightness brightness) {
     fontFamily: 'Georgia',
     fontFamilyFallback: const ['serif'],
     switchTheme: SwitchThemeData(
-      thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? p.background : p.muted),
-      trackColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected) ? p.success : p.border),
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? p.background : p.muted,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? p.success : p.border,
+      ),
       trackOutlineColor: WidgetStateProperty.all(Color(0x00000000)),
     ),
     textTheme: TextTheme(
-      bodyMedium: TextStyle(color: p.foreground, fontSize: 14, fontFamily: null),
+      bodyMedium: TextStyle(
+        color: p.foreground,
+        fontSize: 14,
+        fontFamily: null,
+      ),
       bodySmall: TextStyle(color: p.muted, fontSize: 12, fontFamily: null),
       titleLarge: TextStyle(color: p.foreground, fontSize: 20),
     ),

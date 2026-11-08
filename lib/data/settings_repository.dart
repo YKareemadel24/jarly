@@ -61,8 +61,10 @@ const List<int> pinLockoutScheduleMs = [30000, 60000, 5 * 60000, 15 * 60000];
 /// Lockout duration for a given consecutive-failure count (0 = no lockout).
 int lockoutMsFor(int failures) {
   if (failures < pinFreeAttempts) return 0;
-  return pinLockoutScheduleMs[
-      (failures - pinFreeAttempts).clamp(0, pinLockoutScheduleMs.length - 1)];
+  return pinLockoutScheduleMs[(failures - pinFreeAttempts).clamp(
+    0,
+    pinLockoutScheduleMs.length - 1,
+  )];
 }
 
 String _hex(List<int> bytes) =>
@@ -72,7 +74,9 @@ String hashPin(String pin, String saltHex) =>
     sha256.convert(utf8.encode('$saltHex:$pin')).toString();
 
 String makePinRecord(String pin, {Random? random}) {
-  final salt = _hex(List.generate(16, (_) => (random ?? Random.secure()).nextInt(256)));
+  final salt = _hex(
+    List.generate(16, (_) => (random ?? Random.secure()).nextInt(256)),
+  );
   final hash = hashPin(pin, salt);
   return 'v1:${pin.length}:$salt:$hash';
 }
@@ -101,19 +105,22 @@ class PinAttemptState {
   final int failures;
   final int lockedUntil;
 
-  Map<String, dynamic> toJson() => {'failures': failures, 'lockedUntil': lockedUntil};
+  Map<String, dynamic> toJson() => {
+    'failures': failures,
+    'lockedUntil': lockedUntil,
+  };
 
   static PinAttemptState fromJson(Map<String, dynamic> json) => PinAttemptState(
-        failures: (json['failures'] as num?)?.toInt() ?? 0,
-        lockedUntil: (json['lockedUntil'] as num?)?.toInt() ?? 0,
-      );
+    failures: (json['failures'] as num?)?.toInt() ?? 0,
+    lockedUntil: (json['lockedUntil'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// The PIN credential lives in secure storage on native and in plain key/value
 /// storage on web, exactly like expo-secure-store + AsyncStorage before it.
 class PinRepository {
   PinRepository({FlutterSecureStorage? secure})
-      : _secure = secure ?? const FlutterSecureStorage();
+    : _secure = secure ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _secure;
 
@@ -168,7 +175,10 @@ PinAttemptState parseAttempts(String? raw) {
 Future<PinAttemptState> readAttempts(KeyValueStorage storage) async =>
     parseAttempts(await storage.getItem(pinAttemptsKey));
 
-Future<void> writeAttempts(KeyValueStorage storage, PinAttemptState state) async {
+Future<void> writeAttempts(
+  KeyValueStorage storage,
+  PinAttemptState state,
+) async {
   try {
     await storage.setItem(pinAttemptsKey, jsonEncode(state.toJson()));
   } catch (_) {

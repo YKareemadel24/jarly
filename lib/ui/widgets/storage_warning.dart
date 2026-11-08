@@ -28,14 +28,20 @@ class StorageWarning extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [
               BoxShadow(
-                  color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 4)),
+                color: Color(0x33000000),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
-          child: Text(storageError,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+          child: Text(
+            storageError,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );

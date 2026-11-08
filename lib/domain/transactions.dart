@@ -105,18 +105,21 @@ bool validTransactionHistory(Jar jar, [List<Entry>? entriesParam]) {
   final maximum = BigInt.from(maxSafeInteger);
   if (!isSafeInteger(jar.balance) ||
       jar.balance < 0 ||
-      jar.entries.any((entry) =>
-          !isSafeInteger(entry.amount) ||
-          entry.amount <= 0 ||
-          !validDate(entry.at) ||
-          (entry.direction != directionDeposit &&
-              entry.direction != directionWithdrawal))) {
+      jar.entries.any(
+        (entry) =>
+            !isSafeInteger(entry.amount) ||
+            entry.amount <= 0 ||
+            !validDate(entry.at) ||
+            (entry.direction != directionDeposit &&
+                entry.direction != directionWithdrawal),
+      )) {
     return false;
   }
   var balance = BigInt.from(jar.balance);
   // Ledger is stored newest first; walking it reconstructs the opening balance.
   for (final entry in jar.entries) {
-    final signed = BigInt.from(entry.amount) *
+    final signed =
+        BigInt.from(entry.amount) *
         (entry.direction == directionDeposit ? BigInt.one : BigInt.from(-1));
     balance -= signed;
   }
@@ -128,14 +131,14 @@ bool validTransactionHistory(Jar jar, [List<Entry>? entriesParam]) {
     return false;
   }
   // Chronological replay must never dip below zero or overflow.
-  final chronological =
-      sortedStable(entries.reversed.toList(), (a, b) {
-        final atA = DateTime.parse(a.at).millisecondsSinceEpoch;
-        final atB = DateTime.parse(b.at).millisecondsSinceEpoch;
-        return atA.compareTo(atB);
-      });
+  final chronological = sortedStable(entries.reversed.toList(), (a, b) {
+    final atA = DateTime.parse(a.at).millisecondsSinceEpoch;
+    final atB = DateTime.parse(b.at).millisecondsSinceEpoch;
+    return atA.compareTo(atB);
+  });
   for (final entry in chronological) {
-    final signed = BigInt.from(entry.amount) *
+    final signed =
+        BigInt.from(entry.amount) *
         (entry.direction == directionDeposit ? BigInt.one : BigInt.from(-1));
     balance += signed;
     if (balance < BigInt.zero || balance > maximum) return false;
@@ -146,7 +149,12 @@ bool validTransactionHistory(Jar jar, [List<Entry>? entriesParam]) {
 /// Correct an entry in place, appending a revision and re-validating history.
 /// Returns null when the correction is invalid; returns [jar] unchanged when
 /// nothing differs.
-Jar? correctEntry(Jar jar, String entryId, EntryCorrection input, [DateTime? now]) {
+Jar? correctEntry(
+  Jar jar,
+  String entryId,
+  EntryCorrection input, [
+  DateTime? now,
+]) {
   final nowDate = now ?? DateTime.now();
   final index = jar.entries.indexWhere((item) => item.id == entryId);
   if (index < 0) return null;
@@ -171,7 +179,8 @@ Jar? correctEntry(Jar jar, String entryId, EntryCorrection input, [DateTime? now
       entry.note == note) {
     return jar;
   }
-  final balance = jar.balance +
+  final balance =
+      jar.balance +
       (input.amount - entry.amount) *
           (entry.direction == directionDeposit ? 1 : -1);
   if (!isSafeInteger(balance) || balance < 0) return null;
@@ -219,8 +228,12 @@ Jar? undoEntry(Jar jar, String entryId, [DateTime? now]) {
   final applied = applyEntry(
     jar,
     entry.amount,
-    entry.direction == directionDeposit ? directionWithdrawal : directionDeposit,
-    note: entry.direction == directionDeposit ? 'Deposit undone' : 'Withdrawal undone',
+    entry.direction == directionDeposit
+        ? directionWithdrawal
+        : directionDeposit,
+    note: entry.direction == directionDeposit
+        ? 'Deposit undone'
+        : 'Withdrawal undone',
     source: sourceManual,
     now: nowDate,
   );
@@ -233,8 +246,7 @@ Jar? undoEntry(Jar jar, String entryId, [DateTime? now]) {
         applied.jar.entries[i],
   ];
   if (!validTransactionHistory(applied.jar, entries)) return null;
-  return withHabitHistory(applied.jar.copyWith(
-    entries: entries,
-    milestonesHit: jar.milestonesHit,
-  ));
+  return withHabitHistory(
+    applied.jar.copyWith(entries: entries, milestonesHit: jar.milestonesHit),
+  );
 }

@@ -45,16 +45,20 @@ class TabShell extends ConsumerWidget {
     );
   }
 
-  Expanded _tab(BuildContext context, Palette palette, int index,
-      IconData icon, double size, String label) {
+  Expanded _tab(
+    BuildContext context,
+    Palette palette,
+    int index,
+    IconData icon,
+    double size,
+    String label,
+  ) {
     final selected = shell.currentIndex == index;
     final color = selected ? palette.primary : palette.muted;
     return Expanded(
       child: InkWell(
-        onTap: () => shell.goBranch(
-          index,
-          initialLocation: index == shell.currentIndex,
-        ),
+        onTap: () =>
+            shell.goBranch(index, initialLocation: index == shell.currentIndex),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

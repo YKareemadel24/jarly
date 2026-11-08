@@ -29,8 +29,7 @@ class TransferSendScreen extends ConsumerStatefulWidget {
   const TransferSendScreen({super.key});
 
   @override
-  ConsumerState<TransferSendScreen> createState() =>
-      _TransferSendScreenState();
+  ConsumerState<TransferSendScreen> createState() => _TransferSendScreenState();
 }
 
 class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
@@ -44,9 +43,10 @@ class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
     // transfer id and invalidate codes the receiver has already scanned.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final currency =
-          ref.read(settingsProvider).value?.currency;
-      final frames = ref.read(savingsProvider.notifier).exportTransfer(currency);
+      final currency = ref.read(settingsProvider).value?.currency;
+      final frames = ref
+          .read(savingsProvider.notifier)
+          .exportTransfer(currency);
       if (mounted) setState(() => _frames = frames);
     });
   }
@@ -96,32 +96,43 @@ class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
                 if (multiple)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: hexAlpha(toRrggbb(palette.primary), '18'),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text('${_index + 1} of ${_frames.length}',
-                        style: TextStyle(
-                            color: palette.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800)),
+                    child: Text(
+                      '${_index + 1} of ${_frames.length}',
+                      style: TextStyle(
+                        color: palette.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 18),
-            Text('Show this to the other phone.',
-                style: TextStyle(
-                    color: palette.foreground,
-                    fontSize: 24,
-                    height: 30 / 24)),
+            Text(
+              'Show this to the other phone.',
+              style: TextStyle(
+                color: palette.foreground,
+                fontSize: 24,
+                height: 30 / 24,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               portable.isEmpty
                   ? 'You have no jars on this device to move yet.'
                   : '${portable.length} ${portable.length == 1 ? 'jar' : 'jars'} and their full history. The other phone reads it with its camera.',
               style: TextStyle(
-                  color: palette.muted, fontSize: 13, height: 19 / 13),
+                color: palette.muted,
+                fontSize: 13,
+                height: 19 / 13,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -186,9 +197,10 @@ class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
                 'The other phone can read these in any order. Keep tapping through until every code has been scanned.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 11.5,
-                    height: 17 / 11.5),
+                  color: palette.muted,
+                  fontSize: 11.5,
+                  height: 17 / 11.5,
+                ),
               ),
             ],
 
@@ -205,14 +217,20 @@ class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.content_copy,
-                        size: 17, color: palette.foreground),
+                    Icon(
+                      Icons.content_copy,
+                      size: 17,
+                      color: palette.foreground,
+                    ),
                     const SizedBox(width: 7),
-                    Text('Send the codes as text instead',
-                        style: TextStyle(
-                            color: palette.foreground,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800)),
+                    Text(
+                      'Send the codes as text instead',
+                      style: TextStyle(
+                        color: palette.foreground,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -222,17 +240,21 @@ class _TransferSendScreenState extends ConsumerState<TransferSendScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.visibility,
-                    size: 16, color: parseHex(accentFor('coral', palette))),
+                Icon(
+                  Icons.visibility,
+                  size: 16,
+                  color: parseHex(accentFor('coral', palette)),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'These codes carry your jars and their history. Only show them to a device you trust.',
                     style: TextStyle(
-                        color: parseHex(accentFor('coral', palette)),
-                        fontSize: 11.5,
-                        height: 17 / 11.5,
-                        fontWeight: FontWeight.w700),
+                      color: parseHex(accentFor('coral', palette)),
+                      fontSize: 11.5,
+                      height: 17 / 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],

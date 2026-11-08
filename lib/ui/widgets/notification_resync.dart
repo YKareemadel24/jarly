@@ -14,8 +14,7 @@ class NotificationResync extends ConsumerStatefulWidget {
   const NotificationResync({super.key});
 
   @override
-  ConsumerState<NotificationResync> createState() =>
-      _NotificationResyncState();
+  ConsumerState<NotificationResync> createState() => _NotificationResyncState();
 }
 
 class _NotificationResyncState extends ConsumerState<NotificationResync>

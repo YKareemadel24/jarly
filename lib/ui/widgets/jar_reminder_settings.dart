@@ -66,8 +66,9 @@ class _JarReminderSettingsCardState
   void save({String action = 'save'}) {
     final reminder = widget.jar.reminder ?? _defaultReminder;
     final hour = RegExp(r'^\d{1,2}$').hasMatch(_hour) ? int.parse(_hour) : -1;
-    final minute =
-        RegExp(r'^\d{1,2}$').hasMatch(_minute) ? int.parse(_minute) : -1;
+    final minute = RegExp(r'^\d{1,2}$').hasMatch(_minute)
+        ? int.parse(_minute)
+        : -1;
     final next = JarReminder(
       enabled: _enabled,
       hour: hour,
@@ -76,12 +77,16 @@ class _JarReminderSettingsCardState
       snoozedUntil: action == 'clear' ? null : reminder.snoozedUntil,
     );
     if (!isValidJarReminder(next)) {
-      setState(() => _message =
-          'Choose a time from 00:00 to 23:59 and at least one weekday.');
+      setState(
+        () => _message =
+            'Choose a time from 00:00 to 23:59 and at least one weekday.',
+      );
       return;
     }
     try {
-      ref.read(savingsProvider.notifier).editJar(
+      ref
+          .read(savingsProvider.notifier)
+          .editJar(
             widget.jar.id,
             JarEdit(
               reminder: action == 'snooze' ? snoozeReminderOneDay(next) : next,
@@ -103,19 +108,20 @@ class _JarReminderSettingsCardState
     final remindersEnabled = settings?.remindersEnabled ?? false;
     final reminder = widget.jar.reminder ?? _defaultReminder;
     final next = nextReminderDates(reminder).firstOrNull;
-    final snoozed = reminder.snoozedUntil != null &&
+    final snoozed =
+        reminder.snoozedUntil != null &&
         DateTime.tryParse(reminder.snoozedUntil!) != null &&
         parseIso(reminder.snoozedUntil!).isAfter(DateTime.now());
 
     final statusCopy = widget.jar.reminder == null
         ? 'Using default reminders.'
         : !reminder.enabled
-            ? 'Personal reminder paused.'
-            : snoozed
-                ? 'Snoozed until ${formatDateTime(parseIso(reminder.snoozedUntil!))}.'
-                : next != null
-                    ? 'Next reminder: ${formatDateTime(next)}.'
-                    : 'No personal reminders scheduled.';
+        ? 'Personal reminder paused.'
+        : snoozed
+        ? 'Snoozed until ${formatDateTime(parseIso(reminder.snoozedUntil!))}.'
+        : next != null
+        ? 'Next reminder: ${formatDateTime(next)}.'
+        : 'No personal reminders scheduled.';
 
     return Container(
       margin: const EdgeInsets.only(top: 14),
@@ -128,38 +134,54 @@ class _JarReminderSettingsCardState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Personal reminder',
-              style: TextStyle(
-                  color: palette.foreground,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15)),
+          Text(
+            'Personal reminder',
+            style: TextStyle(
+              color: palette.foreground,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
           const SizedBox(height: 5),
-          Text(statusCopy,
-              style:
-                  TextStyle(color: palette.muted, fontSize: 12, height: 17 / 12)),
+          Text(
+            statusCopy,
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 12,
+              height: 17 / 12,
+            ),
+          ),
           const SizedBox(height: 10),
           _secondaryButton(
             palette,
             _expanded
                 ? 'Hide reminder settings'
                 : widget.jar.reminder != null
-                    ? 'Edit reminder'
-                    : 'Set reminder',
+                ? 'Edit reminder'
+                : 'Set reminder',
             () => setState(() => _expanded = !_expanded),
           ),
           if (_message.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(_message,
-                  style: TextStyle(
-                      color: palette.muted, fontSize: 12, height: 17 / 12)),
+              child: Text(
+                _message,
+                style: TextStyle(
+                  color: palette.muted,
+                  fontSize: 12,
+                  height: 17 / 12,
+                ),
+              ),
             ),
           if (_expanded) ...[
             const SizedBox(height: 8),
             Text(
               'Choose when to check in. Reminders never record a deposit or change automatic deposits.',
-              style:
-                  TextStyle(color: palette.muted, fontSize: 12, height: 17 / 12),
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 12,
+                height: 17 / 12,
+              ),
             ),
             if (widget.jar.reminder == null)
               Padding(
@@ -167,15 +189,19 @@ class _JarReminderSettingsCardState
                 child: Text(
                   'Using default reminders until you save a personal schedule.',
                   style: TextStyle(
-                      color: palette.muted, fontSize: 12, height: 17 / 12),
+                    color: palette.muted,
+                    fontSize: 12,
+                    height: 17 / 12,
+                  ),
                 ),
               ),
             Row(
               children: [
                 const Expanded(
-                  child: Text('Personal schedule enabled',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    'Personal schedule enabled',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
                 ),
                 Switch(
                   value: _enabled,
@@ -183,36 +209,53 @@ class _JarReminderSettingsCardState
                 ),
               ],
             ),
-            Text('Local time (24-hour)',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11)),
+            Text(
+              'Local time (24-hour)',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
             const SizedBox(height: 6),
             Row(
               children: [
-                _timeField(palette, _hour, (value) => setState(() {
-                      _hour = value.replaceAll(RegExp(r'[^0-9]'), '');
-                    })),
+                _timeField(
+                  palette,
+                  _hour,
+                  (value) => setState(() {
+                    _hour = value.replaceAll(RegExp(r'[^0-9]'), '');
+                  }),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(':',
-                      style: TextStyle(
-                          color: palette.muted,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13)),
+                  child: Text(
+                    ':',
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
-                _timeField(palette, _minute, (value) => setState(() {
-                      _minute = value.replaceAll(RegExp(r'[^0-9]'), '');
-                    })),
+                _timeField(
+                  palette,
+                  _minute,
+                  (value) => setState(() {
+                    _minute = value.replaceAll(RegExp(r'[^0-9]'), '');
+                  }),
+                ),
               ],
             ),
             const SizedBox(height: 10),
-            Text('Weekdays',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11)),
+            Text(
+              'Weekdays',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
@@ -241,13 +284,19 @@ class _JarReminderSettingsCardState
               children: [
                 Expanded(
                   child: _secondaryButton(
-                      palette, 'Snooze one day', () => save(action: 'snooze')),
+                    palette,
+                    'Snooze one day',
+                    () => save(action: 'snooze'),
+                  ),
                 ),
                 if (snoozed) ...[
                   const SizedBox(width: 8),
                   Expanded(
                     child: _secondaryButton(
-                        palette, 'Clear snooze', () => save(action: 'clear')),
+                      palette,
+                      'Clear snooze',
+                      () => save(action: 'clear'),
+                    ),
                   ),
                 ],
               ],
@@ -257,25 +306,35 @@ class _JarReminderSettingsCardState
               kIsWeb
                   ? 'Web saves your preferences; OS reminders are available in the native app.'
                   : !remindersEnabled
-                      ? 'Notifications are off. Enable Saving reminders in Profile and allow device notifications to receive reminders.'
-                      : 'Delivery requires device notification permission. Manage Saving reminders in Profile.',
-              style:
-                  TextStyle(color: palette.muted, fontSize: 12, height: 17 / 12),
+                  ? 'Notifications are off. Enable Saving reminders in Profile and allow device notifications to receive reminders.'
+                  : 'Delivery requires device notification permission. Manage Saving reminders in Profile.',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 12,
+                height: 17 / 12,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'The daily 09:00 savings summary stays separate. Up to 63 upcoming jar reminders share the device queue. Open the app regularly to refill it; reminders stop when the queue runs out. With many jars, each gets fewer dates; above 63 eligible jars, some get no slots. Open after changing time zones. Clock times skipped by daylight saving are skipped.',
-              style:
-                  TextStyle(color: palette.muted, fontSize: 12, height: 17 / 12),
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 12,
+                height: 17 / 12,
+              ),
             ),
             if (widget.jar.isArchived ||
-                (widget.jar.target > 0 && widget.jar.balance >= widget.jar.target))
+                (widget.jar.target > 0 &&
+                    widget.jar.balance >= widget.jar.target))
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'This jar is archived or funded, so its personal reminders are quiet.',
                   style: TextStyle(
-                      color: palette.muted, fontSize: 12, height: 17 / 12),
+                    color: palette.muted,
+                    fontSize: 12,
+                    height: 17 / 12,
+                  ),
                 ),
               ),
           ],
@@ -285,7 +344,10 @@ class _JarReminderSettingsCardState
   }
 
   Widget _timeField(
-      Palette palette, String value, ValueChanged<String> onChanged) {
+    Palette palette,
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
     return SizedBox(
       width: 56,
       child: Container(
@@ -368,8 +430,8 @@ class PressableRect extends StatelessWidget {
           color: filled
               ? palette.primary
               : selected
-                  ? hexAlpha(toRrggbb(palette.primary), '22')
-                  : palette.background,
+              ? hexAlpha(toRrggbb(palette.primary), '22')
+              : palette.background,
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
             color: selected && !filled ? palette.primary : palette.border,
@@ -382,8 +444,8 @@ class PressableRect extends StatelessWidget {
             color: filled
                 ? const Color(0xFFFFFDF9)
                 : selected
-                    ? palette.foreground
-                    : palette.muted,
+                ? palette.foreground
+                : palette.muted,
             fontSize: filled ? 14 : 11,
             fontWeight: FontWeight.w800,
           ),

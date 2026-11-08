@@ -44,8 +44,10 @@ class SavingsPlanCard extends ConsumerWidget {
     final countdown = deadlineCountdown(jar.deadline, now);
     final overdue = countdown == 'Past deadline';
     final dueSoon =
-        countdown == '1 day left' || RegExp(r'^[2-6] days left$').hasMatch(countdown ?? '');
-    final estimatedDate = depositDays.length >= 2 && projection.projectedDate != null
+        countdown == '1 day left' ||
+        RegExp(r'^[2-6] days left$').hasMatch(countdown ?? '');
+    final estimatedDate =
+        depositDays.length >= 2 && projection.projectedDate != null
         ? formatDate(parseIso(projection.projectedDate!))
         : null;
 
@@ -60,12 +62,15 @@ class SavingsPlanCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SAVINGS PLAN',
-              style: TextStyle(
-                  color: palette.muted,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.9,
-                  fontSize: 10)),
+          Text(
+            'SAVINGS PLAN',
+            style: TextStyle(
+              color: palette.muted,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+              fontSize: 10,
+            ),
+          ),
           const SizedBox(height: 5),
           Text(
             funded ? 'Goal funded.' : 'One week at a time.',
@@ -73,41 +78,74 @@ class SavingsPlanCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           if (funded)
-            Text("You have reached this jar's target.",
-                style: TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13))
+            Text(
+              "You have reached this jar's target.",
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 13,
+                height: 19 / 13,
+              ),
+            )
           else ...[
             if (undated)
               Text(
                 'Set a target date to calculate a weekly amount and finish estimate.',
-                style: TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13),
+                style: TextStyle(
+                  color: palette.muted,
+                  fontSize: 13,
+                  height: 19 / 13,
+                ),
               )
             else if (overdue)
               Text(
                 'Your deadline has passed. Choose a new target date to set a weekly amount.',
-                style: TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13),
+                style: TextStyle(
+                  color: palette.muted,
+                  fontSize: 13,
+                  height: 19 / 13,
+                ),
               )
             else if (countdown == 'Due today' || dueSoon) ...[
-              _metric(palette, dueSoon ? 'Remaining by deadline' : 'Remaining today',
-                  format(jar.target - jar.balance), null),
+              _metric(
+                palette,
+                dueSoon ? 'Remaining by deadline' : 'Remaining today',
+                format(jar.target - jar.balance),
+                null,
+              ),
             ] else ...[
-              _metric(palette, 'Weekly amount to target',
-                  '${format(projection.requiredPerWeekMinor)} / week', null),
+              _metric(
+                palette,
+                'Weekly amount to target',
+                '${format(projection.requiredPerWeekMinor)} / week',
+                null,
+              ),
             ],
             const SizedBox(height: 12),
-            _metric(palette, 'Recent deposit pace', '${format(recentPace)} / week',
-                'Deposits over the past 28 days, averaged over four weeks.'),
+            _metric(
+              palette,
+              'Recent deposit pace',
+              '${format(recentPace)} / week',
+              'Deposits over the past 28 days, averaged over four weeks.',
+            ),
             const SizedBox(height: 12),
             if (!undated)
               if (estimatedDate != null)
-                _metric(palette, 'Estimated finish', estimatedDate,
-                    'Uses the higher of recent deposits and your recurring schedule. Withdrawals can delay this estimate.')
+                _metric(
+                  palette,
+                  'Estimated finish',
+                  estimatedDate,
+                  'Uses the higher of recent deposits and your recurring schedule. Withdrawals can delay this estimate.',
+                )
               else
                 Text(
                   depositDays.length >= 2
                       ? 'A finish estimate is unavailable at this pace.'
                       : 'Record deposits on two different days within the past 28 days to estimate a finish.',
                   style: TextStyle(
-                      color: palette.muted, fontSize: 13, height: 19 / 13),
+                    color: palette.muted,
+                    fontSize: 13,
+                    height: 19 / 13,
+                  ),
                 ),
           ],
         ],
@@ -115,28 +153,39 @@ class SavingsPlanCard extends ConsumerWidget {
     );
   }
 
-  Widget _metric(
-      Palette palette, String label, String amount, String? hint) {
+  Widget _metric(Palette palette, String label, String amount, String? hint) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(),
-            style: TextStyle(
-                color: palette.muted,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
-                fontSize: 10)),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: palette.muted,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+            fontSize: 10,
+          ),
+        ),
         const SizedBox(height: 3),
-        Text(amount,
-            style: TextStyle(
-                color: palette.foreground,
-                fontSize: 21,
-                fontWeight: FontWeight.w700)),
+        Text(
+          amount,
+          style: TextStyle(
+            color: palette.foreground,
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         if (hint != null)
           Padding(
             padding: const EdgeInsets.only(top: 3),
-            child: Text(hint,
-                style: TextStyle(color: palette.muted, fontSize: 11, height: 15 / 11)),
+            child: Text(
+              hint,
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 11,
+                height: 15 / 11,
+              ),
+            ),
           ),
       ],
     );

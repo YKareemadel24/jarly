@@ -27,14 +27,17 @@ void main() {
       expect(applyEntry(base, 5001, directionWithdrawal), isNull);
     });
 
-    test('applies a valid withdrawal and never touches milestones or streaks', () {
-      final base = jar(balance: 5000, kind: kindHabit, streak: 4);
-      final result = applyEntry(base, 2000, directionWithdrawal);
-      expect(result!.jar.balance, 3000);
-      expect(result.reached, isEmpty);
-      expect(result.jar.streak, 4);
-      expect(result.jar.entries[0].direction, directionWithdrawal);
-    });
+    test(
+      'applies a valid withdrawal and never touches milestones or streaks',
+      () {
+        final base = jar(balance: 5000, kind: kindHabit, streak: 4);
+        final result = applyEntry(base, 2000, directionWithdrawal);
+        expect(result!.jar.balance, 3000);
+        expect(result.reached, isEmpty);
+        expect(result.jar.streak, 4);
+        expect(result.jar.entries[0].direction, directionWithdrawal);
+      },
+    );
 
     test('rejects zero and negative amounts', () {
       expect(applyEntry(jar(), 0, directionDeposit), isNull);
@@ -144,7 +147,10 @@ void main() {
         activeJars([active, archived], (candidate) => candidate.isArchived),
         [active],
       );
-      expect(activeJars([archived], (candidate) => candidate.isArchived), isEmpty);
+      expect(
+        activeJars([archived], (candidate) => candidate.isArchived),
+        isEmpty,
+      );
     });
 
     test('monthlyDeposits ignores deposits from archived jars', () {
@@ -177,11 +183,12 @@ void main() {
       final base = jar(
         balance: 4000,
         entries: [
-          applyEntry(jar(), 4000, directionDeposit,
-                  now: DateTime.parse('2026-05-01T12:00:00Z'))!
-              .jar
-              .entries
-              .first,
+          applyEntry(
+            jar(),
+            4000,
+            directionDeposit,
+            now: DateTime.parse('2026-05-01T12:00:00Z'),
+          )!.jar.entries.first,
         ],
       );
       final encoded = base.toJson();
@@ -206,7 +213,12 @@ void main() {
         'accent': 'blue',
         'icon': 'flight',
         'entries': [
-          {'id': 'e1', 'amount': 5000, 'direction': 'deposit', 'at': '2026-01-02T00:00:00.000Z'},
+          {
+            'id': 'e1',
+            'amount': 5000,
+            'direction': 'deposit',
+            'at': '2026-01-02T00:00:00.000Z',
+          },
         ],
       });
       expect(normalised.accent, 'ocean');
@@ -222,7 +234,12 @@ void main() {
         'accent': 'coral',
         'icon': 'x',
         'entries': [
-          {'id': 'e1', 'amount': 50.5, 'direction': 'deposit', 'at': '2026-01-02T00:00:00.000Z'},
+          {
+            'id': 'e1',
+            'amount': 50.5,
+            'direction': 'deposit',
+            'at': '2026-01-02T00:00:00.000Z',
+          },
         ],
       }, scaleToMinor: true);
       expect(legacyScaled.balance, 5050);

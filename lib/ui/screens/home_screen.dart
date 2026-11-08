@@ -38,17 +38,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return savingsAsync.when(
       loading: () => ScreenContainer(
-        child: Center(
-          child: CircularProgressIndicator(color: palette.primary),
-        ),
+        child: Center(child: CircularProgressIndicator(color: palette.primary)),
       ),
-      error: (error, stack) => _body(ref, palette, SavingsState.initial, currency),
+      error: (error, stack) =>
+          _body(ref, palette, SavingsState.initial, currency),
       data: (savings) => _body(ref, palette, savings, currency),
     );
   }
 
   Widget _body(
-      WidgetRef ref, Palette palette, SavingsState savings, String currency) {
+    WidgetRef ref,
+    Palette palette,
+    SavingsState savings,
+    String currency,
+  ) {
     final active = savings.jars.where((jar) => !jar.isArchived).toList();
     final inProgress = [
       for (final jar in active)
@@ -64,9 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (!savings.ready) {
       return ScreenContainer(
-        child: Center(
-          child: CircularProgressIndicator(color: palette.primary),
-        ),
+        child: Center(child: CircularProgressIndicator(color: palette.primary)),
       );
     }
 
@@ -77,7 +78,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         itemBuilder: (context, index) {
           if (index == 0) {
             return _header(
-                ref, palette, savings, active, inProgress, reminders, weeklyDeltaValue, currency);
+              ref,
+              palette,
+              savings,
+              active,
+              inProgress,
+              reminders,
+              weeklyDeltaValue,
+              currency,
+            );
           }
           final jarIndex = index - 1;
           if (jarIndex < inProgress.length) {
@@ -93,7 +102,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _completedBlock(
-      WidgetRef ref, Palette palette, List<Jar> completed, String Function(int) format) {
+    WidgetRef ref,
+    Palette palette,
+    List<Jar> completed,
+    String Function(int) format,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(top: 26),
       child: Column(
@@ -103,25 +116,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Icon(Icons.verified, size: 15, color: palette.success),
               const SizedBox(width: 6),
-              Text('Completed',
-                  style: TextStyle(
-                      color: palette.muted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.9)),
+              Text(
+                'Completed',
+                style: TextStyle(
+                  color: palette.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.9,
+                ),
+              ),
               const SizedBox(width: 6),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
                 decoration: BoxDecoration(
                   color: palette.border,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('${completed.length}',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                child: Text(
+                  '${completed.length}',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
@@ -147,8 +165,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String currency,
   ) {
     final format = ref.watch(moneyFormatterProvider);
-    final shownReminders =
-        _remindersExpanded ? reminders : reminders.take(2).toList();
+    final shownReminders = _remindersExpanded
+        ? reminders
+        : reminders.take(2).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -212,7 +231,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             color: const Color(0xFF3B2D24),
             borderRadius: BorderRadius.circular(27),
             boxShadow: const [
-              BoxShadow(color: Color(0x383B2D24), blurRadius: 18, offset: Offset(0, 12)),
+              BoxShadow(
+                color: Color(0x383B2D24),
+                blurRadius: 18,
+                offset: Offset(0, 12),
+              ),
             ],
           ),
           child: Column(
@@ -239,7 +262,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       color: const Color(0x2BFFFDF9),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.savings, size: 18, color: Color(0xFFFFFDF9)),
+                    child: const Icon(
+                      Icons.savings,
+                      size: 18,
+                      color: Color(0xFFFFFDF9),
+                    ),
                   ),
                 ],
               ),
@@ -260,7 +287,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Container(
                 padding: const EdgeInsets.only(top: 14),
                 decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0x38FFFDF9), width: 0.5)),
+                  border: Border(
+                    top: BorderSide(color: Color(0x38FFFDF9), width: 0.5),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -270,7 +299,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         active.isNotEmpty
                             ? 'Across ${active.length} active ${active.length == 1 ? 'jar' : 'jars'}'
                             : 'A home for every goal that matters',
-                        style: const TextStyle(color: Color(0xFFE8D9C8), fontSize: 13),
+                        style: const TextStyle(
+                          color: Color(0xFFE8D9C8),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     if (active.isNotEmpty)
@@ -298,15 +330,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Row(
               children: [
                 Flexible(
-                  child: Text('Saving reminders',
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Saving reminders',
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Text('${reminders.length}',
-                    style: TextStyle(color: palette.muted, fontSize: 14)),
+                Text(
+                  '${reminders.length}',
+                  style: TextStyle(color: palette.muted, fontSize: 14),
+                ),
               ],
             ),
           ),
@@ -314,7 +351,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _reminderCard(ref, palette, reminder),
         if (reminders.length > 2)
           _Pressable(
-            onTap: () => setState(() => _remindersExpanded = !_remindersExpanded),
+            onTap: () =>
+                setState(() => _remindersExpanded = !_remindersExpanded),
             semantics: _remindersExpanded
                 ? 'Show fewer reminders'
                 : 'View all ${reminders.length} reminders',
@@ -329,9 +367,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ? 'Show fewer reminders'
                           : 'View all ${reminders.length} reminders',
                       style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700),
+                        color: palette.foreground,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Icon(
@@ -355,7 +394,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ? 'Your jars'
                       : 'All jars complete',
                   style: TextStyle(
-                      color: palette.foreground, fontSize: 22, fontFamily: 'Georgia'),
+                    color: palette.foreground,
+                    fontSize: 22,
+                    fontFamily: 'Georgia',
+                  ),
                 ),
               ),
               _Pressable(
@@ -364,8 +406,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 semantics: 'Create a new jar',
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 44),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: palette.foreground,
                     borderRadius: BorderRadius.circular(13),
@@ -375,11 +419,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       Icon(Icons.add, size: 18, color: palette.background),
                       const SizedBox(width: 5),
-                      Text('New jar',
-                          style: TextStyle(
-                              color: palette.background,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        'New jar',
+                        style: TextStyle(
+                          color: palette.background,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -406,9 +453,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   size: JarVesselSize.medium,
                 ),
                 const SizedBox(height: 14),
-                Text('Make saving feel real.',
-                    style:
-                        TextStyle(color: palette.foreground, fontSize: 24)),
+                Text(
+                  'Make saving feel real.',
+                  style: TextStyle(color: palette.foreground, fontSize: 24),
+                ),
                 const SizedBox(height: 8),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 275),
@@ -416,7 +464,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     'Create a jar for what matters, then let each small contribution show up.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: palette.muted, fontSize: 13, height: 19 / 13),
+                      color: palette.muted,
+                      fontSize: 13,
+                      height: 19 / 13,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 21),
@@ -434,14 +485,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Create your first jar',
-                            style: TextStyle(
-                                color: Color(0xFFFFFDF9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800)),
+                        const Text(
+                          'Create your first jar',
+                          style: TextStyle(
+                            color: Color(0xFFFFFDF9),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward,
-                            size: 18, color: Color(0xFFFFFDF9)),
+                        const Icon(
+                          Icons.arrow_forward,
+                          size: 18,
+                          color: Color(0xFFFFFDF9),
+                        ),
                       ],
                     ),
                   ),
@@ -453,7 +510,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _reminderCard(WidgetRef ref, Palette palette, JarReminderRow reminder) {
+  Widget _reminderCard(
+    WidgetRef ref,
+    Palette palette,
+    JarReminderRow reminder,
+  ) {
     final accent = accentFor(reminder.jar.accent, palette);
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -467,7 +528,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             color: palette.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-                color: hexAlpha(toRrggbb(palette.primary), '55')),
+              color: hexAlpha(toRrggbb(palette.primary), '55'),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,8 +542,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: hexAlpha(accent, '20'),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.notifications_active,
-                    size: 17, color: parseHex(accent)),
+                child: Icon(
+                  Icons.notifications_active,
+                  size: 17,
+                  color: parseHex(accent),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -491,37 +556,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(reminder.title,
-                              style: TextStyle(
-                                  color: palette.foreground,
-                                  fontSize: 15,
-                                  height: 22 / 15,
-                                  fontWeight: FontWeight.w800)),
+                          child: Text(
+                            reminder.title,
+                            style: TextStyle(
+                              color: palette.foreground,
+                              fontSize: 15,
+                              height: 22 / 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          constraints:
-                              const BoxConstraints(minHeight: 44),
+                          constraints: const BoxConstraints(minHeight: 44),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: palette.background,
                             borderRadius: BorderRadius.circular(11),
                           ),
-                          child: Text('+ Add',
-                              style: TextStyle(
-                                  color: palette.foreground,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800)),
+                          child: Text(
+                            '+ Add',
+                            style: TextStyle(
+                              color: palette.foreground,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(reminder.detail,
-                        style: TextStyle(
-                            color: palette.muted,
-                            fontSize: 13,
-                            height: 20 / 13)),
+                    Text(
+                      reminder.detail,
+                      style: TextStyle(
+                        color: palette.muted,
+                        fontSize: 13,
+                        height: 20 / 13,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -553,8 +626,8 @@ class GoalCard extends ConsumerWidget {
     final metaIcon = isHabitStreak
         ? Icons.local_fire_department
         : countdown != null
-            ? Icons.calendar_today
-            : Icons.flag;
+        ? Icons.calendar_today
+        : Icons.flag;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 114),
@@ -568,8 +641,7 @@ class GoalCard extends ConsumerWidget {
         children: [
           _Pressable(
             onTap: () => context.push('/jar/${jar.id}'),
-            onLongPress: () =>
-                context.push('/jar/${jar.id}?action=deposit'),
+            onLongPress: () => context.push('/jar/${jar.id}?action=deposit'),
             longPressDelay: const Duration(milliseconds: 320),
             semantics:
                 '${jar.name}. $progress% complete. ${format(jar.balance)} saved of ${format(jar.target)}.',
@@ -592,27 +664,36 @@ class GoalCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(jar.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: palette.foreground,
-                              fontSize: 16,
-                              height: 22 / 16,
-                              fontWeight: FontWeight.w800)),
+                      Text(
+                        jar.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.foreground,
+                          fontSize: 16,
+                          height: 22 / 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text(format(jar.balance),
-                          style: TextStyle(
-                              color: palette.foreground,
-                              fontSize: 21,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        format(jar.balance),
+                        style: TextStyle(
+                          color: palette.foreground,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('of ${format(jar.target)} goal',
-                          style: TextStyle(
-                              color: palette.muted,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                              height: 19 / 13)),
+                      Text(
+                        'of ${format(jar.target)} goal',
+                        style: TextStyle(
+                          color: palette.muted,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          height: 19 / 13,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -638,11 +719,14 @@ class GoalCard extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text('$progress%',
-                              style: TextStyle(
-                                  color: palette.foreground,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            '$progress%',
+                            style: TextStyle(
+                              color: palette.foreground,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -657,9 +741,11 @@ class GoalCard extends ConsumerWidget {
               Expanded(
                 child: Row(
                   children: [
-                    Icon(metaIcon,
-                        size: 16,
-                        color: urgent ? palette.warning : palette.muted),
+                    Icon(
+                      metaIcon,
+                      size: 16,
+                      color: urgent ? palette.warning : palette.muted,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -668,8 +754,9 @@ class GoalCard extends ConsumerWidget {
                           color: urgent ? palette.foreground : palette.muted,
                           fontSize: 13,
                           height: 19 / 13,
-                          fontWeight:
-                              urgent ? FontWeight.w700 : FontWeight.w400,
+                          fontWeight: urgent
+                              ? FontWeight.w700
+                              : FontWeight.w400,
                         ),
                       ),
                     ),
@@ -679,23 +766,27 @@ class GoalCard extends ConsumerWidget {
               const SizedBox(width: 12),
               _Pressable(
                 borderRadius: 11,
-                onTap: () =>
-                    context.push('/jar/${jar.id}?action=deposit'),
+                onTap: () => context.push('/jar/${jar.id}?action=deposit'),
                 semantics: 'Add money to ${jar.name}',
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 44),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 11, vertical: 7),
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: hexAlpha(accent, '1F'),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Center(
-                    child: Text('+ Add',
-                        style: TextStyle(
-                            color: palette.foreground,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800)),
+                    child: Text(
+                      '+ Add',
+                      style: TextStyle(
+                        color: palette.foreground,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -745,14 +836,16 @@ class _PressableState extends State<_Pressable> {
           if (widget.onLongPress != null)
             LongPressGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<
-                    LongPressGestureRecognizer>(
-              () => LongPressGestureRecognizer(
-                  duration: widget.longPressDelay),
-              (instance) => instance.onLongPress = () {
+                  LongPressGestureRecognizer
+                >(
+                  () => LongPressGestureRecognizer(
+                    duration: widget.longPressDelay,
+                  ),
+                  (instance) => instance.onLongPress = () {
                     setState(() => _longFired = true);
                     widget.onLongPress!();
                   },
-            ),
+                ),
         },
         child: GestureDetector(
           onTap: _longFired ? null : widget.onTap,

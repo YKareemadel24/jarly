@@ -29,7 +29,11 @@ import '../widgets/screen_container.dart';
 import '../widgets/sheet_scaffold.dart';
 
 class JarDetailScreen extends ConsumerStatefulWidget {
-  const JarDetailScreen({super.key, required this.jarId, this.autoDeposit = false});
+  const JarDetailScreen({
+    super.key,
+    required this.jarId,
+    this.autoDeposit = false,
+  });
 
   final String jarId;
   final bool autoDeposit;
@@ -55,7 +59,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
   String? notice;
   int coinKey = 0;
   bool menuVisible = false;
-  ({String jarId, String name, int amount, String entryId, String direction})? undo;
+  ({String jarId, String name, int amount, String entryId, String direction})?
+  undo;
   bool _actionConsumed = false;
 
   @override
@@ -77,38 +82,45 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     final savings = ref.watch(savingsProvider).value ?? SavingsState.initial;
     final settings = ref.watch(settingsProvider).value;
     final currency = settings?.currency ?? 'USD';
-    final jar = savings.jars.where((item) => item.id == widget.jarId).firstOrNull;
+    final jar = savings.jars
+        .where((item) => item.id == widget.jarId)
+        .firstOrNull;
     final palette = ref.watch(paletteProvider);
     final format = ref.watch(moneyFormatterProvider);
 
     if (jar == null) {
       return ScreenContainer(
         child: Center(
-          child: Text('This jar is no longer available.',
-              style: TextStyle(color: palette.muted)),
+          child: Text(
+            'This jar is no longer available.',
+            style: TextStyle(color: palette.muted),
+          ),
         ),
       );
     }
 
     final accent = accentFor(jar.accent, palette);
     final progress = percent(jar);
-    final remaining = jar.target - jar.balance > 0 ? jar.target - jar.balance : 0;
-    final editingEntry =
-        jar.entries.where((entry) => entry.id == editingEntryId).firstOrNull;
+    final remaining = jar.target - jar.balance > 0
+        ? jar.target - jar.balance
+        : 0;
+    final editingEntry = jar.entries
+        .where((entry) => entry.id == editingEntryId)
+        .firstOrNull;
     final amountMinor = toMinor(sanitizeAmountInput(amount));
     final withdrawPreview =
         direction == directionWithdrawal && amountMinor != null
-            ? max64(jar.balance - amountMinor)
-            : null;
-    final depositPreview =
-        direction == directionDeposit && amountMinor != null
-            ? jar.balance + amountMinor
-            : null;
+        ? max64(jar.balance - amountMinor)
+        : null;
+    final depositPreview = direction == directionDeposit && amountMinor != null
+        ? jar.balance + amountMinor
+        : null;
     final depositPreviewPct = depositPreview != null
         ? percent(jar.copyWith(balance: depositPreview))
         : null;
     final presets = quickPresets(jar, DateTime.now(), currency);
-    final currencySymbol = supportedCurrencies
+    final currencySymbol =
+        supportedCurrencies
             .where((c) => c.code == currency)
             .firstOrNull
             ?.symbol ??
@@ -124,17 +136,24 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       }
       if (chosen == directionWithdrawal && value > jar.balance) {
         Haptics.error();
-        setState(() => error =
-            'You can withdraw up to ${format(jar.balance)} from this jar.');
+        setState(
+          () => error =
+              'You can withdraw up to ${format(jar.balance)} from this jar.',
+        );
         return;
       }
       final controller = ref.read(savingsProvider.notifier);
-      final result = controller.addEntry(jar.id, value, chosen,
-          note: note.trim().isEmpty ? null : note.trim());
+      final result = controller.addEntry(
+        jar.id,
+        value,
+        chosen,
+        note: note.trim().isEmpty ? null : note.trim(),
+      );
       if (result == null) {
         Haptics.error();
-        setState(() => error =
-            'The transaction could not be saved. Check the amount and available balance.');
+        setState(
+          () => error = 'The transaction could not be saved. Check the amount and available balance.',
+        );
         return;
       }
       final reached = result.reached;
@@ -190,7 +209,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         return;
       }
       final previous = jar.recurring;
-      ref.read(savingsProvider.notifier).editJar(
+      ref
+          .read(savingsProvider.notifier)
+          .editJar(
             jar.id,
             JarEdit(
               recurring: RecurringRule(
@@ -218,12 +239,17 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       final resumeDate = rule.paused
           ? nextRecurringDate(
               previous: RecurringRule(
-                  amount: rule.amount, cadence: rule.cadence, paused: rule.paused),
+                amount: rule.amount,
+                cadence: rule.cadence,
+                paused: rule.paused,
+              ),
               amount: rule.amount,
               cadence: rule.cadence,
             )
           : rule.nextDate;
-      ref.read(savingsProvider.notifier).editJar(
+      ref
+          .read(savingsProvider.notifier)
+          .editJar(
             jar.id,
             JarEdit(
               recurring: RecurringRule(
@@ -240,7 +266,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     void openEdit() {
       setState(() {
         editName = jar.name;
-        editTarget = jar.target > 0 ? (jar.target / 100).toStringAsFixed(2) : '';
+        editTarget = jar.target > 0
+            ? (jar.target / 100).toStringAsFixed(2)
+            : '';
         editDeadline = jar.deadline ?? '';
         editVisible = true;
       });
@@ -258,12 +286,16 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         setState(() => error = 'Enter a valid date or month and year.');
         return;
       }
-      ref.read(savingsProvider.notifier).editJar(
+      ref
+          .read(savingsProvider.notifier)
+          .editJar(
             jar.id,
             JarEdit(
               name: name,
               target: target,
-              deadline: editDeadline.trim().isEmpty ? null : editDeadline.trim(),
+              deadline: editDeadline.trim().isEmpty
+                  ? null
+                  : editDeadline.trim(),
               clearDeadline: editDeadline.trim().isEmpty,
             ),
           );
@@ -275,8 +307,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
 
     final nextOccurrence =
         jar.recurring?.nextDate != null && !jar.recurring!.paused
-            ? formatDayMonth(parseIso(jar.recurring!.nextDate!))
-            : null;
+        ? formatDayMonth(parseIso(jar.recurring!.nextDate!))
+        : null;
 
     return ScreenContainer(
       horizontal: false,
@@ -308,7 +340,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           if (editingEntry != null)
             _EditEntrySheet(
               entry: editingEntry,
-              canEdit: editingEntry.undoOf == null &&
+              canEdit:
+                  editingEntry.undoOf == null &&
                   !jar.entries.any((entry) => entry.undoOf == editingEntry.id),
               format: format,
               onSave: (input) {
@@ -319,8 +352,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 setState(() {
                   editingEntryId = null;
                   undo = null;
-                  notice =
-                      'Correction saved. Previous values are kept in the transaction history.';
+                  notice = 'Correction saved. Previous values are kept in the transaction history.';
                 });
                 return true;
               },
@@ -332,7 +364,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 setState(() {
                   editingEntryId = null;
                   undo = null;
-                  notice = 'Transaction undone. Both records stay in your history.';
+                  notice =
+                      'Transaction undone. Both records stay in your history.';
                 });
                 return true;
               },
@@ -410,8 +443,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               error = '';
             }),
             onDeadlineChange: (value) => setState(() => editDeadline = value),
-            onKindChange: (kind) =>
-                ref.read(savingsProvider.notifier).editJar(jar.id, JarEdit(kind: kind)),
+            onKindChange: (kind) => ref
+                .read(savingsProvider.notifier)
+                .editJar(jar.id, JarEdit(kind: kind)),
             onSave: saveEdit,
             onDismiss: () => setState(() {
               editVisible = false;
@@ -422,7 +456,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           ActionSheet(
             visible: menuVisible,
             title: 'Jar options',
-            message: 'Keep its history while removing it from your active goals.',
+            message:
+                'Keep its history while removing it from your active goals.',
             actions: [
               SheetAction(
                 label: 'Edit jar',
@@ -497,8 +532,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               onTap: () => context.pop(),
               semantics: 'Go back',
               child: _circle(
-                  palette,
-                  Icon(Icons.arrow_back, size: 20, color: palette.foreground)),
+                palette,
+                Icon(Icons.arrow_back, size: 20, color: palette.foreground),
+              ),
             ),
             Expanded(
               child: Text(
@@ -507,16 +543,19 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: palette.foreground,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15),
+                  color: palette.foreground,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
               ),
             ),
             Pressable(
               onTap: () => setState(() => menuVisible = true),
               semantics: 'Jar options',
-              child: _circle(palette,
-                  Icon(Icons.more_horiz, size: 22, color: palette.foreground)),
+              child: _circle(
+                palette,
+                Icon(Icons.more_horiz, size: 22, color: palette.foreground),
+              ),
             ),
           ],
         ),
@@ -538,35 +577,51 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 coinDropKey: coinKey,
               ),
               const SizedBox(height: 17),
-              Text(jar.name,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: palette.foreground, fontSize: 27)),
+              Text(
+                jar.name,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: palette.foreground, fontSize: 27),
+              ),
               const SizedBox(height: 5),
-              Text('$progress% complete',
-                  style: TextStyle(
-                      color: parseHex(accent),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                '$progress% complete',
+                style: TextStyle(
+                  color: parseHex(accent),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 17),
-              Text(format(jar.balance),
-                  style: TextStyle(
-                      color: palette.foreground,
-                      fontSize: 38,
-                      height: 46 / 38,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                format(jar.balance),
+                style: TextStyle(
+                  color: palette.foreground,
+                  fontSize: 38,
+                  height: 46 / 38,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text('saved of ${format(jar.target)}',
-                  style: TextStyle(color: palette.muted, fontSize: 13)),
+              Text(
+                'saved of ${format(jar.target)}',
+                style: TextStyle(color: palette.muted, fontSize: 13),
+              ),
               if (jar.deadline != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 11),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.calendar_today, size: 13, color: palette.muted),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 13,
+                        color: palette.muted,
+                      ),
                       const SizedBox(width: 5),
-                      Text('Target: ${jar.deadline}',
-                          style: TextStyle(color: palette.muted, fontSize: 11)),
+                      Text(
+                        'Target: ${jar.deadline}',
+                        style: TextStyle(color: palette.muted, fontSize: 11),
+                      ),
                     ],
                   ),
                 ),
@@ -625,11 +680,14 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                       children: [
                         Icon(Icons.add, size: 20, color: Color(0xFFFFFDF9)),
                         SizedBox(width: 7),
-                        Text('Deposit',
-                            style: TextStyle(
-                                color: Color(0xFFFFFDF9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          'Deposit',
+                          style: TextStyle(
+                            color: Color(0xFFFFFDF9),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -655,11 +713,14 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                       children: [
                         Icon(Icons.remove, size: 20, color: palette.foreground),
                         const SizedBox(width: 7),
-                        Text('Withdraw',
-                            style: TextStyle(
-                                color: palette.foreground,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          'Withdraw',
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -679,17 +740,25 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.local_fire_department,
-                    size: 20, color: parseHex(accent)),
+                Icon(
+                  Icons.local_fire_department,
+                  size: 20,
+                  color: parseHex(accent),
+                ),
                 const SizedBox(width: 7),
-                Text('${jar.streak}-day saving streak',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13)),
+                Text(
+                  '${jar.streak}-day saving streak',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
                 const Spacer(),
-                Text('Small deposits count.',
-                    style: TextStyle(color: palette.muted, fontSize: 11)),
+                Text(
+                  'Small deposits count.',
+                  style: TextStyle(color: palette.muted, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -714,14 +783,19 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Build the habit',
-                            style: TextStyle(
-                                color: palette.foreground,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14)),
+                        Text(
+                          'Build the habit',
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 3),
-                        Text('Set up a recurring deposit.',
-                            style: TextStyle(color: palette.muted, fontSize: 12)),
+                        Text(
+                          'Set up a recurring deposit.',
+                          style: TextStyle(color: palette.muted, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -737,11 +811,15 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Activity',
-                  style: TextStyle(color: palette.foreground, fontSize: 22)),
+              Text(
+                'Activity',
+                style: TextStyle(color: palette.foreground, fontSize: 22),
+              ),
               const SizedBox(height: 4),
-              Text('Tap a transaction to correct it or view its history.',
-                  style: TextStyle(color: palette.muted, fontSize: 12)),
+              Text(
+                'Tap a transaction to correct it or view its history.',
+                style: TextStyle(color: palette.muted, fontSize: 12),
+              ),
             ],
           ),
         ),
@@ -749,8 +827,13 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     );
   }
 
-  Widget _recurringCard(Palette palette, Jar jar, String accent,
-      String? nextOccurrence, String Function(int) format) {
+  Widget _recurringCard(
+    Palette palette,
+    Jar jar,
+    String accent,
+    String? nextOccurrence,
+    String Function(int) format,
+  ) {
     final rule = jar.recurring!;
     return Container(
       margin: const EdgeInsets.only(top: 14),
@@ -768,25 +851,31 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SCHEDULED SAVING',
-                    style: TextStyle(
-                        color: palette.muted,
-                        letterSpacing: 0.9,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 10)),
+                Text(
+                  'SCHEDULED SAVING',
+                  style: TextStyle(
+                    color: palette.muted,
+                    letterSpacing: 0.9,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text('${format(rule.amount)} every ${rule.cadence}',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14)),
+                Text(
+                  '${format(rule.amount)} every ${rule.cadence}',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   rule.paused
                       ? 'Currently paused'
                       : nextOccurrence != null
-                          ? 'Next deposit: $nextOccurrence'
-                          : 'A gentle rhythm for this jar',
+                      ? 'Next deposit: $nextOccurrence'
+                      : 'A gentle rhythm for this jar',
                   style: TextStyle(color: palette.muted, fontSize: 11),
                 ),
               ],
@@ -798,11 +887,14 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               recurringVisible = true;
             }),
             semantics: 'Edit recurring deposit',
-            child: Text('Edit',
-                style: TextStyle(
-                    color: parseHex(accent),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800)),
+            child: Text(
+              'Edit',
+              style: TextStyle(
+                color: parseHex(accent),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -821,52 +913,59 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       );
 
   Widget _statCard(Palette palette, String label, String value) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: palette.border),
+    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
+    decoration: BoxDecoration(
+      color: palette.surface,
+      borderRadius: BorderRadius.circular(17),
+      border: Border.all(color: palette.border),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: palette.muted,
+            fontSize: 10,
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(
-                    color: palette.muted,
-                    fontSize: 10,
-                    letterSpacing: 1.1,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(value,
-                style: TextStyle(color: palette.foreground, fontSize: 19)),
-          ],
-        ),
-      );
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: palette.foreground, fontSize: 19)),
+      ],
+    ),
+  );
 
   Widget _circle(Palette palette, Widget child) => Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: palette.border),
-          color: palette.surface,
-        ),
-        child: Center(child: child),
-      );
+    width: 42,
+    height: 42,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: palette.border),
+      color: palette.surface,
+    ),
+    child: Center(child: child),
+  );
 
-  Widget _entryRow(Palette palette, String Function(int) format, Jar jar,
-      Entry entry, String accent) {
+  Widget _entryRow(
+    Palette palette,
+    String Function(int) format,
+    Jar jar,
+    Entry entry,
+    String accent,
+  ) {
     final isDeposit = entry.direction == directionDeposit;
     final undone = jar.entries.any((candidate) => candidate.undoOf == entry.id);
     final title = entry.undoOf != null
         ? 'Undo record'
         : undone
-            ? 'Transaction undone'
-            : isDeposit
-                ? (entry.source == sourceRecurring
-                    ? 'Scheduled deposit'
-                    : 'Money added')
-                : 'Money withdrawn';
+        ? 'Transaction undone'
+        : isDeposit
+        ? (entry.source == sourceRecurring
+              ? 'Scheduled deposit'
+              : 'Money added')
+        : 'Money withdrawn';
     return Column(
       children: [
         Pressable(
@@ -898,11 +997,14 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          style: TextStyle(
-                              color: palette.foreground,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800)),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: palette.foreground,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         '${formatDateIso(entry.at)}'
@@ -945,11 +1047,12 @@ int max64(int value) => value < 0 ? 0 : value;
 /* Shared sheet building blocks                                                */
 /* -------------------------------------------------------------------------- */
 
-
 class _AmountFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final sanitized = sanitizeAmountInput(newValue.text);
     return TextEditingValue(
       text: sanitized,
@@ -991,7 +1094,8 @@ class _NoteFieldState extends State<_NoteField> {
   TextEditingController? _fallback;
 
   TextEditingController get _effective =>
-      widget.controller ?? (_fallback ??= TextEditingController(text: widget.value ?? ''));
+      widget.controller ??
+      (_fallback ??= TextEditingController(text: widget.value ?? ''));
 
   @override
   void didUpdateWidget(_NoteField oldWidget) {
@@ -1062,7 +1166,6 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
-
 /* ------------------------------ Deposit sheet ----------------------------- */
 
 class _DepositSheet extends StatelessWidget {
@@ -1122,22 +1225,30 @@ class _DepositSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(isDeposit ? 'ADD TO JAR' : 'TAKE MONEY OUT',
-              style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.15,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            isDeposit ? 'ADD TO JAR' : 'TAKE MONEY OUT',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 10,
+              letterSpacing: 1.15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 7),
-          Text(isDeposit ? 'Every bit adds up.' : 'Use what you need.',
-              style: TextStyle(color: palette.foreground, fontSize: 28)),
+          Text(
+            isDeposit ? 'Every bit adds up.' : 'Use what you need.',
+            style: TextStyle(color: palette.foreground, fontSize: 28),
+          ),
           const SizedBox(height: 7),
           Text(
             isDeposit
                 ? 'Add to $jarName and watch the jar rise.'
                 : 'This jar currently holds ${format(jarBalance)}.',
-            style:
-                TextStyle(color: palette.muted, fontSize: 13, height: 20 / 13),
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 20 / 13,
+            ),
           ),
           if (isDeposit && presets.isNotEmpty)
             Padding(
@@ -1154,16 +1265,20 @@ class _DepositSheet extends StatelessWidget {
                       child: Container(
                         constraints: const BoxConstraints(minHeight: 34),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 13, vertical: 6),
+                          horizontal: 13,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: amount.isNotEmpty &&
+                          color:
+                              amount.isNotEmpty &&
                                   toMinor(sanitizeAmountInput(amount)) ==
                                       preset.amount
                               ? hexAlpha(accent, '22')
                               : palette.surface,
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: amount.isNotEmpty &&
+                            color:
+                                amount.isNotEmpty &&
                                     toMinor(sanitizeAmountInput(amount)) ==
                                         preset.amount
                                 ? parseHex(accent)
@@ -1177,7 +1292,8 @@ class _DepositSheet extends StatelessWidget {
                             Text(
                               preset.label,
                               style: TextStyle(
-                                color: amount.isNotEmpty &&
+                                color:
+                                    amount.isNotEmpty &&
                                         toMinor(sanitizeAmountInput(amount)) ==
                                             preset.amount
                                     ? parseHex(accent)
@@ -1189,7 +1305,8 @@ class _DepositSheet extends StatelessWidget {
                             Text(
                               preset.hint,
                               style: TextStyle(
-                                color: amount.isNotEmpty &&
+                                color:
+                                    amount.isNotEmpty &&
                                         toMinor(sanitizeAmountInput(amount)) ==
                                             preset.amount
                                     ? parseHex(accent)
@@ -1216,11 +1333,14 @@ class _DepositSheet extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Text(currencySymbol,
-                    style: TextStyle(
-                        color: palette.primary,
-                        fontSize: 25,
-                        fontFamily: 'Georgia')),
+                Text(
+                  currencySymbol,
+                  style: TextStyle(
+                    color: palette.primary,
+                    fontSize: 25,
+                    fontFamily: 'Georgia',
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ControlledAmountField(
@@ -1235,30 +1355,40 @@ class _DepositSheet extends StatelessWidget {
           if (withdrawPreview != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('Leaves ${format(withdrawPreview)} in this jar.',
-                  style: TextStyle(color: palette.muted, fontSize: 12)),
+              child: Text(
+                'Leaves ${format(withdrawPreview)} in this jar.',
+                style: TextStyle(color: palette.muted, fontSize: 12),
+              ),
             ),
           if (depositPreview != null && depositPreviewPct != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Row(
                 children: [
-                  Text(format(jarBalance),
-                      style: TextStyle(color: palette.muted, fontSize: 12)),
+                  Text(
+                    format(jarBalance),
+                    style: TextStyle(color: palette.muted, fontSize: 12),
+                  ),
                   const SizedBox(width: 6),
                   Icon(Icons.arrow_forward, size: 13, color: palette.muted),
                   const SizedBox(width: 6),
-                  Text(format(depositPreview),
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    format(depositPreview),
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const Spacer(),
-                  Text('$depositPreviewPct%',
-                      style: TextStyle(
-                          color: parseHex(accent),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800)),
+                  Text(
+                    '$depositPreviewPct%',
+                    style: TextStyle(
+                      color: parseHex(accent),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1279,11 +1409,14 @@ class _DepositSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(17),
               ),
               child: Center(
-                child: Text(isDeposit ? 'Add to jar' : 'Confirm withdrawal',
-                    style: const TextStyle(
-                        color: Color(0xFFFFFDF9),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15)),
+                child: Text(
+                  isDeposit ? 'Add to jar' : 'Confirm withdrawal',
+                  style: const TextStyle(
+                    color: Color(0xFFFFFDF9),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1292,11 +1425,14 @@ class _DepositSheet extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: 43),
               child: Center(
-                child: Text('Cancel',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1325,8 +1461,9 @@ class _ControlledAmountField extends StatefulWidget {
 }
 
 class _ControlledAmountFieldState extends State<_ControlledAmountField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
 
   @override
   void didUpdateWidget(_ControlledAmountField oldWidget) {
@@ -1410,19 +1547,29 @@ class _RecurringSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('REPEAT CONTRIBUTION',
-              style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.15,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            'REPEAT CONTRIBUTION',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 10,
+              letterSpacing: 1.15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 7),
-          Text('Build the habit.',
-              style: TextStyle(color: palette.foreground, fontSize: 28)),
+          Text(
+            'Build the habit.',
+            style: TextStyle(color: palette.foreground, fontSize: 28),
+          ),
           const SizedBox(height: 7),
-          Text('Choose a contribution you can repeat comfortably.',
-              style:
-                  TextStyle(color: palette.muted, fontSize: 13, height: 20 / 13)),
+          Text(
+            'Choose a contribution you can repeat comfortably.',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 20 / 13,
+            ),
+          ),
           Container(
             margin: const EdgeInsets.only(top: 19),
             constraints: const BoxConstraints(minHeight: 62),
@@ -1434,19 +1581,23 @@ class _RecurringSheet extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Text(currencySymbol,
-                    style: TextStyle(
-                        color: palette.primary,
-                        fontSize: 25,
-                        fontFamily: 'Georgia')),
+                Text(
+                  currencySymbol,
+                  style: TextStyle(
+                    color: palette.primary,
+                    fontSize: 25,
+                    fontFamily: 'Georgia',
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ControlledAmountField(
                     palette: palette,
                     value: amount,
                     onChanged: onAmountChange,
-                    hint:
-                        currentAmountMinor == null ? '0' : '${currentAmountMinor! / 100}',
+                    hint: currentAmountMinor == null
+                        ? '0'
+                        : '${currentAmountMinor! / 100}',
                   ),
                 ),
               ],
@@ -1467,8 +1618,9 @@ class _RecurringSheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color:
-                            cadence == item ? parseHex(accent) : Colors.transparent,
+                        color: cadence == item
+                            ? parseHex(accent)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(11),
                         border: Border.all(
                           color: cadence == item
@@ -1476,13 +1628,16 @@ class _RecurringSheet extends StatelessWidget {
                               : palette.border,
                         ),
                       ),
-                      child: Text(item,
-                          style: TextStyle(
-                              color: cadence == item
-                                  ? const Color(0xFFFFFDF9)
-                                  : palette.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800)),
+                      child: Text(
+                        item,
+                        style: TextStyle(
+                          color: cadence == item
+                              ? const Color(0xFFFFFDF9)
+                              : palette.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -1498,11 +1653,14 @@ class _RecurringSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(17),
               ),
               child: const Center(
-                child: Text('Save schedule',
-                    style: TextStyle(
-                        color: Color(0xFFFFFDF9),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15)),
+                child: Text(
+                  'Save schedule',
+                  style: TextStyle(
+                    color: Color(0xFFFFFDF9),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1513,11 +1671,13 @@ class _RecurringSheet extends StatelessWidget {
                 constraints: const BoxConstraints(minHeight: 43),
                 child: Center(
                   child: Text(
-                      currentPaused ? 'Resume schedule' : 'Pause schedule',
-                      style: TextStyle(
-                          color: palette.warning,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13)),
+                    currentPaused ? 'Resume schedule' : 'Pause schedule',
+                    style: TextStyle(
+                      color: palette.warning,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1526,11 +1686,14 @@ class _RecurringSheet extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: 43),
               child: Center(
-                child: Text('Cancel',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1585,20 +1748,29 @@ class _EditJarSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('EDIT JAR',
-              style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.15,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: 7),
-          Text('Adjust your goal.',
-              style: TextStyle(color: palette.foreground, fontSize: 28)),
+          Text(
+            'EDIT JAR',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 10,
+              letterSpacing: 1.15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 7),
           Text(
-              'Change its name, target, or deadline. Your history stays untouched.',
-              style:
-                  TextStyle(color: palette.muted, fontSize: 13, height: 20 / 13)),
+            'Adjust your goal.',
+            style: TextStyle(color: palette.foreground, fontSize: 28),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            'Change its name, target, or deadline. Your history stays untouched.',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 20 / 13,
+            ),
+          ),
           _NoteField(
             palette: palette,
             value: name,
@@ -1617,11 +1789,14 @@ class _EditJarSheet extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Text(currencySymbol,
-                    style: TextStyle(
-                        color: palette.primary,
-                        fontSize: 25,
-                        fontFamily: 'Georgia')),
+                Text(
+                  currencySymbol,
+                  style: TextStyle(
+                    color: palette.primary,
+                    fontSize: 25,
+                    fontFamily: 'Georgia',
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ControlledAmountField(
@@ -1655,21 +1830,26 @@ class _EditJarSheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color:
-                            kind == item ? parseHex(accent) : Colors.transparent,
+                        color: kind == item
+                            ? parseHex(accent)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(11),
                         border: Border.all(
-                          color:
-                              kind == item ? parseHex(accent) : palette.border,
+                          color: kind == item
+                              ? parseHex(accent)
+                              : palette.border,
                         ),
                       ),
-                      child: Text(item == kindGoal ? 'Goal' : 'Habit',
-                          style: TextStyle(
-                              color: kind == item
-                                  ? const Color(0xFFFFFDF9)
-                                  : palette.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800)),
+                      child: Text(
+                        item == kindGoal ? 'Goal' : 'Habit',
+                        style: TextStyle(
+                          color: kind == item
+                              ? const Color(0xFFFFFDF9)
+                              : palette.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -1685,11 +1865,14 @@ class _EditJarSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(17),
               ),
               child: const Center(
-                child: Text('Save changes',
-                    style: TextStyle(
-                        color: Color(0xFFFFFDF9),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15)),
+                child: Text(
+                  'Save changes',
+                  style: TextStyle(
+                    color: Color(0xFFFFFDF9),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1698,11 +1881,14 @@ class _EditJarSheet extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(minHeight: 43),
               child: Center(
-                child: Text('Cancel',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1737,11 +1923,14 @@ class _EditEntrySheet extends StatefulWidget {
 
 class _EditEntrySheetState extends State<_EditEntrySheet> {
   late final TextEditingController _amount = TextEditingController(
-      text: fromMinor(widget.entry.amount).toStringAsFixed(2));
-  late final TextEditingController _date =
-      TextEditingController(text: localDateIso(parseIso(widget.entry.at)));
-  late final TextEditingController _note =
-      TextEditingController(text: widget.entry.note ?? '');
+    text: fromMinor(widget.entry.amount).toStringAsFixed(2),
+  );
+  late final TextEditingController _date = TextEditingController(
+    text: localDateIso(parseIso(widget.entry.at)),
+  );
+  late final TextEditingController _note = TextEditingController(
+    text: widget.entry.note ?? '',
+  );
   String _error = '';
 
   @override
@@ -1757,21 +1946,25 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
     final dateOk = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(_date.text);
     final chosenDate = dateOk ? parseDeadline(_date.text) : null;
     if (minor == null || minor <= 0 || chosenDate == null) {
-      setState(() =>
-          _error = 'Enter a positive amount and a valid date (YYYY-MM-DD).');
+      setState(
+        () => _error = 'Enter a positive amount and a valid date (YYYY-MM-DD).',
+      );
       return;
     }
     final at = _date.text == localDateIso(parseIso(widget.entry.at))
         ? widget.entry.at
         : toIso(chosenDate);
-    final ok = widget.onSave(EntryCorrection(
-      amount: minor,
-      at: at,
-      note: _note.text.trim().isEmpty ? null : _note.text.trim(),
-    ));
+    final ok = widget.onSave(
+      EntryCorrection(
+        amount: minor,
+        at: at,
+        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+      ),
+    );
     if (!ok) {
-      setState(() => _error =
-          'This change cannot be saved. Check the date and balance; earlier withdrawals must remain funded.');
+      setState(
+        () => _error = 'This change cannot be saved. Check the date and balance; earlier withdrawals must remain funded.',
+      );
     }
   }
 
@@ -1786,22 +1979,32 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Transaction details',
-              style: TextStyle(color: palette.foreground, fontSize: 20)),
+          Text(
+            'Transaction details',
+            style: TextStyle(color: palette.foreground, fontSize: 20),
+          ),
           const SizedBox(height: 8),
           Text(
             widget.entry.undoOf != null
                 ? 'This is an Undo record.'
                 : widget.canEdit
-                    ? 'Correct the amount, date, or note. Previous values stay in the history.'
-                    : 'This transaction has been undone. Its original record is kept below.',
-            style:
-                TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13),
+                ? 'Correct the amount, date, or note. Previous values stay in the history.'
+                : 'This transaction has been undone. Its original record is kept below.',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 19 / 13,
+            ),
           ),
           const SizedBox(height: 12),
-          Text('Amount',
-              style: TextStyle(
-                  color: palette.muted, fontWeight: FontWeight.w800, fontSize: 11)),
+          Text(
+            'Amount',
+            style: TextStyle(
+              color: palette.muted,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
           _NoteField(
             palette: palette,
             controller: _amount,
@@ -1811,9 +2014,14 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
             formatters: [_AmountFormatter()],
           ),
           const SizedBox(height: 6),
-          Text('Date (YYYY-MM-DD)',
-              style: TextStyle(
-                  color: palette.muted, fontWeight: FontWeight.w800, fontSize: 11)),
+          Text(
+            'Date (YYYY-MM-DD)',
+            style: TextStyle(
+              color: palette.muted,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
           _NoteField(
             palette: palette,
             controller: _date,
@@ -1822,9 +2030,14 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
             maxLength: 10,
           ),
           const SizedBox(height: 6),
-          Text('Note',
-              style: TextStyle(
-                  color: palette.muted, fontWeight: FontWeight.w800, fontSize: 11)),
+          Text(
+            'Note',
+            style: TextStyle(
+              color: palette.muted,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
           _NoteField(
             palette: palette,
             controller: _note,
@@ -1836,8 +2049,10 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
           if (_error.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(_error,
-                  style: TextStyle(color: palette.error, fontSize: 11)),
+              child: Text(
+                _error,
+                style: TextStyle(color: palette.error, fontSize: 11),
+              ),
             ),
           if (widget.canEdit) ...[
             const SizedBox(height: 8),
@@ -1850,19 +2065,23 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
                   borderRadius: BorderRadius.circular(17),
                 ),
                 child: const Center(
-                  child: Text('Save correction',
-                      style: TextStyle(
-                          color: Color(0xFFFFFDF9),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15)),
+                  child: Text(
+                    'Save correction',
+                    style: TextStyle(
+                      color: Color(0xFFFFFDF9),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
               ),
             ),
             Pressable(
               onTap: () {
                 if (!widget.onUndo()) {
-                  setState(() => _error =
-                      'Undo is unavailable because this balance has changed or the transaction was already undone.');
+                  setState(
+                    () => _error = 'Undo is unavailable because this balance has changed or the transaction was already undone.',
+                  );
                 }
               },
               child: Container(
@@ -1875,22 +2094,27 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
                 ),
                 child: Center(
                   child: Text(
-                      'Undo this ${widget.entry.direction == directionDeposit ? 'deposit' : 'withdrawal'}',
-                      style: TextStyle(
-                          color: palette.foreground,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15)),
+                    'Undo this ${widget.entry.direction == directionDeposit ? 'deposit' : 'withdrawal'}',
+                    style: TextStyle(
+                      color: palette.foreground,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
           if ((widget.entry.revisions?.length ?? 0) > 0) ...[
             const SizedBox(height: 14),
-            Text('Previous values',
-                style: TextStyle(
-                    color: palette.muted,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11)),
+            Text(
+              'Previous values',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
             const SizedBox(height: 6),
             for (final revision in widget.entry.revisions!.reversed)
               Container(
@@ -1904,14 +2128,19 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${format(revision.amount)} · ${formatDateIso(revision.at)}',
-                        style: TextStyle(color: palette.muted, fontSize: 12)),
-                    if (revision.note != null)
-                      Text(revision.note!,
-                          style: TextStyle(color: palette.muted, fontSize: 12)),
                     Text(
-                        'Corrected ${formatDateTime(parseIso(revision.changedAt))}',
-                        style: TextStyle(color: palette.muted, fontSize: 12)),
+                      '${format(revision.amount)} · ${formatDateIso(revision.at)}',
+                      style: TextStyle(color: palette.muted, fontSize: 12),
+                    ),
+                    if (revision.note != null)
+                      Text(
+                        revision.note!,
+                        style: TextStyle(color: palette.muted, fontSize: 12),
+                      ),
+                    Text(
+                      'Corrected ${formatDateTime(parseIso(revision.changedAt))}',
+                      style: TextStyle(color: palette.muted, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -1927,11 +2156,14 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
                 border: Border.all(color: palette.border),
               ),
               child: Center(
-                child: Text('Close',
-                    style: TextStyle(
-                        color: palette.foreground,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15)),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    color: palette.foreground,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ),
@@ -1942,7 +2174,6 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
 }
 
 /* --------------------------- Action sheet menu ----------------------------- */
-
 
 /* ------------------------------- Celebration ------------------------------- */
 
@@ -1977,12 +2208,15 @@ class _CelebrationModal extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('${level ?? progress}%',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: palette.primary,
-                  fontSize: 46,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            '${level ?? progress}%',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: palette.primary,
+              fontSize: 46,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 6),
           Center(
             child: JarVessel(
@@ -1997,8 +2231,8 @@ class _CelebrationModal extends StatelessWidget {
             level == 100
                 ? 'You made it.'
                 : level == 50
-                    ? 'Halfway there.'
-                    : 'A beautiful milestone.',
+                ? 'Halfway there.'
+                : 'A beautiful milestone.',
             textAlign: TextAlign.center,
             style: TextStyle(color: palette.foreground, fontSize: 27),
           ),
@@ -2006,8 +2240,11 @@ class _CelebrationModal extends StatelessWidget {
           Text(
             '$jarName is now ${level ?? progress}% funded. Small, steady progress is real progress.',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(color: palette.muted, fontSize: 13, height: 20 / 13),
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 13,
+              height: 20 / 13,
+            ),
           ),
           const SizedBox(height: 21),
           Pressable(
@@ -2019,11 +2256,14 @@ class _CelebrationModal extends StatelessWidget {
                 borderRadius: BorderRadius.circular(17),
               ),
               child: const Center(
-                child: Text('Keep saving',
-                    style: TextStyle(
-                        color: Color(0xFFFFFDF9),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15)),
+                child: Text(
+                  'Keep saving',
+                  style: TextStyle(
+                    color: Color(0xFFFFFDF9),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ),
           ),
@@ -2032,4 +2272,3 @@ class _CelebrationModal extends StatelessWidget {
     );
   }
 }
-

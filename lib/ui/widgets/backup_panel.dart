@@ -56,7 +56,9 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
 
   void _restore() {
     final backup = _backup;
-    if (backup == null || _disabled || previewBackup(backup, _jars, _currency).error != null) {
+    if (backup == null ||
+        _disabled ||
+        previewBackup(backup, _jars, _currency).error != null) {
       return;
     }
     _run(() async {
@@ -98,12 +100,15 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 26, bottom: 9),
-          child: Text('FILE BACKUP',
-              style: TextStyle(
-                  color: palette.muted,
-                  fontSize: 10,
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w800)),
+          child: Text(
+            'FILE BACKUP',
+            style: TextStyle(
+              color: palette.muted,
+              fontSize: 10,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
         Container(
           padding: const EdgeInsets.all(15),
@@ -115,16 +120,22 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Keep a copy of your savings',
-                  style: TextStyle(
-                      color: palette.foreground,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                'Keep a copy of your savings',
+                style: TextStyle(
+                  color: palette.foreground,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 10),
               Text(
                 'Save a .jarly file with every jar and its history, including completed and archived jars. PINs and app settings are excluded. The file contains readable savings data; keep it somewhere private.',
                 style: TextStyle(
-                    color: palette.muted, fontSize: 12, height: 18 / 12),
+                  color: palette.muted,
+                  fontSize: 12,
+                  height: 18 / 12,
+                ),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -138,8 +149,9 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
                     primary: false,
                     onTap: () => _run(() async {
                       final currency = _currency;
-                      final frames =
-                          ref.read(savingsProvider.notifier).exportTransfer(currency);
+                      final frames = ref
+                          .read(savingsProvider.notifier)
+                          .exportTransfer(currency);
                       await saveBackupFile(createBackup(frames));
                       setState(() {
                         _notice = backupSavesViaBrowser
@@ -169,7 +181,10 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
                   child: Text(
                     'Backups are unavailable until local storage can be read safely: ${savings!.storageError}',
                     style: TextStyle(
-                        color: palette.error, fontSize: 12, height: 18 / 12),
+                      color: palette.error,
+                      fontSize: 12,
+                      height: 18 / 12,
+                    ),
                   ),
                 ),
               if (_busy)
@@ -182,20 +197,26 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(_error!,
-                      style: TextStyle(
-                          color: palette.error,
-                          fontSize: 12,
-                          height: 18 / 12)),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: palette.error,
+                      fontSize: 12,
+                      height: 18 / 12,
+                    ),
+                  ),
                 ),
               if (_notice != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(_notice!,
-                      style: TextStyle(
-                          color: palette.muted,
-                          fontSize: 12,
-                          height: 18 / 12)),
+                  child: Text(
+                    _notice!,
+                    style: TextStyle(
+                      color: palette.muted,
+                      fontSize: 12,
+                      height: 18 / 12,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -211,39 +232,59 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Restore preview',
-              style: TextStyle(
-                  color: palette.foreground,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            'Restore preview',
+            style: TextStyle(
+              color: palette.foreground,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             'Exported ${DateTime.tryParse(backup.snapshot.exportedAt)?.toLocal() ?? backup.snapshot.exportedAt}',
             style: TextStyle(
-                color: palette.muted, fontSize: 12, height: 18 / 12),
+              color: palette.muted,
+              fontSize: 12,
+              height: 18 / 12,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             '${backup.snapshot.currency} · ${backup.summary.jars} jars · ${backup.summary.entries} entries · ${backup.summary.archived} archived',
             style: TextStyle(
-                color: palette.muted, fontSize: 12, height: 18 / 12),
+              color: palette.muted,
+              fontSize: 12,
+              height: 18 / 12,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Total including archived: ${backup.snapshot.currency} ${_majorMinor(backup.summary.totalMinor)}',
             style: TextStyle(
-                color: palette.muted, fontSize: 12, height: 18 / 12),
+              color: palette.muted,
+              fontSize: 12,
+              height: 18 / 12,
+            ),
           ),
           const SizedBox(height: 8),
           if (preview.error != null)
-            Text(preview.error!,
-                style: TextStyle(
-                    color: palette.error, fontSize: 12, height: 18 / 12))
+            Text(
+              preview.error!,
+              style: TextStyle(
+                color: palette.error,
+                fontSize: 12,
+                height: 18 / 12,
+              ),
+            )
           else
             Text(
               '${preview.added} new · ${preview.updated} updated · ${preview.skipped} unchanged. Your other jars stay on this device.',
               style: TextStyle(
-                  color: palette.muted, fontSize: 12, height: 18 / 12),
+                color: palette.muted,
+                fontSize: 12,
+                height: 18 / 12,
+              ),
             ),
           const SizedBox(height: 10),
           Wrap(
@@ -291,13 +332,17 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
             color: primary ? palette.primary : null,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: primary ? palette.primary : palette.border),
+              color: primary ? palette.primary : palette.border,
+            ),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  color: primary ? const Color(0xFFFFFDF9) : palette.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800)),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: primary ? const Color(0xFFFFFDF9) : palette.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
       ),
     );

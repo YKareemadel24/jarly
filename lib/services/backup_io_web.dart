@@ -11,7 +11,10 @@ import 'backup_io.dart';
 Future<void> saveBackupFile(String text, String filename) async {
   // A fresh anchor per save keeps repeated exports working; browsers revoke
   // the object URL once the download settles.
-  final blob = web.Blob([text.toJS].toJS, web.BlobPropertyBag(type: 'application/json'));
+  final blob = web.Blob(
+    [text.toJS].toJS,
+    web.BlobPropertyBag(type: 'application/json'),
+  );
   final url = web.URL.createObjectURL(blob);
   final anchor = web.HTMLAnchorElement()
     ..href = url

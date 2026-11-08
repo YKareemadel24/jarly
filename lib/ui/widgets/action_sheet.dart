@@ -63,13 +63,21 @@ class ActionSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: TextStyle(color: palette.foreground, fontSize: 20)),
+          Text(
+            title,
+            style: TextStyle(color: palette.foreground, fontSize: 20),
+          ),
           if (message.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(message,
-                  style: TextStyle(
-                      color: palette.muted, fontSize: 13, height: 19 / 13)),
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: palette.muted,
+                  fontSize: 13,
+                  height: 19 / 13,
+                ),
+              ),
             ),
           const SizedBox(height: 16),
           for (final action in actions)
@@ -108,21 +116,27 @@ class ActionSheet extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(action.label,
-                                style: TextStyle(
-                                    color: action.destructive
-                                        ? palette.error
-                                        : palette.foreground,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800)),
+                            Text(
+                              action.label,
+                              style: TextStyle(
+                                color: action.destructive
+                                    ? palette.error
+                                    : palette.foreground,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                             if (action.detail != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 3),
-                                child: Text(action.detail!,
-                                    style: TextStyle(
-                                        color: palette.muted,
-                                        fontSize: 11,
-                                        height: 15 / 11)),
+                                child: Text(
+                                  action.detail!,
+                                  style: TextStyle(
+                                    color: palette.muted,
+                                    fontSize: 11,
+                                    height: 15 / 11,
+                                  ),
+                                ),
                               ),
                           ],
                         ),

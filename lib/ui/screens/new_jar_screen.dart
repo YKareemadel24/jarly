@@ -20,7 +20,14 @@ import '../../state/savings_controller.dart';
 import '../widgets/jar_vessel.dart';
 import '../widgets/screen_container.dart';
 
-const List<String> _accents = ['coral', 'amber', 'mint', 'ocean', 'berry', 'clay'];
+const List<String> _accents = [
+  'coral',
+  'amber',
+  'mint',
+  'ocean',
+  'berry',
+  'clay',
+];
 const List<String> _icons = [
   'flight',
   'favorite',
@@ -62,7 +69,8 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     final currency = settings?.currency ?? 'USD';
     final format = ref.watch(moneyFormatterProvider);
     final targetValue = toMinor(_target);
-    final currencySymbol = supportedCurrencies
+    final currencySymbol =
+        supportedCurrencies
             .where((item) => item.code == currency)
             .firstOrNull
             ?.symbol ??
@@ -88,15 +96,19 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
         setState(() => _step += 1);
         return;
       }
-      final id = ref.read(savingsProvider.notifier).addJar(JarInput(
-            name: _name.trim(),
-            target: targetValue!,
-            accent: _accent,
-            icon: _icon,
-            kind: _kind,
-            deadline: _deadline.trim().isEmpty ? null : _deadline.trim(),
-            streak: _kind == kindHabit ? 0 : null,
-          ));
+      final id = ref
+          .read(savingsProvider.notifier)
+          .addJar(
+            JarInput(
+              name: _name.trim(),
+              target: targetValue!,
+              accent: _accent,
+              icon: _icon,
+              kind: _kind,
+              deadline: _deadline.trim().isEmpty ? null : _deadline.trim(),
+              streak: _kind == kindHabit ? 0 : null,
+            ),
+          );
       context.replace('/jar/$id');
     }
 
@@ -122,17 +134,23 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                       borderRadius: BorderRadius.circular(15),
                       color: palette.surface,
                     ),
-                    child: Icon(Icons.arrow_back,
-                        color: palette.foreground, size: 20),
+                    child: Icon(
+                      Icons.arrow_back,
+                      color: palette.foreground,
+                      size: 20,
+                    ),
                   ),
                 ),
                 const Spacer(),
-                Text('NEW JAR',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 10,
-                        letterSpacing: 1.35,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  'NEW JAR',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 10,
+                    letterSpacing: 1.35,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const Spacer(),
                 Row(
                   children: [
@@ -174,29 +192,37 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('YOUR NEW JAR',
-                            style: TextStyle(
-                                color: palette.muted,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 10,
-                                letterSpacing: 1.1)),
+                        Text(
+                          'YOUR NEW JAR',
+                          style: TextStyle(
+                            color: palette.muted,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
                         const SizedBox(height: 6),
-                        Text(previewName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: palette.foreground, fontSize: 21)),
+                        Text(
+                          previewName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.foreground,
+                            fontSize: 21,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           targetValue != null && targetValue > 0
                               ? 'Target ${format(targetValue)}'
                               : _kind == kindGoal
-                                  ? 'Give it somewhere to grow.'
-                                  : 'Build a saving rhythm.',
+                              ? 'Give it somewhere to grow.'
+                              : 'Build a saving rhythm.',
                           style: TextStyle(
-                              color: palette.muted,
-                              fontSize: 12,
-                              height: 17 / 12),
+                            color: palette.muted,
+                            fontSize: 12,
+                            height: 17 / 12,
+                          ),
                         ),
                       ],
                     ),
@@ -207,19 +233,31 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
 
             if (_step == 1) ...[
               _title(palette, 'What are you\nsaving for?'),
-              _sub(palette,
-                  'Start with the goal itself. You can shape everything else after.'),
+              _sub(
+                palette,
+                'Start with the goal itself. You can shape everything else after.',
+              ),
               _label(palette, 'WHAT KIND OF JAR?'),
               Row(
                 children: [
                   Expanded(
-                    child: _kindCard(palette, kindGoal, Icons.flag, 'Goal',
-                        'A defined target'),
+                    child: _kindCard(
+                      palette,
+                      kindGoal,
+                      Icons.flag,
+                      'Goal',
+                      'A defined target',
+                    ),
                   ),
                   const SizedBox(width: 9),
                   Expanded(
-                    child: _kindCard(palette, kindHabit, Icons.repeat, 'Habit',
-                        'Build a rhythm'),
+                    child: _kindCard(
+                      palette,
+                      kindHabit,
+                      Icons.repeat,
+                      'Habit',
+                      'Build a rhythm',
+                    ),
                   ),
                 ],
               ),
@@ -251,12 +289,15 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                         semantics: 'Choose $candidate icon',
                         child: Container(
                           height: 43,
-                          margin: EdgeInsets.only(right: candidate == _icons.last ? 0 : 8),
+                          margin: EdgeInsets.only(
+                            right: candidate == _icons.last ? 0 : 8,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color:
-                                  _icon == candidate ? accentHex : palette.border,
+                              color: _icon == candidate
+                                  ? accentHex
+                                  : palette.border,
                               width: _icon == candidate ? 1.5 : 1,
                             ),
                             color: _icon == candidate
@@ -266,8 +307,9 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                           child: Icon(
                             _wizardIcons[candidate] ?? Icons.flag,
                             size: 21,
-                            color:
-                                _icon == candidate ? accentHex : palette.muted,
+                            color: _icon == candidate
+                                ? accentHex
+                                : palette.muted,
                           ),
                         ),
                       ),
@@ -298,15 +340,19 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                           boxShadow: _accent == candidate
                               ? const [
                                   BoxShadow(
-                                      color: Color(0x334A3324),
-                                      blurRadius: 5,
-                                      offset: Offset(0, 2)),
+                                    color: Color(0x334A3324),
+                                    blurRadius: 5,
+                                    offset: Offset(0, 2),
+                                  ),
                                 ]
                               : null,
                         ),
                         child: _accent == candidate
-                            ? const Icon(Icons.check,
-                                color: Color(0xFFFFFDF9), size: 18)
+                            ? const Icon(
+                                Icons.check,
+                                color: Color(0xFFFFFDF9),
+                                size: 18,
+                              )
                             : null,
                       ),
                     ),
@@ -316,8 +362,10 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
 
             if (_step == 3) ...[
               _title(palette, 'Set its target.'),
-              _sub(palette,
-                  'The jar fills toward this amount. A deadline is optional.'),
+              _sub(
+                palette,
+                'The jar fills toward this amount. A deadline is optional.',
+              ),
               _label(palette, 'SET A TARGET'),
               Container(
                 margin: const EdgeInsets.only(top: 9),
@@ -330,11 +378,14 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                 ),
                 child: Row(
                   children: [
-                    Text(currencySymbol,
-                        style: TextStyle(
-                            color: palette.primary,
-                            fontSize: 24,
-                            fontFamily: 'Georgia')),
+                    Text(
+                      currencySymbol,
+                      style: TextStyle(
+                        color: palette.primary,
+                        fontSize: 24,
+                        fontFamily: 'Georgia',
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _WizardAmountField(
@@ -349,8 +400,10 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
               if (!stepValid)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text('Enter a target greater than zero.',
-                      style: TextStyle(color: palette.error, fontSize: 12)),
+                  child: Text(
+                    'Enter a target greater than zero.',
+                    style: TextStyle(color: palette.error, fontSize: 12),
+                  ),
                 ),
               _label(palette, 'DEADLINE   OPTIONAL'),
               Container(
@@ -370,18 +423,24 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                       child: TextField(
                         onChanged: (value) => setState(() => _deadline = value),
                         controller: TextEditingController(text: _deadline)
-                          ..selection =
-                              TextSelection.collapsed(offset: _deadline.length),
+                          ..selection = TextSelection.collapsed(
+                            offset: _deadline.length,
+                          ),
                         maxLength: 40,
                         decoration: InputDecoration(
                           hintText: 'e.g. December 2026',
-                          hintStyle:
-                              TextStyle(color: palette.muted, fontSize: 14),
+                          hintStyle: TextStyle(
+                            color: palette.muted,
+                            fontSize: 14,
+                          ),
                           border: InputBorder.none,
                           counterText: '',
                           isDense: true,
                         ),
-                        style: TextStyle(color: palette.foreground, fontSize: 14),
+                        style: TextStyle(
+                          color: palette.foreground,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -390,9 +449,13 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 18),
                 child: Text(
-                    'Saving Jar records your progress. It never moves your money.',
-                    style: TextStyle(
-                        color: palette.muted, fontSize: 11, height: 16 / 11)),
+                  'Saving Jar records your progress. It never moves your money.',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 11,
+                    height: 16 / 11,
+                  ),
+                ),
               ),
             ],
 
@@ -412,11 +475,14 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(_step == 3 ? 'Create my jar' : 'Continue',
-                          style: const TextStyle(
-                              color: Color(0xFFFFFDF9),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800)),
+                      Text(
+                        _step == 3 ? 'Create my jar' : 'Continue',
+                        style: const TextStyle(
+                          color: Color(0xFFFFFDF9),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Icon(
                         _step == 3 ? Icons.arrow_forward : Icons.arrow_downward,
@@ -434,8 +500,13 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     );
   }
 
-  Widget _kindCard(Palette palette, String value, IconData icon, String title,
-      String note) {
+  Widget _kindCard(
+    Palette palette,
+    String value,
+    IconData icon,
+    String title,
+    String note,
+  ) {
     final active = _kind == value;
     return _Pressable(
       onTap: () {
@@ -453,28 +524,34 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 18,
-                color: active ? const Color(0xFFFFFDF9) : palette.muted),
+            Icon(
+              icon,
+              size: 18,
+              color: active ? const Color(0xFFFFFDF9) : palette.muted,
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: active
-                              ? const Color(0xFFFFFDF9)
-                              : palette.foreground,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: active
+                          ? const Color(0xFFFFFDF9)
+                          : palette.foreground,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(note,
-                      style: TextStyle(
-                          color: active
-                              ? const Color(0xFFE8D9C8)
-                              : palette.muted,
-                          fontSize: 11)),
+                  Text(
+                    note,
+                    style: TextStyle(
+                      color: active ? const Color(0xFFE8D9C8) : palette.muted,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -485,31 +562,40 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
   }
 
   Widget _title(Palette palette, String text) => Padding(
-        padding: const EdgeInsets.only(top: 23),
-        child: Text(text,
-            style: TextStyle(
-                color: palette.foreground, fontSize: 29, height: 34 / 29)),
-      );
+    padding: const EdgeInsets.only(top: 23),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: palette.foreground,
+        fontSize: 29,
+        height: 34 / 29,
+      ),
+    ),
+  );
 
   Widget _sub(Palette palette, String text) => Padding(
-        padding: const EdgeInsets.only(top: 9),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 310),
-          child: Text(text,
-              style:
-                  TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13)),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 9),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 310),
+      child: Text(
+        text,
+        style: TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13),
+      ),
+    ),
+  );
 
   Widget _label(Palette palette, String text) => Padding(
-        padding: const EdgeInsets.only(top: 25),
-        child: Text(text,
-            style: TextStyle(
-                color: palette.muted,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.05,
-                fontSize: 10)),
-      );
+    padding: const EdgeInsets.only(top: 25),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: palette.muted,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.05,
+        fontSize: 10,
+      ),
+    ),
+  );
 
   Widget _textField(
     Palette palette, {
@@ -569,8 +655,9 @@ class _WizardAmountField extends StatefulWidget {
 }
 
 class _WizardAmountFieldState extends State<_WizardAmountField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
 
   @override
   void didUpdateWidget(_WizardAmountField oldWidget) {
@@ -603,9 +690,10 @@ class _WizardAmountFieldState extends State<_WizardAmountField> {
         isDense: true,
       ),
       style: TextStyle(
-          color: widget.palette.foreground,
-          fontSize: 26,
-          fontFamily: 'Georgia'),
+        color: widget.palette.foreground,
+        fontSize: 26,
+        fontFamily: 'Georgia',
+      ),
     );
   }
 }
@@ -652,7 +740,9 @@ class _PressableState extends State<_Pressable> {
 class _SanitizingFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final sanitized = sanitizeAmountInput(newValue.text);
     return TextEditingValue(
       text: sanitized,

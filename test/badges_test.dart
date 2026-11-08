@@ -13,10 +13,12 @@ void main() {
   group('badgeStats', () {
     test('counts deposits and minor units across every jar', () {
       final stats = badgeStats([
-        jar(entries: [
-          dep(1000, '2026-03-01T00:00:00Z'),
-          dep(2500, '2026-03-02T00:00:00Z'),
-        ]),
+        jar(
+          entries: [
+            dep(1000, '2026-03-01T00:00:00Z'),
+            dep(2500, '2026-03-02T00:00:00Z'),
+          ],
+        ),
         jar(id: 'b', entries: [dep(500, '2026-04-01T00:00:00Z')]),
       ]);
       expect(stats.deposits, 3);
@@ -25,10 +27,12 @@ void main() {
 
     test('ignores withdrawals for counts, totals, and month coverage', () {
       final stats = badgeStats([
-        jar(entries: [
-          dep(1000, '2026-03-01T00:00:00Z'),
-          wdr(400, '2026-05-01T00:00:00Z', id: 'w1'),
-        ]),
+        jar(
+          entries: [
+            dep(1000, '2026-03-01T00:00:00Z'),
+            wdr(400, '2026-05-01T00:00:00Z', id: 'w1'),
+          ],
+        ),
       ]);
       expect(stats.deposits, 1);
       expect(stats.totalDeposited, 1000);
@@ -37,22 +41,21 @@ void main() {
 
     test('counts distinct calendar months, not deposits', () {
       final stats = badgeStats([
-        jar(entries: [
-          dep(100, '2026-03-01T00:00:00Z'),
-          dep(100, '2026-03-20T00:00:00Z'),
-          dep(100, '2026-04-05T00:00:00Z'),
-        ]),
+        jar(
+          entries: [
+            dep(100, '2026-03-01T00:00:00Z'),
+            dep(100, '2026-03-20T00:00:00Z'),
+            dep(100, '2026-04-05T00:00:00Z'),
+          ],
+        ),
       ]);
       expect(stats.months, 2);
     });
 
     test('takes the best streak across jars', () {
       expect(
-        badgeStats([
-          jar(streak: 3),
-          jar(id: 'b', streak: 11),
-          jar(id: 'c'),
-        ]).maxStreak,
+        badgeStats([jar(streak: 3), jar(id: 'b', streak: 11), jar(id: 'c')])
+            .maxStreak,
         11,
       );
     });
@@ -67,7 +70,9 @@ void main() {
     });
 
     test('tolerates an unparseable entry date without inflating months', () {
-      final stats = badgeStats([jar(entries: [dep(500, 'not-a-date')])]);
+      final stats = badgeStats([
+        jar(entries: [dep(500, 'not-a-date')]),
+      ]);
       expect(stats.deposits, 1);
       expect(stats.months, 0);
     });
@@ -151,22 +156,26 @@ void main() {
 
     test('earns the months badge at four distinct months', () {
       final three = badges([
-        jar(entries: [
-          dep(1, '2026-01-01T00:00:00Z'),
-          dep(1, '2026-02-01T00:00:00Z'),
-          dep(1, '2026-03-01T00:00:00Z'),
-        ]),
+        jar(
+          entries: [
+            dep(1, '2026-01-01T00:00:00Z'),
+            dep(1, '2026-02-01T00:00:00Z'),
+            dep(1, '2026-03-01T00:00:00Z'),
+          ],
+        ),
       ]);
       expect(find(three, 'steady-months').earned, isFalse);
       expect(find(three, 'steady-months').value, 3);
 
       final four = badges([
-        jar(entries: [
-          dep(1, '2026-01-01T00:00:00Z'),
-          dep(1, '2026-02-01T00:00:00Z'),
-          dep(1, '2026-03-01T00:00:00Z'),
-          dep(1, '2026-04-01T00:00:00Z'),
-        ]),
+        jar(
+          entries: [
+            dep(1, '2026-01-01T00:00:00Z'),
+            dep(1, '2026-02-01T00:00:00Z'),
+            dep(1, '2026-03-01T00:00:00Z'),
+            dep(1, '2026-04-01T00:00:00Z'),
+          ],
+        ),
       ]);
       expect(find(four, 'steady-months').earned, isTrue);
     });
@@ -183,7 +192,10 @@ void main() {
       final list = badges([
         jar(entries: [dep(10000, '2026-03-01T00:00:00Z')]),
       ]);
-      final fresh = newlyEarnedBadges([], list).map((badge) => badge.id).toList();
+      final fresh = newlyEarnedBadges(
+        [],
+        list,
+      ).map((badge) => badge.id).toList();
       expect(fresh, containsAll(['first-deposit', 'saved-100']));
 
       const seen = ['first-deposit', 'saved-100'];

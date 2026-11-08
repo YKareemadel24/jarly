@@ -7,7 +7,8 @@ import 'time.dart';
 bool _isJsonInteger(Object? value) =>
     value is int || (value is double && value == value.roundToDouble());
 
-int? _jsonInt(Object? value) => _isJsonInteger(value) ? (value as num).toInt() : null;
+int? _jsonInt(Object? value) =>
+    _isJsonInteger(value) ? (value as num).toInt() : null;
 
 /// Stored reminder settings use local clock time and Sunday=0 weekdays.
 /// Accepts either a [JarReminder] or its raw JSON map so wire/storage
@@ -47,20 +48,29 @@ bool isValidJarReminder(Object? value) {
 }
 
 /// Future occurrences use calendar days so daylight-saving changes keep local time.
-List<DateTime> nextReminderDates(JarReminder reminder, [DateTime? now, int count = 1]) {
+List<DateTime> nextReminderDates(
+  JarReminder reminder, [
+  DateTime? now,
+  int count = 1,
+]) {
   final nowDate = now ?? DateTime.now();
   if (!isValidJarReminder(reminder) || !reminder.enabled) {
     return [];
   }
   var startMs = nowDate.millisecondsSinceEpoch;
   if (reminder.snoozedUntil != null) {
-    final snoozedMs = DateTime.tryParse(reminder.snoozedUntil!)?.millisecondsSinceEpoch;
+    final snoozedMs = DateTime.tryParse(reminder.snoozedUntil!)
+        ?.millisecondsSinceEpoch;
     if (snoozedMs != null && snoozedMs > startMs) startMs = snoozedMs;
   }
   final start = DateTime.fromMillisecondsSinceEpoch(startMs);
   final dates = <DateTime>[];
   final limit = count < 0 ? 0 : (count > 63 ? 63 : count);
-  for (var offset = 0; dates.length < limit && offset < limit * 7 + 8; offset++) {
+  for (
+    var offset = 0;
+    dates.length < limit && offset < limit * 7 + 8;
+    offset++
+  ) {
     final DateTime date;
     try {
       date = DateTime(

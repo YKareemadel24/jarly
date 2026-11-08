@@ -118,7 +118,9 @@ Entry entryFromWire(List<dynamic> wire, String jarId, int index) {
     // Preserve audit links; legacy tuples without IDs get stable jar-local IDs.
     id: (slot(5) as String?) ?? '$jarId-t$index',
     amount: (slot(0) as num?)?.toInt() ?? 0,
-    direction: (slot(1) as num?)?.toInt() == 1 ? directionDeposit : directionWithdrawal,
+    direction: (slot(1) as num?)?.toInt() == 1
+        ? directionDeposit
+        : directionWithdrawal,
     note: slot(3) as String?,
     at: slot(2) as String? ?? '',
     source: (slot(4) as num?)?.toInt() == 1 ? sourceRecurring : sourceManual,
@@ -161,9 +163,7 @@ Map<String, dynamic> jarToWire(Jar jar) {
 }
 
 Jar jarFromWire(Map<String, dynamic> wire, String exportedAt) {
-  final entries = ((wire['e'] as List?) ?? const [])
-      .whereType<List>()
-      .toList();
+  final entries = ((wire['e'] as List?) ?? const []).whereType<List>().toList();
   final recurring = wire['r'];
   final balance = (wire['b'] as num?)?.toInt() ?? 0;
   return Jar(
@@ -171,8 +171,8 @@ Jar jarFromWire(Map<String, dynamic> wire, String exportedAt) {
     name: wire['n'] as String? ?? '',
     target: (wire['t'] as num?)?.toInt() ?? 0,
     balance: balance,
-    openingBalance: (wire['ob'] as num?)?.toInt() ??
-        (entries.isEmpty ? balance : 0),
+    openingBalance:
+        (wire['ob'] as num?)?.toInt() ?? (entries.isEmpty ? balance : 0),
     accent: wire['a'] as String? ?? 'ocean',
     icon: wire['c'] as String? ?? '🫙',
     kind: wire['k'] as String? ?? kindGoal,
@@ -265,7 +265,12 @@ const int _maxTransferEntries = 50000;
     return null;
   }
   // base64url never contains a period, so this is purely defensive.
-  return (id: parts[1], index: index.toInt(), total: total.toInt(), payload: payload);
+  return (
+    id: parts[1],
+    index: index.toInt(),
+    total: total.toInt(),
+    payload: payload,
+  );
 }
 
 bool _validWireDate(Object? value) {
@@ -282,7 +287,8 @@ bool _isValidRevisionJson(Object? value) {
       _validWireDate(revision['at']) &&
       _validWireDate(revision['changedAt']) &&
       (revision['note'] == null ||
-          (revision['note'] is String && (revision['note'] as String).length <= 500));
+          (revision['note'] is String &&
+              (revision['note'] as String).length <= 500));
 }
 
 bool _isSafeJsonInteger(Object? value) =>
@@ -310,7 +316,14 @@ bool _isWireJar(Object? value) {
       !_isSafeJsonInteger(b) ||
       (b as num) < 0 ||
       (ob != null && (!_isSafeJsonInteger(ob) || (ob as num) < 0)) ||
-      !['coral', 'amber', 'mint', 'ocean', 'berry', 'clay'].contains(jar['a']) ||
+      ![
+        'coral',
+        'amber',
+        'mint',
+        'ocean',
+        'berry',
+        'clay',
+      ].contains(jar['a']) ||
       jar['c'] is! String ||
       (jar['c'] as String).isEmpty ||
       (jar['c'] as String).length > 64 ||
@@ -365,7 +378,8 @@ bool _isWireJar(Object? value) {
             (revisions is List &&
                 revisions.length <= 1000 &&
                 revisions.every(_isValidRevisionJson))) &&
-        (undoOf == null || (undoOf is String && undoOf.isNotEmpty && undoOf.length <= 256));
+        (undoOf == null ||
+            (undoOf is String && undoOf.isNotEmpty && undoOf.length <= 256));
   });
 }
 
@@ -421,7 +435,10 @@ TransferAssembly? decodeTransferFrames(List<String> frames) {
   if (total == 0) return null;
 
   final have = collected.keys.toList()..sort();
-  final missing = [for (var index = 1; index <= total; index++) if (!collected.containsKey(index)) index];
+  final missing = [
+    for (var index = 1; index <= total; index++)
+      if (!collected.containsKey(index)) index,
+  ];
 
   final assembly = TransferAssembly(
     total: total,
@@ -439,7 +456,9 @@ TransferAssembly? decodeTransferFrames(List<String> frames) {
   }
 
   try {
-    final dynamic decoded = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+    final dynamic decoded = jsonDecode(
+      utf8.decode(bytes, allowMalformed: true),
+    );
     if (decoded is! Map) {
       assembly.error = 'That code is not a Saving Jar transfer.';
       return assembly;
@@ -453,7 +472,8 @@ TransferAssembly? decodeTransferFrames(List<String> frames) {
         !_validWireDate(snapshot['at']) ||
         jarsRaw is! List ||
         jarsRaw.length > _maxTransferJars ||
-        (cur != null && (cur is! String || !RegExp(r'^[A-Z]{3}$').hasMatch(cur)))) {
+        (cur != null &&
+            (cur is! String || !RegExp(r'^[A-Z]{3}$').hasMatch(cur)))) {
       assembly.error = 'That transfer contains invalid data.';
       return assembly;
     }
@@ -467,19 +487,27 @@ TransferAssembly? decodeTransferFrames(List<String> frames) {
       assembly.error = 'That transfer contains invalid jar data.';
       return assembly;
     }
-    final wireJars = jarsRaw.whereType<Map>().map((jar) => jar.cast<String, dynamic>()).toList();
+    final wireJars = jarsRaw
+        .whereType<Map>()
+        .map((jar) => jar.cast<String, dynamic>())
+        .toList();
     final idSet = wireJars.map((jar) => jar['i']).toSet();
     final entryTotal = wireJars.fold<int>(
       0,
-      (totalEntries, jar) => totalEntries + ((jar['e'] as List?) ?? const []).length,
+      (totalEntries, jar) =>
+          totalEntries + ((jar['e'] as List?) ?? const []).length,
     );
     if (idSet.length != wireJars.length || entryTotal > _maxTransferEntries) {
-      assembly.error = 'That transfer contains duplicate or excessive jar history.';
+      assembly.error =
+          'That transfer contains duplicate or excessive jar history.';
       return assembly;
     }
-    final jars = wireJars.map((jar) => jarFromWire(jar, snapshot['at'] as String)).toList();
+    final jars = wireJars
+        .map((jar) => jarFromWire(jar, snapshot['at'] as String))
+        .toList();
     if (jars.any((jar) => !validEntryAudit(jar.entries))) {
-      assembly.error = 'That transfer contains invalid correction or Undo history.';
+      assembly.error =
+          'That transfer contains invalid correction or Undo history.';
       return assembly;
     }
     assembly.snapshot = TransferSnapshot(
@@ -503,7 +531,8 @@ const String _b64Alphabet =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 final Map<String, int> _b64Lookup = {
-  for (var index = 0; index < _b64Alphabet.length; index++) _b64Alphabet[index]: index,
+  for (var index = 0; index < _b64Alphabet.length; index++)
+    _b64Alphabet[index]: index,
 };
 
 String bytesToBase64Url(List<int> bytes) {
@@ -542,6 +571,9 @@ List<int>? base64UrlToBytes(String text) {
 String randomTransferId() {
   final random = Random();
   return String.fromCharCodes(
-    List.generate(6, (_) => _b64Alphabet.codeUnitAt(random.nextInt(_b64Alphabet.length))),
+    List.generate(
+      6,
+      (_) => _b64Alphabet.codeUnitAt(random.nextInt(_b64Alphabet.length)),
+    ),
   );
 }

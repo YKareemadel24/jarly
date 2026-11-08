@@ -30,8 +30,7 @@ class ActivityFilters {
 
 String _dayLabel(String iso, DateTime now) {
   final date = parseIso(iso);
-  final diffDays =
-      calendarDayNumber(now) - calendarDayNumber(date);
+  final diffDays = calendarDayNumber(now) - calendarDayNumber(date);
   if (diffDays == 0) return 'Today';
   if (diffDays == 1) return 'Yesterday';
   if (diffDays < 7) return _weekdayName(date.weekday);
@@ -41,14 +40,30 @@ String _dayLabel(String iso, DateTime now) {
 }
 
 const List<String> _weekdayNames = [
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ];
 
 String _weekdayName(int dartWeekday) => _weekdayNames[dartWeekday - 1];
 
 const List<String> _monthShorts = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _monthShort(int dartMonth) => _monthShorts[dartMonth - 1];
@@ -62,14 +77,20 @@ List<ActivitySection> activitySections(
   final days = filters.range == '7days'
       ? 7
       : filters.range == '30days'
-          ? 30
-          : null;
+      ? 30
+      : null;
   final since = days == null
       ? null
-      : DateTime(nowDate.year, nowDate.month, nowDate.day - days + 1)
-          .millisecondsSinceEpoch;
-  final until = DateTime(nowDate.year, nowDate.month, nowDate.day + 1)
-      .millisecondsSinceEpoch;
+      : DateTime(
+          nowDate.year,
+          nowDate.month,
+          nowDate.day - days + 1,
+        ).millisecondsSinceEpoch;
+  final until = DateTime(
+    nowDate.year,
+    nowDate.month,
+    nowDate.day + 1,
+  ).millisecondsSinceEpoch;
   final rows = [
     for (final jar in jars)
       if (!jar.isArchived && (filters.jarId == null || jar.id == filters.jarId))

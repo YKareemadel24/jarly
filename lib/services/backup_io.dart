@@ -6,7 +6,8 @@
 library;
 
 import 'backup_io_web.dart'
-    if (dart.library.io) 'backup_io_native.dart' as impl;
+    if (dart.library.io) 'backup_io_native.dart'
+    as impl;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -18,7 +19,8 @@ const int backupMaxBytes = maxBackupBytes;
 void checkBackupSize(int size) {
   if (size <= 0 || size > maxBackupBytes) {
     throw BackupIoException(
-        'Choose a nonempty Saving Jar backup under 512 KB.');
+      'Choose a nonempty Saving Jar backup under 512 KB.',
+    );
   }
 }
 

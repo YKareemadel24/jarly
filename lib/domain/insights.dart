@@ -16,26 +16,50 @@ class MonthTotal {
 }
 
 const List<String> _monthLabels = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 const List<String> _monthNames = [
-  'january', 'february', 'march', 'april', 'may', 'june',
-  'july', 'august', 'september', 'october', 'november', 'december',
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
 ];
 
 /// Deposit totals per calendar month for the last [count] months, oldest first.
-List<MonthTotal> monthlyDeposits(List<Jar> jars, [DateTime? now, int count = 6]) {
+List<MonthTotal> monthlyDeposits(
+  List<Jar> jars, [
+  DateTime? now,
+  int count = 6,
+]) {
   final nowDate = now ?? DateTime.now();
-  final buckets = List.generate(
-    count,
-    (index) {
-      final monthDate = DateTime(nowDate.year, nowDate.month - (count - 1 - index), 1);
-      return MonthTotal(label: _monthLabels[monthDate.month - 1], total: 0);
-    },
-    growable: false,
-  );
+  final buckets = List.generate(count, (index) {
+    final monthDate = DateTime(
+      nowDate.year,
+      nowDate.month - (count - 1 - index),
+      1,
+    );
+    return MonthTotal(label: _monthLabels[monthDate.month - 1], total: 0);
+  }, growable: false);
   for (final jar in jars) {
     // Archived jars are their own history section on the profile screen; the
     // insights chart reports on active saving only.
@@ -43,8 +67,7 @@ List<MonthTotal> monthlyDeposits(List<Jar> jars, [DateTime? now, int count = 6])
     for (final entry in effectiveEntries(jar.entries)) {
       if (entry.direction != directionDeposit) continue;
       final at = parseIso(entry.at);
-      final ago =
-          (nowDate.year - at.year) * 12 + (nowDate.month - at.month);
+      final ago = (nowDate.year - at.year) * 12 + (nowDate.month - at.month);
       if (ago >= 0 && ago < buckets.length) {
         buckets[buckets.length - 1 - ago].total += entry.amount;
       }
@@ -109,19 +132,30 @@ bool isUrgentDeadline(String? text) {
 }
 
 class MilestoneNudge<T> {
-  const MilestoneNudge({required this.jar, required this.level, required this.gapMinor});
+  const MilestoneNudge({
+    required this.jar,
+    required this.level,
+    required this.gapMinor,
+  });
   final T jar;
   final int level;
   final int gapMinor;
 }
 
 /// Smallest next-milestone money gap across jars, for the nudge row.
-MilestoneNudge<T>? nextMilestoneNudge<T>(List<T> jars, int Function(T) target, int Function(T) balance) {
+MilestoneNudge<T>? nextMilestoneNudge<T>(
+  List<T> jars,
+  int Function(T) target,
+  int Function(T) balance,
+) {
   MilestoneNudge<T>? best;
   for (final jar in jars) {
     if (target(jar) <= 0) continue;
     final ratio = (balance(jar) / target(jar)) * 100;
-    final level = milestoneLevels.firstWhere((candidate) => ratio < candidate, orElse: () => -1);
+    final level = milestoneLevels.firstWhere(
+      (candidate) => ratio < candidate,
+      orElse: () => -1,
+    );
     if (level < 0) continue;
     final gapMinor = mathRound((target(jar) * level) / 100) - balance(jar);
     if (gapMinor <= 0) continue;
@@ -141,7 +175,9 @@ int depositTotalWithin(List<Jar> jars, int windowMs, [DateTime? now]) {
     for (final entry in effectiveEntries(jar.entries)) {
       if (entry.direction != directionDeposit) continue;
       final at = parseIso(entry.at).millisecondsSinceEpoch;
-      if (at >= since && at <= nowDate.millisecondsSinceEpoch) total += entry.amount;
+      if (at >= since && at <= nowDate.millisecondsSinceEpoch) {
+        total += entry.amount;
+      }
     }
   }
   return total;
@@ -185,21 +221,34 @@ PaceProjection paceProjection(Jar jar, [DateTime? now]) {
   final nowDate = now ?? DateTime.now();
   final remaining = jar.target - jar.balance;
   if (remaining <= 0) {
-    return const PaceProjection(status: paceFunded, requiredPerWeekMinor: 0, pacePerWeekMinor: 0);
+    return const PaceProjection(
+      status: paceFunded,
+      requiredPerWeekMinor: 0,
+      pacePerWeekMinor: 0,
+    );
   }
   if (jar.deadline == null) {
-    return const PaceProjection(status: paceNoDeadline, requiredPerWeekMinor: 0, pacePerWeekMinor: 0);
+    return const PaceProjection(
+      status: paceNoDeadline,
+      requiredPerWeekMinor: 0,
+      pacePerWeekMinor: 0,
+    );
   }
   final date = parseDeadline(jar.deadline!);
   if (date == null) {
-    return const PaceProjection(status: paceNoDeadline, requiredPerWeekMinor: 0, pacePerWeekMinor: 0);
+    return const PaceProjection(
+      status: paceNoDeadline,
+      requiredPerWeekMinor: 0,
+      pacePerWeekMinor: 0,
+    );
   }
 
   final daysLeft = BigInt.from(
     (calendarDayNumber(date) - calendarDayNumber(nowDate)).clamp(7, 1 << 40),
   );
   final requiredPerWeekMinor =
-      ((BigInt.from(remaining) * BigInt.from(7) + daysLeft - BigInt.one) ~/ daysLeft)
+      ((BigInt.from(remaining) * BigInt.from(7) + daysLeft - BigInt.one) ~/
+              daysLeft)
           .toInt();
 
   final cutoff = nowDate.millisecondsSinceEpoch - 28 * 86400000;
@@ -207,13 +256,20 @@ PaceProjection paceProjection(Jar jar, [DateTime? now]) {
   for (final entry in effectiveEntries(jar.entries)) {
     if (entry.direction != directionDeposit) continue;
     final at = parseIso(entry.at).millisecondsSinceEpoch;
-    if (at >= cutoff && at <= nowDate.millisecondsSinceEpoch) recent += entry.amount;
+    if (at >= cutoff && at <= nowDate.millisecondsSinceEpoch) {
+      recent += entry.amount;
+    }
   }
-  final pacePerWeekMinor = mathRound(recent / 4) > recurringPerWeek(jar.recurring)
+  final pacePerWeekMinor =
+      mathRound(recent / 4) > recurringPerWeek(jar.recurring)
       ? mathRound(recent / 4)
       : recurringPerWeek(jar.recurring);
   if (pacePerWeekMinor <= 0) {
-    return PaceProjection(status: paceNoPace, requiredPerWeekMinor: requiredPerWeekMinor, pacePerWeekMinor: 0);
+    return PaceProjection(
+      status: paceNoPace,
+      requiredPerWeekMinor: requiredPerWeekMinor,
+      pacePerWeekMinor: 0,
+    );
   }
 
   final projectedMs =
@@ -225,7 +281,11 @@ PaceProjection paceProjection(Jar jar, [DateTime? now]) {
       projectedMs.isInfinite ||
       projectedMs > jsMaxMs ||
       projectedMs < -jsMaxMs) {
-    return PaceProjection(status: paceBehind, requiredPerWeekMinor: requiredPerWeekMinor, pacePerWeekMinor: pacePerWeekMinor);
+    return PaceProjection(
+      status: paceBehind,
+      requiredPerWeekMinor: requiredPerWeekMinor,
+      pacePerWeekMinor: pacePerWeekMinor,
+    );
   }
   final projected = DateTime.fromMillisecondsSinceEpoch(projectedMs.round());
   final projectedDate = toIso(projected);

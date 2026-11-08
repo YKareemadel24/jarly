@@ -11,7 +11,9 @@ import '../domain/transactions.dart';
 Map<String, dynamic> _jarSettings(Jar jar) {
   final recurring = jar.recurring;
   final reminder = jar.reminder;
-  final deadline = (jar.deadline == null || jar.deadline!.isEmpty) ? null : jar.deadline;
+  final deadline = (jar.deadline == null || jar.deadline!.isEmpty)
+      ? null
+      : jar.deadline;
   return {
     'name': jar.name,
     'target': jar.target,
@@ -36,7 +38,8 @@ Map<String, dynamic> _jarSettings(Jar jar) {
             'weekdays': [...reminder.weekdays]..sort(),
             'snoozedUntil': reminder.snoozedUntil,
           },
-    'openingBalance': jar.openingBalance ?? (jar.entries.isEmpty ? jar.balance : 0),
+    'openingBalance':
+        jar.openingBalance ?? (jar.entries.isEmpty ? jar.balance : 0),
     'archived': jar.isArchived,
   };
 }
@@ -81,13 +84,8 @@ class MergeResult {
   final String? error;
 }
 
-MergeResult _unchanged(List<Jar> current, [String? error]) => MergeResult(
-      jars: current,
-      added: 0,
-      updated: 0,
-      skipped: 0,
-      error: error,
-    );
+MergeResult _unchanged(List<Jar> current, [String? error]) =>
+    MergeResult(jars: current, added: 0, updated: 0, skipped: 0, error: error);
 
 MergeResult mergeTransferJars(
   List<Jar> current,
@@ -106,9 +104,14 @@ MergeResult mergeTransferJars(
   if (incoming.map((jar) => jar.id).toSet().length != incoming.length) {
     return _unchanged(current, 'This transfer contains duplicate jars.');
   }
-  if (incoming.any((jar) => !validTransactionHistory(jar.copyWith(
-        openingBalance: jar.openingBalance ?? (jar.entries.isEmpty ? jar.balance : 0),
-      )))) {
+  if (incoming.any(
+    (jar) => !validTransactionHistory(
+      jar.copyWith(
+        openingBalance:
+            jar.openingBalance ?? (jar.entries.isEmpty ? jar.balance : 0),
+      ),
+    ),
+  )) {
     return _unchanged(
       current,
       'This transfer contains a balance that does not match its history.',
@@ -175,5 +178,10 @@ MergeResult mergeTransferJars(
   if (!isSafeInteger(activeTotal)) {
     return _unchanged(current, 'This transfer exceeds the safe savings total.');
   }
-  return MergeResult(jars: next, added: added, updated: updated, skipped: skipped);
+  return MergeResult(
+    jars: next,
+    added: added,
+    updated: updated,
+    skipped: skipped,
+  );
 }

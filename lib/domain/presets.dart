@@ -49,7 +49,11 @@ const int _paceWindowMs = 28 * 86400000;
 /// recent pace, and a repeat of the last deposit. Equal amounts collapse to
 /// their first suggestion, so a jar never shows two chips that would deposit
 /// the same money.
-List<QuickPreset> quickPresets(Jar jar, [DateTime? now, String currency = 'USD']) {
+List<QuickPreset> quickPresets(
+  Jar jar, [
+  DateTime? now,
+  String currency = 'USD',
+]) {
   final nowDate = now ?? DateTime.now();
   final suggestions = <QuickPreset>[];
 
@@ -58,27 +62,34 @@ List<QuickPreset> quickPresets(Jar jar, [DateTime? now, String currency = 'USD']
   final remainder = jar.balance.abs() % _roundUpStep;
   final roundUp = remainder == 0 ? _roundUpStep : _roundUpStep - remainder;
   if (jar.balance > 0 && roundUp > 0 && roundUp <= _roundUpCap) {
-    suggestions.add(QuickPreset(
-      id: presetRoundUp,
-      label: 'Round to ${money(jar.balance + roundUp, currency)}',
-      hint: 'Neaten the balance',
-      amount: roundUp,
-    ));
+    suggestions.add(
+      QuickPreset(
+        id: presetRoundUp,
+        label: 'Round to ${money(jar.balance + roundUp, currency)}',
+        hint: 'Neaten the balance',
+        amount: roundUp,
+      ),
+    );
   }
 
   // 2. Land exactly on the next milestone this jar has not recorded yet.
   if (jar.target > 0) {
     final ratio = (jar.balance / jar.target) * 100;
-    final level = milestoneLevels.firstWhere((candidate) => ratio < candidate, orElse: () => -1);
+    final level = milestoneLevels.firstWhere(
+      (candidate) => ratio < candidate,
+      orElse: () => -1,
+    );
     if (level > 0) {
       final gap = mathRound((jar.target * level) / 100) - jar.balance;
       if (gap > 0) {
-        suggestions.add(QuickPreset(
-          id: presetNextMilestone,
-          label: 'Hit $level%',
-          hint: '${money(gap, currency)} to go',
-          amount: gap,
-        ));
+        suggestions.add(
+          QuickPreset(
+            id: presetNextMilestone,
+            label: 'Hit $level%',
+            hint: '${money(gap, currency)} to go',
+            amount: gap,
+          ),
+        );
       }
     }
   }
@@ -98,23 +109,27 @@ List<QuickPreset> quickPresets(Jar jar, [DateTime? now, String currency = 'USD']
       ? recentPace
       : recurringPerWeek(jar.recurring);
   if (pace > 0) {
-    suggestions.add(QuickPreset(
-      id: presetWeeklyPace,
-      label: 'Your weekly pace',
-      hint: '${money(pace, currency)} per week',
-      amount: pace,
-    ));
+    suggestions.add(
+      QuickPreset(
+        id: presetWeeklyPace,
+        label: 'Your weekly pace',
+        hint: '${money(pace, currency)} per week',
+        amount: pace,
+      ),
+    );
   }
 
   // 4. Repeat whatever was last added. Newest entries come first.
   for (final entry in effectiveEntries(jar.entries)) {
     if (entry.direction != directionDeposit) continue;
-    suggestions.add(QuickPreset(
-      id: presetRepeatLast,
-      label: 'Repeat last',
-      hint: money(entry.amount, currency),
-      amount: entry.amount,
-    ));
+    suggestions.add(
+      QuickPreset(
+        id: presetRepeatLast,
+        label: 'Repeat last',
+        hint: money(entry.amount, currency),
+        amount: entry.amount,
+      ),
+    );
     break;
   }
 

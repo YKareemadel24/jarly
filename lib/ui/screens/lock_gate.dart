@@ -66,14 +66,16 @@ class _LockGateState extends ConsumerState<LockGate>
 
   LockPolicy get _policy {
     final settings = ref.read(settingsProvider).value;
-    return lockPolicy(LockPolicyInput(
-      ready: settings?.ready ?? false,
-      biometricLockEnabled: settings?.biometricLockEnabled ?? false,
-      biometricAvailable: settings?.biometricAvailable ?? false,
-      pinLockEnabled: settings?.pinLockEnabled ?? false,
-      hasPin: settings?.hasPin ?? false,
-      native: !kIsWeb,
-    ));
+    return lockPolicy(
+      LockPolicyInput(
+        ready: settings?.ready ?? false,
+        biometricLockEnabled: settings?.biometricLockEnabled ?? false,
+        biometricAvailable: settings?.biometricAvailable ?? false,
+        pinLockEnabled: settings?.pinLockEnabled ?? false,
+        hasPin: settings?.hasPin ?? false,
+        native: !kIsWeb,
+      ),
+    );
   }
 
   void _promptBio() async {
@@ -84,7 +86,9 @@ class _LockGateState extends ConsumerState<LockGate>
     });
     bool ok = false;
     try {
-      ok = await ref.read(settingsProvider.notifier).authenticateWithBiometrics();
+      ok = await ref
+          .read(settingsProvider.notifier)
+          .authenticateWithBiometrics();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -137,8 +141,9 @@ class _LockGateState extends ConsumerState<LockGate>
   Future<void> _forgotPin() async {
     final settings = ref.read(settingsProvider).value;
     if (!(settings?.biometricAvailable ?? false) || kIsWeb) return;
-    final ok =
-        await ref.read(settingsProvider.notifier).authenticateWithBiometrics();
+    final ok = await ref
+        .read(settingsProvider.notifier)
+        .authenticateWithBiometrics();
     if (!ok) return;
     await ref.read(settingsProvider.notifier).disablePinLock();
     if (!mounted) return;
@@ -216,7 +221,9 @@ class _LockGateState extends ConsumerState<LockGate>
 
     // Tick the lockout countdown while it is active.
     final lockedUntil = settings?.pinLockedUntil;
-    final lockedOut = lockedUntil != null && lockedUntil > DateTime.now().millisecondsSinceEpoch;
+    final lockedOut =
+        lockedUntil != null &&
+        lockedUntil > DateTime.now().millisecondsSinceEpoch;
     if (lockedOut) {
       _clock ??= Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
@@ -227,8 +234,8 @@ class _LockGateState extends ConsumerState<LockGate>
     }
     final lockoutSeconds = lockedOut
         ? ((lockedUntil - DateTime.now().millisecondsSinceEpoch) / 1000)
-            .ceil()
-            .clamp(1, 3600)
+              .ceil()
+              .clamp(1, 3600)
         : 0;
 
     return Positioned.fill(
@@ -241,8 +248,8 @@ class _LockGateState extends ConsumerState<LockGate>
               child: !ready
                   ? _notReady(palette)
                   : _pinShown || (_canPin && !_canBio)
-                      ? _pinPanel(palette, lockedOut, lockoutSeconds)
-                      : _bioPanel(palette),
+                  ? _pinPanel(palette, lockedOut, lockoutSeconds)
+                  : _bioPanel(palette),
             ),
           ),
         ),
@@ -267,23 +274,35 @@ class _LockGateState extends ConsumerState<LockGate>
 
   Widget _pinPanel(Palette palette, bool lockedOut, int lockoutSeconds) {
     const keypad = [
-      '1', '2', '3',
-      '4', '5', '6',
-      '7', '8', '9',
-      '', '0', 'back',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '',
+      '0',
+      'back',
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _mark(palette, Icons.lock),
         const SizedBox(height: 18),
-        Text('Your Saving Jar is locked',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.foreground, fontSize: 24)),
+        Text(
+          'Your Saving Jar is locked',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: palette.foreground, fontSize: 24),
+        ),
         const SizedBox(height: 7),
-        Text('Enter your PIN to keep saving.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.muted, fontSize: 13)),
+        Text(
+          'Enter your PIN to keep saving.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: palette.muted, fontSize: 13),
+        ),
         if (lockedOut)
           Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -291,20 +310,24 @@ class _LockGateState extends ConsumerState<LockGate>
               'Too many tries. Try again in about ${lockoutSeconds}s.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: palette.error,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700),
+                color: palette.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
         else if (_pinError)
           Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: Text('That PIN didn\'t match. Try again.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: palette.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'That PIN didn\'t match. Try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         const SizedBox(height: 26),
         Row(
@@ -343,18 +366,23 @@ class _LockGateState extends ConsumerState<LockGate>
                 decoration: BoxDecoration(
                   color: hexAlpha(toRrggbb(palette.primary), '14'),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: hexAlpha(toRrggbb(palette.primary), '44')),
+                  border: Border.all(
+                    color: hexAlpha(toRrggbb(palette.primary), '44'),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.fingerprint, size: 20, color: palette.primary),
                     const SizedBox(width: 8),
-                    Text('Use fingerprint or face',
-                        style: TextStyle(
-                            color: palette.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800)),
+                    Text(
+                      'Use fingerprint or face',
+                      style: TextStyle(
+                        color: palette.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -393,10 +421,11 @@ class _LockGateState extends ConsumerState<LockGate>
                 child: Text(
                   'Forgot PIN? Verify with biometrics to turn off',
                   style: TextStyle(
-                      color: palette.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline),
+                    color: palette.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ),
@@ -411,22 +440,29 @@ class _LockGateState extends ConsumerState<LockGate>
       children: [
         _mark(palette, Icons.fingerprint),
         const SizedBox(height: 18),
-        Text('Your Saving Jar is locked',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.foreground, fontSize: 24)),
+        Text(
+          'Your Saving Jar is locked',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: palette.foreground, fontSize: 24),
+        ),
         const SizedBox(height: 7),
-        Text('Use your fingerprint or face to keep saving.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.muted, fontSize: 13)),
+        Text(
+          'Use your fingerprint or face to keep saving.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: palette.muted, fontSize: 13),
+        ),
         if (_bioError != null)
           Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: Text(_bioError!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: palette.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              _bioError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: palette.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         const SizedBox(height: 22),
         GestureDetector(
@@ -437,7 +473,9 @@ class _LockGateState extends ConsumerState<LockGate>
             decoration: BoxDecoration(
               color: hexAlpha(toRrggbb(palette.primary), '14'),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: hexAlpha(toRrggbb(palette.primary), '44')),
+              border: Border.all(
+                color: hexAlpha(toRrggbb(palette.primary), '44'),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -446,17 +484,19 @@ class _LockGateState extends ConsumerState<LockGate>
                   SizedBox(
                     width: 16,
                     height: 16,
-                    child:
-                        CircularProgressIndicator(color: palette.primary),
+                    child: CircularProgressIndicator(color: palette.primary),
                   )
                 else
                   Icon(Icons.fingerprint, size: 20, color: palette.primary),
                 const SizedBox(width: 8),
-                Text(_unlocking ? 'Checking…' : 'Try again',
-                    style: TextStyle(
-                        color: palette.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  _unlocking ? 'Checking…' : 'Try again',
+                  style: TextStyle(
+                    color: palette.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
           ),
@@ -469,11 +509,14 @@ class _LockGateState extends ConsumerState<LockGate>
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text('Use PIN instead',
-                    style: TextStyle(
-                        color: palette.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  'Use PIN instead',
+                  style: TextStyle(
+                    color: palette.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           )
@@ -523,11 +566,14 @@ class _LockGateState extends ConsumerState<LockGate>
           ),
           child: isBack
               ? Icon(Icons.backspace, size: 22, color: palette.muted)
-              : Text(key,
+              : Text(
+                  key,
                   style: TextStyle(
-                      color: palette.foreground,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700)),
+                    color: palette.foreground,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
       ),
     );
