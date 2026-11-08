@@ -9,6 +9,9 @@ import 'core/theme/palette.dart';
 import 'state/providers.dart';
 import 'ui/app_theme.dart';
 import 'ui/router.dart';
+import 'ui/screens/lock_gate.dart';
+import 'ui/widgets/notification_resync.dart';
+import 'ui/widgets/storage_warning.dart';
 
 class JarlyApp extends ConsumerWidget {
   const JarlyApp({super.key});
@@ -38,7 +41,16 @@ class JarlyApp extends ConsumerWidget {
             notifier.update(brightness);
           }
         });
-        return child ?? const SizedBox.shrink();
+        // The lock gate sits above everything; the resync and storage warning
+        // are headless/banner layers from the original root layout.
+        return Stack(
+          children: [
+            child ?? const SizedBox.shrink(),
+            const NotificationResync(),
+            const StorageWarning(),
+            const LockGate(),
+          ],
+        );
       },
     );
   }

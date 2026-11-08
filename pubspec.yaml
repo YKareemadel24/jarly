@@ -48,6 +48,7 @@ dependencies:
   intl: ^0.20.3
   crypto: ^3.0.8
   web: ^1.1.2
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -101,3 +104,27 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Generated launcher icons + splash (dart run flutter_launcher_icons / flutter_native_splash:create)
+flutter_launcher_icons:
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#F6F1E8"
+  adaptive_icon_foreground: "assets/images/android-icon-foreground.png"
+  adaptive_icon_monochrome: "assets/images/android-icon-monochrome.png"
+  web:
+    generate: true
+    image_path: "assets/images/icon.png"
+    background_color: "#F6F1E8"
+    theme_color: "#3B2D24"
+  windows:
+    generate: true
+    image_path: "assets/images/icon.png"
+    icon_size: 256
+
+flutter_native_splash:
+  color: "#F6F1E8"
+  image: "assets/images/splash-icon.png"
+  android_12:
+    color: "#F6F1E8"
+    image: "assets/images/splash-icon.png"
+  web: true
