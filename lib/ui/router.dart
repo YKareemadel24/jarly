@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'screens/activity_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/insights_screen.dart';
 import 'screens/jar_detail_screen.dart';
 import 'screens/new_jar_screen.dart';
-import 'screens/placeholder_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/tab_shell.dart';
 import 'screens/transfer_hub_screen.dart';
 
@@ -25,22 +27,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(
-                path: '/activity',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Activity')),
+            GoRoute(path: '/activity', builder: (context, state) => const ActivityScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(
-                path: '/stats',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Insights')),
+            GoRoute(path: '/stats', builder: (context, state) => const InsightsScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(
-                path: '/profile',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Profile')),
+            GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
           ]),
         ],
       ),

@@ -19,11 +19,14 @@ import '../../data/settings_repository.dart' show supportedCurrencies;
 import '../../services/haptics.dart';
 import '../../state/providers.dart';
 import '../../state/savings_controller.dart';
+import '../widgets/action_sheet.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/jar_reminder_settings.dart';
 import '../widgets/jar_vessel.dart';
 import '../widgets/pressable.dart';
 import '../widgets/savings_plan_card.dart';
 import '../widgets/screen_container.dart';
+import '../widgets/sheet_scaffold.dart';
 
 class JarDetailScreen extends ConsumerStatefulWidget {
   const JarDetailScreen({super.key, required this.jarId, this.autoDeposit = false});
@@ -416,18 +419,18 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             }),
           ),
 
-          _ActionSheet(
+          ActionSheet(
             visible: menuVisible,
             title: 'Jar options',
             message: 'Keep its history while removing it from your active goals.',
             actions: [
-              _SheetAction(
+              SheetAction(
                 label: 'Edit jar',
                 detail: 'Change its name, target, or deadline.',
                 icon: Icons.edit,
                 onPress: openEdit,
               ),
-              _SheetAction(
+              SheetAction(
                 label: 'Archive jar',
                 detail: 'Hide it from your active goals, keeping its history.',
                 icon: Icons.archive,
@@ -436,7 +439,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                   context.go('/');
                 },
               ),
-              const _SheetAction(label: 'Cancel', onPress: _noop),
+              const SheetAction(label: 'Cancel', onPress: _noop),
             ],
             onDismiss: () => setState(() => menuVisible = false),
           ),
@@ -451,7 +454,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             onDismiss: () => setState(() => celebration = null),
           ),
 
-          _Toast(
+          AppToast(
             visible: undo != null && celebration == null,
             message:
                 '${format(undo?.amount ?? 0)} ${undo?.direction == directionDeposit ? 'added to' : 'withdrawn from'} ${undo?.name ?? 'your jar'}',
@@ -459,7 +462,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             onAction: performUndo,
             onDismiss: () => setState(() => undo = null),
           ),
-          _Toast(
+          AppToast(
             visible: notice != null,
             message: notice ?? '',
             onDismiss: () => setState(() => notice = null),
@@ -942,108 +945,6 @@ int max64(int value) => value < 0 ? 0 : value;
 /* Shared sheet building blocks                                                */
 /* -------------------------------------------------------------------------- */
 
-class _SheetScaffold extends StatelessWidget {
-  const _SheetScaffold({
-    required this.visible,
-    required this.onDismiss,
-    required this.palette,
-    required this.child,
-    this.centerCard = false,
-    this.scrollable = false,
-  });
-
-  final bool visible;
-  final VoidCallback onDismiss;
-  final Palette palette;
-  final Widget child;
-  final bool centerCard;
-  final bool scrollable;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = scrollable
-        ? SingleChildScrollView(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(context).bottom),
-            child: child,
-          )
-        : Padding(
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-            child: child,
-          );
-
-    final card = centerCard
-        ? Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Material(
-                  color: palette.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  clipBehavior: Clip.antiAlias,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: child,
-                  ),
-                ),
-              ),
-            ),
-          )
-        : Align(
-            alignment: Alignment.bottomCenter,
-            child: Material(
-              color: palette.background,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(30)),
-              clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(23, 18, 23, 32),
-                  child: content,
-                ),
-              ),
-            ),
-          );
-
-    return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: AnimatedOpacity(
-          opacity: visible ? 1 : 0,
-          duration: const Duration(milliseconds: 220),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ColoredBox(
-                  color: centerCard
-                      ? const Color(0x781C1612)
-                      : const Color(0x7A201B18),
-                  child: GestureDetector(
-                    onTap: onDismiss,
-                    behavior: HitTestBehavior.opaque,
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: AnimatedSlide(
-                  offset: visible ? Offset.zero : const Offset(0, 0.4),
-                  duration: const Duration(milliseconds: 240),
-                  curve: Curves.easeOutCubic,
-                  child: SafeArea(child: card),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _AmountFormatter extends TextInputFormatter {
   @override
@@ -1161,19 +1062,6 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
-class _SheetAction {
-  const _SheetAction({
-    required this.label,
-    this.detail,
-    this.icon,
-    required this.onPress,
-  }) : destructive = false;
-  final String label;
-  final String? detail;
-  final bool destructive;
-  final IconData? icon;
-  final VoidCallback onPress;
-}
 
 /* ------------------------------ Deposit sheet ----------------------------- */
 
@@ -1227,7 +1115,7 @@ class _DepositSheet extends StatelessWidget {
     final withdrawPreview = this.withdrawPreview;
     final depositPreview = this.depositPreview;
     final depositPreviewPct = this.depositPreviewPct;
-    return _SheetScaffold(
+    return SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1515,7 +1403,7 @@ class _RecurringSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
-    return _SheetScaffold(
+    return SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1690,7 +1578,7 @@ class _EditJarSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
-    return _SheetScaffold(
+    return SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1891,11 +1779,10 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
     final format = widget.format;
-    return _SheetScaffold(
+    return SheetScaffold(
       visible: true,
       onDismiss: widget.onDismiss,
       palette: palette,
-      scrollable: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2056,107 +1943,6 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
 
 /* --------------------------- Action sheet menu ----------------------------- */
 
-class _ActionSheet extends StatelessWidget {
-  const _ActionSheet({
-    required this.visible,
-    required this.title,
-    required this.message,
-    required this.actions,
-    required this.onDismiss,
-  });
-
-  final bool visible;
-  final String title;
-  final String message;
-  final List<_SheetAction> actions;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = Palette.of(Theme.brightnessOf(context));
-    return _SheetScaffold(
-      visible: visible,
-      onDismiss: onDismiss,
-      palette: palette,
-      centerCard: true,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: TextStyle(color: palette.foreground, fontSize: 20)),
-          if (message.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(message,
-                  style:
-                      TextStyle(color: palette.muted, fontSize: 13, height: 19 / 13)),
-            ),
-          const SizedBox(height: 16),
-          for (final action in actions)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Pressable(
-                onTap: () {
-                  // Close first so a navigation triggered by the action does
-                  // not leave the sheet mounted over the next screen.
-                  onDismiss();
-                  action.onPress();
-                },
-                semantics: action.label,
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 56),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: palette.background,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: palette.border),
-                  ),
-                  child: Row(
-                    children: [
-                      if (action.icon != null) ...[
-                        Icon(
-                          action.icon,
-                          size: 19,
-                          color: action.destructive
-                              ? palette.error
-                              : palette.primary,
-                        ),
-                        const SizedBox(width: 11),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(action.label,
-                                style: TextStyle(
-                                    color: action.destructive
-                                        ? palette.error
-                                        : palette.foreground,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800)),
-                            if (action.detail != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 3),
-                                child: Text(action.detail!,
-                                    style: TextStyle(
-                                        color: palette.muted,
-                                        fontSize: 11,
-                                        height: 15 / 11)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 /* ------------------------------- Celebration ------------------------------- */
 
@@ -2182,7 +1968,7 @@ class _CelebrationModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
-    return _SheetScaffold(
+    return SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -2247,111 +2033,3 @@ class _CelebrationModal extends StatelessWidget {
   }
 }
 
-/* ---------------------------------- Toast ---------------------------------- */
-
-class _Toast extends StatefulWidget {
-  const _Toast({
-    required this.visible,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-    required this.onDismiss,
-    this.durationMs = 5500,
-  });
-
-  final bool visible;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  final VoidCallback onDismiss;
-  final int durationMs;
-
-  @override
-  State<_Toast> createState() => _ToastState();
-}
-
-class _ToastState extends State<_Toast> {
-  bool _dismissed = false;
-
-  @override
-  void didUpdateWidget(_Toast oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.visible && !oldWidget.visible) {
-      _dismissed = false;
-      if (widget.durationMs > 0) {
-        Future.delayed(Duration(milliseconds: widget.durationMs), () {
-          if (mounted && widget.visible && !_dismissed) {
-            _dismissed = true;
-            widget.onDismiss();
-          }
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = Palette.of(Theme.brightnessOf(context));
-    if (!widget.visible) return const SizedBox.shrink();
-    return Positioned(
-      left: 20,
-      right: 20,
-      bottom: 24,
-      child: Semantics(
-        liveRegion: true,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          constraints: const BoxConstraints(minHeight: 52),
-          decoration: BoxDecoration(
-            color: palette.foreground,
-            borderRadius: BorderRadius.circular(17),
-            boxShadow: const [
-              BoxShadow(
-                  color: Color(0x47201B18), blurRadius: 14, offset: Offset(0, 6)),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.message,
-                  maxLines: 2,
-                  style: TextStyle(
-                      color: palette.background,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      height: 18 / 13),
-                ),
-              ),
-              if (widget.actionLabel != null && widget.onAction != null)
-                Pressable(
-                  onTap: () {
-                    _dismissed = true;
-                    widget.onAction!();
-                    widget.onDismiss();
-                  },
-                  semantics: widget.actionLabel,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.undo, size: 15, color: Color(0xFFFFFDF9)),
-                        const SizedBox(width: 5),
-                        Text(widget.actionLabel!,
-                            style: const TextStyle(
-                                color: Color(0xFFFFFDF9),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800)),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
