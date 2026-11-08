@@ -19,7 +19,7 @@ int _nextReminderTime(Jar jar) {
 }
 
 int _min(int? a, int? b) {
-  if (a == null) return b ?? 9223372036854775807;
+  if (a == null) return b ?? maxSafeInteger;
   if (b == null) return a;
   return a < b ? a : b;
 }
