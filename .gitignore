@@ -70,3 +70,12 @@ Thumbs.db
 # workspace scratch files
 todo*.md
 reference-notes.md
+
+# Flutter / Dart
+.dart_tool/
+build/
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
