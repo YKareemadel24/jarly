@@ -1,4 +1,8 @@
+/// Regression coverage for exact money conversion, display, and input.
+library;
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:jarly/domain/domain.dart';
 
 import 'helpers.dart';
@@ -17,6 +21,44 @@ void main() {
 
     test('rejects values outside safe minor-unit precision', () {
       expect(toMinor('90071992547409.92'), isNull);
+    });
+
+    test('preserves adjacent cents through the supported limit', () {
+      for (var cents = 0; cents <= 91; cents++) {
+        final text = '90071992547409.${cents.toString().padLeft(2, '0')}';
+        expect(toMinor(text), 9007199254740900 + cents, reason: text);
+      }
+      expect(toMinor('90071992547409.92'), isNull);
+      expect(toMinor('-90071992547409.91'), -9007199254740991);
+      expect(toMinor('-90071992547409.92'), isNull);
+    });
+
+    test('formats exact decimal input without a floating-point round-trip', () {
+      expect(minorToDecimal(9007199254740901), '90071992547409.01');
+      expect(minorToDecimal(9007199254740991), '90071992547409.91');
+      expect(minorToDecimal(-1), '-0.01');
+      expect(minorToDecimal(0), '0.00');
+    });
+
+    test('displays adjacent cents exactly with locale separators', () {
+      Intl.withLocale('en_US', () {
+        expect(money(9007199254740901), r'$90,071,992,547,409.01');
+        expect(money(9007199254740902), r'$90,071,992,547,409.02');
+        expect(money(9007199254740991), r'$90,071,992,547,409.91');
+        expect(money(-1), r'-$0.01');
+        expect(money(0), r'$0.00');
+        expect(money(105, 'EGP'), 'EGP\u00a01.05');
+      });
+      Intl.withLocale('de_DE', () {
+        expect(money(9007199254740901), r'$90.071.992.547.409,01');
+      });
+    });
+
+    test('retains numeric conversion used by legacy callers', () {
+      expect(toMinor(25.5), 2550);
+      expect(toMinor(1.125), 113);
+      expect(toMinor(-1.125), -112);
+      expect(toMinor(double.infinity), isNull);
     });
   });
 

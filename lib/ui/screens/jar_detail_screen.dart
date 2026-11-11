@@ -266,9 +266,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     void openEdit() {
       setState(() {
         editName = jar.name;
-        editTarget = jar.target > 0
-            ? (jar.target / 100).toStringAsFixed(2)
-            : '';
+        editTarget = jar.target > 0 ? minorToDecimal(jar.target) : '';
         editDeadline = jar.deadline ?? '';
         editVisible = true;
       });
@@ -395,7 +393,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             onApplyPreset: (minor) {
               Haptics.tap();
               setState(() {
-                amount = (minor / 100).toStringAsFixed(2);
+                amount = minorToDecimal(minor);
                 error = '';
               });
             },
@@ -1597,7 +1595,7 @@ class _RecurringSheet extends StatelessWidget {
                     onChanged: onAmountChange,
                     hint: currentAmountMinor == null
                         ? '0'
-                        : '${currentAmountMinor! / 100}',
+                        : minorToDecimal(currentAmountMinor!),
                   ),
                 ),
               ],
@@ -1923,7 +1921,7 @@ class _EditEntrySheet extends StatefulWidget {
 
 class _EditEntrySheetState extends State<_EditEntrySheet> {
   late final TextEditingController _amount = TextEditingController(
-    text: fromMinor(widget.entry.amount).toStringAsFixed(2),
+    text: minorToDecimal(widget.entry.amount),
   );
   late final TextEditingController _date = TextEditingController(
     text: localDateIso(parseIso(widget.entry.at)),

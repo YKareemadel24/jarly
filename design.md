@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-08 (Flutter port)
+**Last updated:** 2026-11-11 (exact amount entry and display)
 
 ## Experience direction
 
@@ -43,6 +43,8 @@ The user opens the create-jar sheet from the dashboard, names the goal, picks an
 The user opens a jar card to see its physical jar visualization paired with saved, target, and percentage values. The detail screen exposes recent contributions and a focused activity link rather than overwhelming the dashboard with dense financial data.
 
 New jars require a positive target in the selected currency. Amount conversion and deposits reject values outside safe integer minor-unit precision. A new or changed recurring schedule starts at its next cadence; resuming a paused schedule also begins from the resume time. Monthly dates clamp to the last valid day of the month, and bounded catch-up retains the first unapplied date for the next pass.
+
+Accepted decimal amounts, currency displays, and amount prefills preserve exact cents through the supported limit of 90,071,992,547,409.91. Editing only a transaction note preserves its amount; target edits, presets, and recurring amount hints use the same exact decimal formatter.
 
 Date-only deadlines (`YYYY-MM-DD`) and month-year deadlines (for example, `December 2026`) resolve to local calendar days. Countdown and pace calculations compare calendar dates so midnight and daylight-saving changes do not shift a deadline by a day.
 

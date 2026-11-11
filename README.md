@@ -8,7 +8,7 @@ A warm, tactile savings companion for Android, iOS, web, and Windows. Saving Jar
 ![Dart 3.13](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart)
 ![Riverpod 3.5](https://img.shields.io/badge/Riverpod-3.5-2A5C8F)
 ![go_router 18](https://img.shields.io/badge/go__router-18-02569B)
-![Tests 166](https://img.shields.io/badge/Dart_tests-166-4A9579)
+![Tests 172](https://img.shields.io/badge/Dart_tests-172-4A9579)
 
 > Saving Jar was ported from an Expo/React Native codebase to Flutter (October–November 2026). The transfer/backup wire format (`lib/transfer/transfer.dart`) is a faithful port of the original `shared/transfer.ts`, so QR codes and `.jarly` backups stay interchangeable across both generations of the app.
 
@@ -84,7 +84,7 @@ The primary loop is intentionally short:
 | Notifications   | `flutter_local_notifications` + `timezone` + `flutter_timezone` (schedule rebuild is cancel-all-then-schedule)                     |
 | Backup I/O      | `share_plus` (native share sheet), `file_picker`, `package:web` (browser download/upload)                                          |
 | QR transfer     | [qr](https://pub.dev/packages/qr) encoder rendered with a single-path `CustomPainter`                                              |
-| Testing         | `flutter_test` — 166 Dart tests over the pure domain, codecs, and controllers                                                      |
+| Testing         | `flutter_test` — 172 tests over the pure domain, codecs, persistence, and widgets                                                  |
 | Tooling         | `flutter_lints` 6, `flutter_launcher_icons`, `flutter_native_splash`                                                               |
 
 ---
@@ -206,8 +206,9 @@ The savings domain lives in `lib/domain/` behind the `domain.dart` barrel, and i
 ### Money
 
 - All monetary values are **integer minor units** (cents). Changing the display currency never rescales a balance.
-- `toMinor(25.5)` → `2550`; `fromMinor(2550)` → `25.5`.
-- `money(minor, currency)` formats via the `intl` package; the currency comes from settings and defaults to **USD**.
+- `toMinor('25.50')` → `2550`; decimal text is parsed exactly through the safe minor-unit limit. `minorToDecimal(2550)` → `'25.50'` is the exact formatter for amount inputs.
+- Numeric `toMinor(25.5)` and `fromMinor(2550)` retain legacy floating-point conversion behavior; legacy v1/v2 numeric storage migration is unchanged. Use decimal text for user-entered amounts.
+- `money(minor, currency)` formats integer whole units and cents separately via `intl`; the currency comes from settings and defaults to **USD**.
 
 ### Jar
 
@@ -276,7 +277,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 The domain layer is the most heavily tested part of the codebase.
 
 ```bash
-flutter test      # 166 tests
+flutter test      # 172 tests
 flutter analyze   # static analysis
 dart format .     # formatting
 ```
@@ -286,6 +287,7 @@ All three checks run on every push to `master` and on every pull request via Git
 **Coverage (`test/`):**
 
 - `money_test.dart`, `jar_test.dart` — money conversion, amount sanitization, milestones, deposits/withdrawals, habit streaks.
+- `jar_detail_screen_test.dart` — exact large-amount previews, persisted deposits, and note-only corrections.
 - `schedule_test.dart` — recurring catch-up boundaries.
 - `insights_test.dart`, `badges_test.dart`, `presets_test.dart` — monthly charts, pace, badge thresholds, deposit presets.
 - `transactions_test.dart` — safe corrections/Undo and audit history.

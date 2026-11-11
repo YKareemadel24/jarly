@@ -21,12 +21,24 @@ int mathRound(num value) {
 bool isSafeInteger(num value) =>
     value is int && value >= -maxSafeInteger && value <= maxSafeInteger;
 
-/// Convert a human-entered value into minor units. Null when not a finite number.
+/// Parse decimal text exactly; numeric legacy callers retain Math.round behavior.
+/// Null for invalid text or values outside the safe minor-unit range.
 int? toMinor(Object? value) {
+  if (value is String) {
+    final match = RegExp(r'^([+-]?)(\d*)(?:\.(\d{0,2}))?$')
+        .firstMatch(value.trim());
+    if (match == null) return null;
+    final whole = match[2]!;
+    final fraction = match[3] ?? '';
+    if (whole.isEmpty && fraction.isEmpty) return null;
+    final minor = int.tryParse(
+      '${match[1]}${whole.isEmpty ? '0' : whole}${fraction.padRight(2, '0')}',
+    );
+    return minor != null && isSafeInteger(minor) ? minor : null;
+  }
   final double? n = switch (value) {
     int() => value.toDouble(),
     double() => value,
-    String() => double.tryParse(value),
     _ => null,
   };
   if (n == null || n.isNaN || n.isInfinite) return null;
@@ -34,8 +46,15 @@ int? toMinor(Object? value) {
   return isSafeInteger(minor) ? minor : null;
 }
 
-/// Convert minor units back to a whole-currency number for display inputs.
+/// Legacy numeric conversion; use [minorToDecimal] for exact display and input.
 double fromMinor(int minor) => minor / 100;
+
+/// Exact decimal text for amount inputs, including two fraction digits.
+String minorToDecimal(int minor) {
+  final absolute = minor.abs();
+  return '${minor < 0 ? '-' : ''}${absolute ~/ 100}.'
+      '${(absolute % 100).toString().padLeft(2, '0')}';
+}
 
 /// Display symbols matching the original app's Intl output; unknown codes
 /// render as-is.
@@ -58,17 +77,20 @@ String money(int minor, [String currency = 'USD']) {
     final symbol = _currencySymbols[currency] ?? currency;
     // Multi-character symbols read better with a narrow space, matching the
     // original app's Intl output ("EGP 25.00" vs "$25.00").
-    final pattern = symbol.length > 1
-        ? '\u00A4\u00A0#,##0.00'
-        : '\u00A4#,##0.00';
+    final pattern = symbol.length > 1 ? '\u00A4\u00A0#,##0' : '\u00A4#,##0';
+    final locale = Intl.getCurrentLocale();
     final format = NumberFormat.currency(
-      locale: Intl.getCurrentLocale(),
+      locale: locale,
       symbol: symbol,
+      decimalDigits: 0,
       customPattern: pattern,
     );
-    return format.format(fromMinor(minor));
+    final whole = format.format(minor.abs() ~/ 100);
+    final cents = NumberFormat('00', locale).format(minor.abs() % 100);
+    final sign = minor < 0 ? format.symbols.MINUS_SIGN : '';
+    return '$sign$whole${format.symbols.DECIMAL_SEP}$cents';
   } catch (_) {
-    return '$currency ${fromMinor(minor).toStringAsFixed(2)}';
+    return '$currency ${minorToDecimal(minor)}';
   }
 }
 
