@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (ledger balance validation)
+**Last updated:** 2026-11-12 (deadline validation and backup)
 
 ## Experience direction
 
@@ -51,6 +51,8 @@ Accepted decimal amounts, currency displays, and amount prefills preserve exact 
 Amount fields accept `1234.56`, `1234,56`, and grouped values with cents such as `1,234.56`. Ambiguous, signed, or over-precise input stays visible with guidance and cannot be saved.
 
 Date-only deadlines (`YYYY-MM-DD`) and month-year deadlines (for example, `December 2026`) resolve to local calendar days. Countdown and pace calculations compare calendar dates so midnight and daylight-saving changes do not shift a deadline by a day.
+
+Create, edit, QR transfer, and backup accept the same optional deadline formats, including ISO timestamps. The edit sheet explains how to replace or clear an invalid saved deadline.
 
 If local jar storage cannot be read or a save fails, a persistent warning explains the problem. A failed mutation preserves the previously saved balance and leaves the transaction draft available to retry. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
 

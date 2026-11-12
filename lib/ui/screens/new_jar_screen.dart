@@ -70,6 +70,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     final currency = settings?.currency ?? 'USD';
     final format = ref.watch(moneyFormatterProvider);
     final targetValue = parseAmountInput(_target);
+    final deadlineValid = isValidOptionalDeadline(_deadline);
     final currencySymbol =
         supportedCurrencies
             .where((item) => item.code == currency)
@@ -79,7 +80,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     final accentHex = parseHex(accentFor(_accent, palette));
     final stepValid = _step == 1
         ? _name.trim().isNotEmpty
-        : _step < 3 || targetValue != null;
+        : _step < 3 || (targetValue != null && deadlineValid);
 
     void goBack() {
       if (_saving) return;
@@ -112,7 +113,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                 accent: _accent,
                 icon: _icon,
                 kind: _kind,
-                deadline: _deadline.trim().isEmpty ? null : _deadline.trim(),
+                deadline: _deadline,
                 streak: _kind == kindHabit ? 0 : null,
               ),
             );
@@ -411,7 +412,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                   ],
                 ),
               ),
-              if (!stepValid)
+              if (targetValue == null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
@@ -460,6 +461,14 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                   ],
                 ),
               ),
+              if (!deadlineValid)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    deadlineInputHelp,
+                    style: TextStyle(color: palette.error, fontSize: 12),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.only(top: 18),
                 child: Text(

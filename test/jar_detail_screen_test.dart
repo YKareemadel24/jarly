@@ -113,6 +113,32 @@ Future<void> _checkPastedAmounts(
 }
 
 void main() {
+  testWidgets('an old invalid deadline can be cleared in the jar editor', (
+    tester,
+  ) async {
+    final storage = MemoryStorage({
+      jarsKey: serializeJars([jar(deadline: 'someday')]),
+    });
+    await _mount(tester, storage);
+    await _openTransaction(tester, 'Jar options');
+    await tester.tap(find.text('Edit jar'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: _sheet,
+        matching: find.textContaining('Enter a date like'),
+      ),
+      findsOneWidget,
+    );
+    await tester.enterText(_draftFields.at(2), '');
+    await tester.pump();
+    await tester.tap(
+      find.descendant(of: _sheet, matching: find.text('Save changes')),
+    );
+    await tester.pumpAndSettle();
+    expect((await loadPersistedJars(storage)).jars.single.deadline, isNull);
+  });
+
   testWidgets('editing a recurring amount retains its saved cadence', (
     tester,
   ) async {
@@ -341,6 +367,14 @@ void main() {
       find.byType(TextField).first,
       find.text('Create my jar'),
     );
+    await tester.enterText(find.byType(TextField).at(1), 'someday');
+    await tester.pump();
+    expect(find.textContaining('Enter a date like'), findsOneWidget);
+    await tester.tap(find.text('Create my jar'));
+    await tester.pumpAndSettle();
+    expect((await loadPersistedJars(storage)).jars, hasLength(1));
+    await tester.enterText(find.byType(TextField).at(1), 'December 2026');
+    await tester.pump();
 
     storage.write = Completer<void>();
     await tester.tap(find.text('Create my jar'));
@@ -362,6 +396,10 @@ void main() {
     final jars = (await loadPersistedJars(storage)).jars;
     expect(jars, hasLength(2));
     expect(jars.where((jar) => jar.name == 'New trip').single.target, 123456);
+    expect(
+      jars.where((jar) => jar.name == 'New trip').single.deadline,
+      'December 2026',
+    );
   });
 
   testWidgets('failed deposit keeps its draft and retries one saved entry', (

@@ -256,6 +256,10 @@ class SavingsController extends AsyncNotifier<SavingsState> {
   });
 
   Future<String> addJar(JarInput input) => _mutate(() async {
+    if (!isValidOptionalDeadline(input.deadline)) {
+      throw StoreException('invalid-deadline', deadlineInputHelp);
+    }
+    final deadline = input.deadline?.trim();
     if ((input.reminder != null && !isValidJarReminder(input.reminder)) ||
         input.name.trim().isEmpty ||
         !isSafeInteger(input.target) ||
@@ -279,7 +283,7 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         icon: input.icon,
         kind: input.kind,
         createdAt: toIso(DateTime.now()),
-        deadline: input.deadline,
+        deadline: deadline == '' ? null : deadline,
         streak: input.streak,
         milestonesHit: [],
         recurring: input.recurring,
@@ -291,6 +295,10 @@ class SavingsController extends AsyncNotifier<SavingsState> {
   });
 
   Future<void> editJar(String id, JarEdit input) => _mutate(() async {
+    if (!input.clearDeadline && !isValidOptionalDeadline(input.deadline)) {
+      throw StoreException('invalid-deadline', deadlineInputHelp);
+    }
+    final deadline = input.deadline?.trim();
     if ((input.reminder != null && !isValidJarReminder(input.reminder)) ||
         (input.target != null &&
             (!isSafeInteger(input.target!) || input.target! <= 0)) ||
@@ -309,8 +317,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
             accent: input.accent,
             icon: input.icon,
             kind: input.kind,
-            deadline: input.deadline,
-            clearDeadline: input.clearDeadline,
+            deadline: deadline,
+            clearDeadline: input.clearDeadline || deadline == '',
             streak: input.streak,
             recurring: input.recurring,
             clearRecurring: false,

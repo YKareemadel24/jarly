@@ -342,6 +342,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         editName = jar.name;
         editTarget = jar.target > 0 ? minorToDecimal(jar.target) : '';
         editDeadline = jar.deadline ?? '';
+        error = isValidOptionalDeadline(editDeadline) ? '' : deadlineInputHelp;
         editVisible = true;
       });
     }
@@ -358,9 +359,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         );
         return;
       }
-      if (editDeadline.trim().isNotEmpty &&
-          parseDeadline(editDeadline.trim()) == null) {
-        setState(() => error = 'Enter a valid date or month and year.');
+      if (!isValidOptionalDeadline(editDeadline)) {
+        setState(() => error = deadlineInputHelp);
         return;
       }
       await _save(() async {
@@ -368,14 +368,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             .read(savingsProvider.notifier)
             .editJar(
               jar.id,
-              JarEdit(
-                name: name,
-                target: target,
-                deadline: editDeadline.trim().isEmpty
-                    ? null
-                    : editDeadline.trim(),
-                clearDeadline: editDeadline.trim().isEmpty,
-              ),
+              JarEdit(name: name, target: target, deadline: editDeadline),
             );
         if (!mounted) return;
         setState(() {
@@ -521,7 +514,10 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               editTarget = raw;
               error = '';
             }),
-            onDeadlineChange: (value) => setState(() => editDeadline = value),
+            onDeadlineChange: (value) => setState(() {
+              editDeadline = value;
+              error = isValidOptionalDeadline(value) ? '' : deadlineInputHelp;
+            }),
             onKindChange: (kind) => _save(
               () => ref
                   .read(savingsProvider.notifier)

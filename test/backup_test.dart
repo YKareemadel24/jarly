@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jarly/data/key_value_storage.dart';
+import 'package:jarly/data/savings_storage.dart';
 import 'package:jarly/domain/domain.dart';
 import 'package:jarly/transfer/backup.dart';
 import 'package:jarly/transfer/transfer.dart';
@@ -43,6 +45,45 @@ List<String> frames(List<Jar> jars, [String currency = 'USD']) =>
     );
 
 void main() {
+  test(
+    'supported deadlines round-trip through local storage, QR, and backup',
+    () async {
+      const deadlines = [
+        '2026-12-31',
+        '2026-12-31T12:00:00.000Z',
+        'December 2026',
+      ];
+      final jars = [
+        for (var i = 0; i < deadlines.length; i++)
+          backupJar.copyWith(id: 'deadline-$i', deadline: deadlines[i]),
+      ];
+      final storage = MemoryStorage({jarsKey: serializeJars(jars)});
+      final loaded = (await loadPersistedJars(storage)).jars;
+      expect(loaded.map((jar) => jar.deadline), deadlines);
+      final codes = frames(loaded);
+      expect(
+        decodeTransferFrames(codes)!.snapshot!.jars.map((jar) => jar.deadline),
+        deadlines,
+      );
+      expect(
+        parseBackup(createBackup(codes)).snapshot.jars
+            .map((jar) => jar.deadline),
+        deadlines,
+      );
+      final tooLong = backupJar.copyWith(deadline: 'December${' ' * 32}2026');
+      expect(decodeTransferFrames(frames([tooLong]))!.snapshot, isNull);
+      final invalidExportDate = encodeTransferFrames(
+        TransferSnapshot(
+          version: transferVersion,
+          exportedAt: 'December 2026',
+          currency: 'USD',
+          jars: loaded,
+        ),
+      );
+      expect(decodeTransferFrames(invalidExportDate)!.snapshot, isNull);
+    },
+  );
+
   group('file backups', () {
     test(
       'recognizes an unchanged local jar after optional flags round-trip',

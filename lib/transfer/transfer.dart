@@ -14,6 +14,7 @@ library;
 import 'dart:convert';
 import 'dart:math';
 
+import '../domain/insights.dart' show isValidOptionalDeadline;
 import '../domain/jar.dart';
 import '../domain/reminder.dart';
 
@@ -166,6 +167,7 @@ Jar jarFromWire(Map<String, dynamic> wire, String exportedAt) {
   final entries = ((wire['e'] as List?) ?? const []).whereType<List>().toList();
   final recurring = wire['r'];
   final balance = (wire['b'] as num?)?.toInt() ?? 0;
+  final deadline = (wire['d'] as String?)?.trim();
   return Jar(
     id: wire['i'] as String? ?? '',
     name: wire['n'] as String? ?? '',
@@ -177,7 +179,7 @@ Jar jarFromWire(Map<String, dynamic> wire, String exportedAt) {
     icon: wire['c'] as String? ?? '🫙',
     kind: wire['k'] as String? ?? kindGoal,
     createdAt: (wire['ca'] as String?) ?? exportedAt,
-    deadline: wire['d'] as String?,
+    deadline: deadline == '' ? null : deadline,
     streak: (wire['st'] as num?)?.toInt(),
     lastDepositAt: wire['l'] as String?,
     milestonesHit: ((wire['h'] as List?) ?? const [])
@@ -298,6 +300,7 @@ bool _isWireJar(Object? value) {
   final b = jar['b'];
   final ob = jar['ob'];
   final st = jar['st'];
+  final deadline = jar['d'];
   if (jar['i'] is! String ||
       (jar['i'] as String).isEmpty ||
       (jar['i'] as String).length > 128 ||
@@ -324,7 +327,8 @@ bool _isWireJar(Object? value) {
       jar['e'] is! List ||
       (jar['e'] as List).length > _maxEntriesPerJar ||
       (jar['ca'] != null && !_validWireDate(jar['ca'])) ||
-      (jar['d'] != null && !_validWireDate(jar['d'])) ||
+      (deadline != null &&
+          (deadline is! String || !isValidOptionalDeadline(deadline))) ||
       (jar['l'] != null && !_validWireDate(jar['l'])) ||
       (st != null && (!isSafeJsonInteger(st) || (st as num) < 0)) ||
       (jar['x'] != null && jar['x'] is! bool)) {

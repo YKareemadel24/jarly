@@ -45,6 +45,35 @@ ProviderContainer _container(KeyValueStorage storage) {
 
 void main() {
   test(
+    'create and edit reject invalid deadlines before modifying saved jars',
+    () async {
+      final raw = serializeJars([jar()]);
+      final storage = MemoryStorage({jarsKey: raw, jarsBackupKey: '[]'});
+      final container = _container(storage);
+      await container.read(savingsProvider.future);
+      final controller = container.read(savingsProvider.notifier);
+      await expectLater(
+        controller.addJar(
+          const JarInput(
+            name: 'Invalid',
+            target: 100,
+            accent: 'ocean',
+            icon: 'flight',
+            kind: kindGoal,
+            deadline: 'someday',
+          ),
+        ),
+        throwsA(isA<StoreException>()),
+      );
+      await expectLater(
+        controller.editJar('trip', const JarEdit(deadline: '2026-02-31')),
+        throwsA(isA<StoreException>()),
+      );
+      expect(storage.values, {jarsKey: raw, jarsBackupKey: '[]'});
+    },
+  );
+
+  test(
     'restore at the aggregate limit refuses excess without changing storage',
     () async {
       final raw = serializeJars([

@@ -108,6 +108,15 @@ DateTime? parseDeadline(String deadline) {
   return DateTime.tryParse(value)?.toLocal();
 }
 
+const deadlineInputHelp =
+    'Enter a date like 2026-12-31 or December 2026, or leave it blank.';
+
+/// Optional jar deadlines use the existing 40-character transfer field.
+bool isValidOptionalDeadline(String? value) =>
+    value == null ||
+    (value.length <= 40 &&
+        (value.trim().isEmpty || parseDeadline(value) != null));
+
 /// Human deadline chip. Returns a countdown ("12 days left") when the deadline
 /// is parseable (ISO or "December 2026"), the original text otherwise.
 /// Never relies on color alone — callers pair this with an icon.
