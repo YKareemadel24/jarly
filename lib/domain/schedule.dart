@@ -7,6 +7,7 @@ library;
 
 import 'jar.dart';
 import 'time.dart';
+import 'transactions.dart' show safeActiveSavingsTotal, validLedgerJar;
 
 /// [from] advanced by one [cadence], walking the local calendar.
 DateTime addCadence(DateTime from, String cadence) {
@@ -100,18 +101,27 @@ RecurringRunResult runDueRecurring(Jar jar, [DateTime? now]) {
 /// Catch every jar up, refusing any jar whose update would push the active
 /// total beyond the JSON-safe range.
 List<Jar> runDueRecurringSafely(List<Jar> jars, DateTime now) {
-  var total = 0;
-  var changed = false;
-  final next = jars.map((jar) {
+  final startingTotal = safeActiveSavingsTotal(jars);
+  if (startingTotal == null) return jars;
+  var remaining = maxSafeInteger - startingTotal;
+  final candidates =
+      jars.where((jar) => !jar.isArchived && jar.recurring != null).toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
+  final changes = <String, Jar>{};
+  for (final jar in candidates) {
     final updated = runDueRecurring(jar, now).jar;
-    if (jar.isArchived) return updated;
-    final nextTotal = total + updated.balance;
-    if (!isSafeInteger(nextTotal)) return jar;
-    total = nextTotal;
-    if (!identical(jar, updated)) changed = true;
-    return updated;
-  }).toList();
-  return changed ? next : jars;
+    final added = updated.balance - jar.balance;
+    if (identical(jar, updated) ||
+        added > remaining ||
+        !validLedgerJar(updated)) {
+      continue;
+    }
+    remaining -= added;
+    changes[jar.id] = updated;
+  }
+  return changes.isEmpty
+      ? jars
+      : [for (final jar in jars) changes[jar.id] ?? jar];
 }
 
 /// What a recurring rule's next due date should become after an edit.

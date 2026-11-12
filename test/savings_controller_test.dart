@@ -45,6 +45,32 @@ ProviderContainer _container(KeyValueStorage storage) {
 
 void main() {
   test(
+    'restore at the aggregate limit refuses excess without changing storage',
+    () async {
+      final raw = serializeJars([
+        jar(id: 'active', balance: maxSafeInteger),
+        jar(id: 'archived', balance: 1, archived: true),
+      ]);
+      final storage = MemoryStorage({jarsKey: raw, jarsBackupKey: '[]'});
+      final container = _container(storage);
+      await container.read(savingsProvider.future);
+      await expectLater(
+        container.read(savingsProvider.notifier).restoreJar('archived'),
+        throwsA(isA<StoreException>()),
+      );
+      expect(storage.values, {jarsKey: raw, jarsBackupKey: '[]'});
+      expect(
+        container.read(savingsProvider).value!.jars.last.isArchived,
+        isTrue,
+      );
+      expect(
+        (await _container(storage).read(savingsProvider.future)).total,
+        maxSafeInteger,
+      );
+    },
+  );
+
+  test(
     'startup persists recurring entries and cursor before publishing',
     () async {
       final due = DateTime.now().subtract(const Duration(hours: 1));

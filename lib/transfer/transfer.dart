@@ -282,7 +282,7 @@ bool _isValidRevisionJson(Object? value) {
   if (value is! Map) return false;
   final revision = value.cast<String, dynamic>();
   final amount = revision['amount'];
-  return _isSafeJsonInteger(amount) &&
+  return isSafeJsonInteger(amount) &&
       (amount as num) > 0 &&
       _validWireDate(revision['at']) &&
       _validWireDate(revision['changedAt']) &&
@@ -290,13 +290,6 @@ bool _isValidRevisionJson(Object? value) {
           (revision['note'] is String &&
               (revision['note'] as String).length <= 500));
 }
-
-bool _isSafeJsonInteger(Object? value) =>
-    value is int ||
-    (value is double &&
-        value == value.truncateToDouble() &&
-        value >= -maxSafeInteger &&
-        value <= maxSafeInteger);
 
 bool _isWireJar(Object? value) {
   if (value is! Map) return false;
@@ -311,11 +304,11 @@ bool _isWireJar(Object? value) {
       jar['n'] is! String ||
       (jar['n'] as String).trim().isEmpty ||
       (jar['n'] as String).length > 120 ||
-      !_isSafeJsonInteger(t) ||
+      !isSafeJsonInteger(t) ||
       (t as num) <= 0 ||
-      !_isSafeJsonInteger(b) ||
+      !isSafeJsonInteger(b) ||
       (b as num) < 0 ||
-      (ob != null && (!_isSafeJsonInteger(ob) || (ob as num) < 0)) ||
+      (ob != null && (!isSafeJsonInteger(ob) || (ob as num) < 0)) ||
       ![
         'coral',
         'amber',
@@ -333,7 +326,7 @@ bool _isWireJar(Object? value) {
       (jar['ca'] != null && !_validWireDate(jar['ca'])) ||
       (jar['d'] != null && !_validWireDate(jar['d'])) ||
       (jar['l'] != null && !_validWireDate(jar['l'])) ||
-      (st != null && (!_isSafeJsonInteger(st) || (st as num) < 0)) ||
+      (st != null && (!isSafeJsonInteger(st) || (st as num) < 0)) ||
       (jar['x'] != null && jar['x'] is! bool)) {
     return false;
   }
@@ -347,7 +340,7 @@ bool _isWireJar(Object? value) {
     if (r is! Map) return false;
     final rule = r.cast<String, dynamic>();
     final am = rule['am'];
-    if (!_isSafeJsonInteger(am) ||
+    if (!isSafeJsonInteger(am) ||
         (am as num) <= 0 ||
         !['daily', 'weekly', 'biweekly', 'monthly'].contains(rule['cd']) ||
         (rule['pa'] != 0 && rule['pa'] != 1)) {
@@ -367,7 +360,7 @@ bool _isWireJar(Object? value) {
     final id = slot(5);
     final revisions = slot(6);
     final undoOf = slot(7);
-    return _isSafeJsonInteger(amount) &&
+    return isSafeJsonInteger(amount) &&
         (amount as num) > 0 &&
         (flag == 0 || flag == 1) &&
         _validWireDate(slot(2)) &&

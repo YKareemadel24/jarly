@@ -202,10 +202,9 @@ class SavingsController extends AsyncNotifier<SavingsState> {
       for (final item in _jars)
         if (item.id == updated.id) updated else item,
     ];
-    final total = next
-        .where((item) => !item.isArchived)
-        .fold<int>(0, (sum, item) => sum + item.balance);
-    if (!isSafeInteger(total)) return false;
+    if (safeActiveSavingsTotal(next) == null || !validLedgerJar(updated)) {
+      return false;
+    }
     await _commit(next);
     return true;
   }
@@ -336,6 +335,13 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         .where((candidate) => candidate.id == id && candidate.isArchived)
         .firstOrNull;
     if (jar == null) return;
+    final total = safeActiveSavingsTotal(_jars);
+    if (total == null || jar.balance > maxSafeInteger - total) {
+      throw StoreException(
+        'unsafe-total',
+        'Restoring this jar would exceed the supported savings total.',
+      );
+    }
     final rule = jar.recurring;
     final nextRule =
         rule != null && !rule.paused && cadences.contains(rule.cadence)

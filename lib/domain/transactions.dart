@@ -3,9 +3,47 @@ library;
 
 import 'insights.dart';
 import 'jar.dart';
+import 'reminder.dart';
 
 import 'time.dart';
 import 'util.dart';
+
+/// JSON may decode an integer as a double. Check the bound before converting.
+bool isSafeJsonInteger(Object? value) =>
+    value is num &&
+    value >= -maxSafeInteger &&
+    value <= maxSafeInteger &&
+    value == value.truncate();
+
+/// Exact active total, or null when any addition would exceed the safe range.
+int? safeActiveSavingsTotal(Iterable<Jar> jars) {
+  var total = 0;
+  for (final jar in jars) {
+    if (jar.isArchived) continue;
+    if (!isSafeInteger(jar.balance) ||
+        jar.balance < 0 ||
+        jar.balance > maxSafeInteger - total) {
+      return null;
+    }
+    total += jar.balance;
+  }
+  return total;
+}
+
+/// Shared money and ledger invariants for storage and imported jars.
+bool validLedgerJar(Jar jar) =>
+    isSafeInteger(jar.target) &&
+    jar.target > 0 &&
+    (jar.recurring == null ||
+        (isSafeInteger(jar.recurring!.amount) && jar.recurring!.amount > 0)) &&
+    (jar.reminder == null || isValidJarReminder(jar.reminder)) &&
+    validEntryAudit(jar.entries) &&
+    validTransactionHistory(jar);
+
+bool validLedgerSnapshot(List<Jar> jars) =>
+    jars.map((jar) => jar.id).toSet().length == jars.length &&
+    safeActiveSavingsTotal(jars) != null &&
+    jars.every(validLedgerJar);
 
 class EntryCorrection {
   const EntryCorrection({required this.amount, required this.at, this.note});

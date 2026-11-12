@@ -105,7 +105,7 @@ MergeResult mergeTransferJars(
     return _unchanged(current, 'This transfer contains duplicate jars.');
   }
   if (incoming.any(
-    (jar) => !validTransactionHistory(
+    (jar) => !validLedgerJar(
       jar.copyWith(
         openingBalance:
             jar.openingBalance ?? (jar.entries.isEmpty ? jar.balance : 0),
@@ -172,10 +172,7 @@ MergeResult mergeTransferJars(
     }
   }
 
-  final activeTotal = next
-      .where((jar) => !jar.isArchived)
-      .fold<int>(0, (total, jar) => total + jar.balance);
-  if (!isSafeInteger(activeTotal)) {
+  if (safeActiveSavingsTotal(next) == null) {
     return _unchanged(current, 'This transfer exceeds the safe savings total.');
   }
   return MergeResult(

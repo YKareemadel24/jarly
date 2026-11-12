@@ -30,6 +30,10 @@ List<Jar>? parseJars(String? raw, {bool legacy = false}) {
     if (parsed.any((item) => item is! Map || (item['id'] is! String))) {
       return null;
     }
+    if (!legacy &&
+        parsed.whereType<Map>().any((jar) => !_validStoredMoney(jar))) {
+      return null;
+    }
     final jars = parsed.whereType<Map>().map((raw) {
       final jar = normaliseJar(
         raw.cast<String, dynamic>(),
@@ -44,36 +48,39 @@ List<Jar>? parseJars(String? raw, {bool legacy = false}) {
           ? jar.copyWith(recurring: rule.copyWith(paused: true))
           : jar;
     }).toList();
-    if (jars.any((jar) => !validStoredJar(jar))) return null;
-    final activeTotal = jars
-        .where((jar) => !jar.isArchived)
-        .fold<int>(0, (total, jar) => total + jar.balance);
-    if (!isSafeInteger(activeTotal)) return null;
+    if (!validLedgerSnapshot(jars)) return null;
     return jars;
   } catch (_) {
     return null;
   }
 }
 
-bool validStoredJar(Jar jar) {
-  return isSafeInteger(jar.target) &&
-      jar.target > 0 &&
-      isSafeInteger(jar.balance) &&
-      jar.balance >= 0 &&
-      (jar.openingBalance == null ||
-          (isSafeInteger(jar.openingBalance!) && jar.openingBalance! >= 0)) &&
-      validEntryAudit(jar.entries) &&
-      (jar.reminder == null || isValidJarReminder(jar.reminder)) &&
-      jar.entries.every(
-        (entry) =>
-            isSafeInteger(entry.amount) &&
-            entry.amount > 0 &&
-            (entry.direction == directionDeposit ||
-                entry.direction == directionWithdrawal) &&
-            DateTime.tryParse(entry.at) != null,
-      ) &&
-      (jar.recurring == null ||
-          (isSafeInteger(jar.recurring!.amount) && jar.recurring!.amount > 0));
+bool _validStoredMoney(Map jar) {
+  final recurring = jar['recurring'];
+  final entries = jar['entries'];
+  if (!isSafeJsonInteger(jar['target']) ||
+      (jar['balance'] != null && !isSafeJsonInteger(jar['balance'])) ||
+      (jar['openingBalance'] != null &&
+          !isSafeJsonInteger(jar['openingBalance'])) ||
+      (recurring != null &&
+          (recurring is! Map || !isSafeJsonInteger(recurring['amount'])))) {
+    return false;
+  }
+  return entries == null ||
+      (entries is List &&
+          entries.every((entry) {
+            if (entry is! Map || !isSafeJsonInteger(entry['amount'])) {
+              return false;
+            }
+            final revisions = entry['revisions'];
+            return revisions == null ||
+                (revisions is List &&
+                    revisions.every(
+                      (revision) =>
+                          revision is Map &&
+                          isSafeJsonInteger(revision['amount']),
+                    ));
+          }));
 }
 
 /// Load the current jar list, falling back to the backup copy and then the
@@ -109,6 +116,9 @@ class JarsPersister {
 
   Future<void> persist(KeyValueStorage storage, List<Jar> jars) {
     final write = _writeQueue.then((_) async {
+      if (!validLedgerSnapshot(jars)) {
+        throw const FormatException('Invalid ledger snapshot.');
+      }
       final previous = await storage.getItem(jarsKey);
       if (previous != null && parseJars(previous) != null) {
         await storage.setItem(jarsBackupKey, previous);

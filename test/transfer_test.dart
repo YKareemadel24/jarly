@@ -31,6 +31,33 @@ TransferSnapshot snapshotOf(List<Jar> jars) => TransferSnapshot(
 
 void main() {
   group('transfer codec', () {
+    test('accepts the maximum safe target and recurring amount and rejects the next integer', () {
+      final boundary = baseJar.copyWith(
+        target: maxSafeInteger,
+        recurring: const RecurringRule(
+          amount: maxSafeInteger,
+          cadence: 'daily',
+          paused: true,
+        ),
+      );
+      TransferAssembly decoded(Jar jar) =>
+          decodeTransferFrames(encodeTransferFrames(snapshotOf([jar])))!;
+      expect(decoded(boundary).snapshot!.jars.single.target, maxSafeInteger);
+      expect(
+        decoded(boundary).snapshot!.jars.single.recurring!.amount,
+        maxSafeInteger,
+      );
+      for (final invalid in [
+        boundary.copyWith(target: maxSafeInteger + 1),
+        boundary.copyWith(
+          recurring: boundary.recurring!.copyWith(amount: maxSafeInteger + 1),
+        ),
+      ]) {
+        expect(decoded(invalid).snapshot, isNull);
+        expect(decoded(invalid).error, isNotNull);
+      }
+    });
+
     test('round-trips valid jars and their creation timestamp', () {
       final decoded = decodeTransferFrames(
         encodeTransferFrames(snapshotOf([baseJar])),

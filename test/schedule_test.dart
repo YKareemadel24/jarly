@@ -155,6 +155,32 @@ void main() {
         nearLimit,
         due,
       ]);
+      expect(runDueRecurringSafely([due, nearLimit], DateTime(2026, 1, 2)), [
+        due,
+        nearLimit,
+      ]);
+    });
+
+    test('competing due jars use available capacity in a stable order', () {
+      final nearLimit = jar(id: 'near', balance: maxSafeInteger - 500);
+      final first = jar(
+        id: 'a',
+        recurring: const RecurringRule(
+          amount: 500,
+          cadence: 'weekly',
+          paused: false,
+        ),
+      );
+      final second = jar(id: 'b', recurring: first.recurring);
+      for (final order in [
+        [nearLimit, first, second],
+        [second, first, nearLimit],
+      ]) {
+        final result = runDueRecurringSafely(order, DateTime(2026, 1, 2));
+        expect(result.map((jar) => jar.id), order.map((jar) => jar.id));
+        expect(result.singleWhere((jar) => jar.id == 'a').balance, 500);
+        expect(result.singleWhere((jar) => jar.id == 'b').balance, 0);
+      }
     });
   });
 

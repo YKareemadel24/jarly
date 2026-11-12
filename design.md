@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (recurring contributions)
+**Last updated:** 2026-11-12 (ledger balance validation)
 
 ## Experience direction
 
@@ -71,6 +71,8 @@ Personal reminder settings start collapsed in jar detail. A labeled Set/Edit act
 ### Lock, currency, and archiving
 
 Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (secure storage on native, shared_preferences on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
+
+Restore and automatic contributions use the full active balance to check the supported savings limit. A refused change leaves the saved ledger intact.
 
 ## Layout and interaction rules
 

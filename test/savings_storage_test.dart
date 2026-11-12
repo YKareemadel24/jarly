@@ -17,6 +17,44 @@ void main() {
   );
 
   group('savings storage', () {
+    test('falls back to the valid backup when a ledger contradicts its opening balance', () async {
+      final bad = serializeJars([
+        testJar.copyWith(
+          openingBalance: 0,
+          balance: 500,
+          entries: [dep(300, '2026-01-02T00:00:00.000Z')],
+        ),
+      ]);
+      final good = serializeJars([testJar.copyWith(balance: 200)]);
+      final storage = MemoryStorage({jarsKey: bad, jarsBackupKey: good});
+      expect((await loadPersistedJars(storage)).jars.single.balance, 200);
+      expect(storage.values, {jarsKey: bad, jarsBackupKey: good});
+    });
+
+    test('rejects fractional v3 money before normalization', () {
+      final raw = serializeJars([testJar])
+          .replaceFirst('"target":100', '"target":100.5');
+      expect(parseJars(raw), isNull);
+    });
+
+    test(
+      'refuses a contradictory commit before replacing either snapshot',
+      () async {
+        final current = serializeJars([testJar.copyWith(balance: 200)]);
+        final backup = serializeJars([testJar]);
+        final storage = MemoryStorage({
+          jarsKey: current,
+          jarsBackupKey: backup,
+        });
+        final invalid = testJar.copyWith(openingBalance: 0, balance: 20);
+        await expectLater(
+          JarsPersister().persist(storage, [invalid]),
+          throwsFormatException,
+        );
+        expect(storage.values, {jarsKey: current, jarsBackupKey: backup});
+      },
+    );
+
     test('loads the ledger and pauses malformed recurring rules', () async {
       final storage = MemoryStorage({
         jarsKey: serializeJars([
@@ -125,14 +163,19 @@ void main() {
       final storage = MemoryStorage({
         'saving-jar:v2':
             '[{"id":"legacy","name":"Legacy","target":100,'
-            '"balance":50.5,"accent":"blue","icon":"x",'
+            '"balance":70.5,"accent":"blue","icon":"x",'
             '"entries":[{"id":"e1","amount":50.5,"direction":"deposit",'
             '"at":"2026-01-02T00:00:00.000Z"}]}]',
       });
       final recovered = await loadPersistedJars(storage);
       expect(recovered.writable, isTrue);
-      expect(recovered.jars[0].balance, 5050);
+      expect(recovered.jars[0].balance, 7050);
+      expect(recovered.jars[0].openingBalance, 2000);
       expect(recovered.jars[0].accent, 'ocean');
+      await JarsPersister().persist(storage, recovered.jars);
+      final saved = (await loadPersistedJars(storage)).jars.single;
+      expect(saved.balance, 7050);
+      expect(saved.openingBalance, 2000);
     });
 
     test(
