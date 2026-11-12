@@ -63,8 +63,21 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
   bool _actionConsumed = false;
   bool _saving = false;
   int _transactionSession = 0;
+  FocusNode? _transactionOrigin;
 
   void _clearTransactionDraft() {
+    final origin = _transactionOrigin;
+    _transactionOrigin = null;
+    if (origin != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            direction == null &&
+            origin.context?.mounted == true &&
+            origin.canRequestFocus) {
+          origin.requestFocus();
+        }
+      });
+    }
     direction = null;
     amount = '';
     note = '';
@@ -72,9 +85,10 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
   }
 
   void _openTransaction(String chosen) {
-    if (_saving) return;
+    if (_saving || direction != null) return;
     setState(() {
       _clearTransactionDraft();
+      _transactionOrigin = FocusManager.instance.primaryFocus;
       direction = chosen;
       _transactionSession++;
     });
@@ -388,25 +402,34 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       child: Stack(
         children: [
           Positioned.fill(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
-              itemCount: jar.entries.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _header(
-                    ref,
-                    palette,
-                    format,
-                    jar: jar,
-                    progress: progress,
-                    accent: accent,
-                    remaining: remaining,
-                    nextOccurrence: nextOccurrence,
-                  );
-                }
-                final entry = jar.entries[index - 1];
-                return _entryRow(palette, format, jar, entry, accent);
-              },
+            child: ExcludeFocus(
+              excluding:
+                  direction != null ||
+                  recurringVisible ||
+                  editVisible ||
+                  editingEntry != null ||
+                  menuVisible ||
+                  celebration != null,
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
+                itemCount: jar.entries.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return _header(
+                      ref,
+                      palette,
+                      format,
+                      jar: jar,
+                      progress: progress,
+                      accent: accent,
+                      remaining: remaining,
+                      nextOccurrence: nextOccurrence,
+                    );
+                  }
+                  final entry = jar.entries[index - 1];
+                  return _entryRow(palette, format, jar, entry, accent);
+                },
+              ),
             ),
           ),
 
@@ -686,7 +709,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               Text(
                 '$progress% complete',
                 style: TextStyle(
-                  color: parseHex(accent),
+                  color: palette.foreground,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -768,17 +791,24 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                   semantics: 'Deposit into ${jar.name}',
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 53),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: palette.primary,
                       borderRadius: BorderRadius.circular(17),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: const Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 7,
                       children: [
                         Icon(Icons.add, size: 20, color: Color(0xFFFFFDF9)),
-                        SizedBox(width: 7),
                         Text(
                           'Deposit',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0xFFFFFDF9),
                             fontSize: 14,
@@ -797,18 +827,25 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                   semantics: 'Withdraw from ${jar.name}',
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 53),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: palette.surface,
                       borderRadius: BorderRadius.circular(17),
                       border: Border.all(color: palette.border),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 7,
                       children: [
                         Icon(Icons.remove, size: 20, color: palette.foreground),
-                        const SizedBox(width: 7),
                         Text(
                           'Withdraw',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: palette.foreground,
                             fontSize: 14,
@@ -1293,7 +1330,7 @@ class _DepositSheet extends StatelessWidget {
     final withdrawPreview = this.withdrawPreview;
     final depositPreview = this.depositPreview;
     final depositPreviewPct = this.depositPreviewPct;
-    return SheetScaffold(
+    final sheet = SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1418,6 +1455,7 @@ class _DepositSheet extends StatelessWidget {
                     palette: palette,
                     value: amount,
                     onChanged: onAmountChange,
+                    focusOnOpen: visible,
                   ),
                 ),
               ],
@@ -1434,15 +1472,16 @@ class _DepositSheet extends StatelessWidget {
           if (depositPreview != null && depositPreviewPct != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Row(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     format(jarBalance),
                     style: TextStyle(color: palette.muted, fontSize: 12),
                   ),
-                  const SizedBox(width: 6),
                   Icon(Icons.arrow_forward, size: 13, color: palette.muted),
-                  const SizedBox(width: 6),
                   Text(
                     format(depositPreview),
                     style: TextStyle(
@@ -1451,11 +1490,10 @@ class _DepositSheet extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     '$depositPreviewPct%',
                     style: TextStyle(
-                      color: parseHex(accent),
+                      color: palette.foreground,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1510,28 +1548,37 @@ class _DepositSheet extends StatelessWidget {
         ],
       ),
     );
+    return FocusScope(
+      includeSemantics: false,
+      canRequestFocus: visible,
+      descendantsAreFocusable: visible,
+      child: sheet,
+    );
   }
 }
 
-/// Controlled amount field: the parent owns the sanitized string.
+/// Controlled amount field: the parent owns the original input string.
 class _ControlledAmountField extends StatefulWidget {
   const _ControlledAmountField({
     required this.palette,
     required this.value,
     required this.onChanged,
     this.hint = '0',
+    this.focusOnOpen = false,
   });
 
   final Palette palette;
   final String value;
   final ValueChanged<String> onChanged;
   final String hint;
+  final bool focusOnOpen;
 
   @override
   State<_ControlledAmountField> createState() => _ControlledAmountFieldState();
 }
 
 class _ControlledAmountFieldState extends State<_ControlledAmountField> {
+  final _focus = FocusNode();
   late final TextEditingController _controller = TextEditingController(
     text: widget.value,
   );
@@ -1539,6 +1586,11 @@ class _ControlledAmountFieldState extends State<_ControlledAmountField> {
   @override
   void didUpdateWidget(_ControlledAmountField oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.focusOnOpen && !oldWidget.focusOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.focusOnOpen) _focus.requestFocus();
+      });
+    }
     if (oldWidget.value != widget.value && _controller.text != widget.value) {
       _controller
         ..text = widget.value
@@ -1548,6 +1600,7 @@ class _ControlledAmountFieldState extends State<_ControlledAmountField> {
 
   @override
   void dispose() {
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -1556,7 +1609,7 @@ class _ControlledAmountFieldState extends State<_ControlledAmountField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
-      autofocus: true,
+      focusNode: _focus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       onChanged: widget.onChanged,
       decoration: InputDecoration(
@@ -1610,7 +1663,7 @@ class _RecurringSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
-    return SheetScaffold(
+    final sheet = SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1770,6 +1823,7 @@ class _RecurringSheet extends StatelessWidget {
         ],
       ),
     );
+    return ExcludeFocus(excluding: !visible, child: sheet);
   }
 }
 
@@ -1811,7 +1865,7 @@ class _EditJarSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
-    return SheetScaffold(
+    final sheet = SheetScaffold(
       visible: visible,
       onDismiss: onDismiss,
       palette: palette,
@@ -1965,6 +2019,7 @@ class _EditJarSheet extends StatelessWidget {
         ],
       ),
     );
+    return ExcludeFocus(excluding: !visible, child: sheet);
   }
 }
 

@@ -389,7 +389,7 @@ class InsightsScreen extends ConsumerWidget {
           Text(
             '$progress%',
             style: TextStyle(
-              color: parseHex(accent),
+              color: palette.foreground,
               fontSize: 20,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -410,14 +410,15 @@ class InsightsScreen extends ConsumerWidget {
       child: Row(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            constraints: const BoxConstraints(minWidth: 58, minHeight: 58),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(29),
               border: Border.all(color: palette.primary, width: 3),
             ),
             alignment: Alignment.center,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
@@ -574,25 +575,22 @@ class _MonthlyChart extends StatelessWidget {
         border: Border.all(color: palette.border),
       ),
       child: any
-          ? SizedBox(
-              height: 120,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  for (final month in months)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _Column(
-                          month: month,
-                          peak: peak,
-                          palette: palette,
-                          format: format,
-                        ),
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final month in months)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _Column(
+                        month: month,
+                        peak: peak,
+                        palette: palette,
+                        format: format,
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             )
           : Padding(
               padding: const EdgeInsets.symmetric(vertical: 22),
@@ -622,12 +620,12 @@ class _Column extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
           month.total > 0 ? format(month.total) : '',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: palette.muted,
             fontSize: 9,
@@ -651,6 +649,7 @@ class _Column extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           month.label,
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: palette.muted,
             fontSize: 10,
@@ -732,14 +731,15 @@ class _BadgeCard extends StatelessWidget {
             ),
             const SizedBox(height: 9),
             if (badge.earned)
-              Row(
+              Wrap(
+                spacing: 3,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Icon(Icons.check, size: 12, color: palette.success),
-                  const SizedBox(width: 3),
                   Text(
                     'Earned',
                     style: TextStyle(
-                      color: palette.success,
+                      color: palette.foreground,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                     ),

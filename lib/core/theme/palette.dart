@@ -41,7 +41,7 @@ class Palette {
   );
 
   static const Palette dark = Palette(
-    primary: Color(0xFF9C6C53),
+    primary: Color(0xFF976950),
     background: Color(0xFF201B18),
     surface: Color(0xFF2D2722),
     foreground: Color(0xFFF6EDE2),

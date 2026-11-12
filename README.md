@@ -8,7 +8,7 @@ A warm, tactile savings companion for Android, iOS, web, and Windows. Saving Jar
 ![Dart 3.13](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart)
 ![Riverpod 3.5](https://img.shields.io/badge/Riverpod-3.5-2A5C8F)
 ![go_router 18](https://img.shields.io/badge/go__router-18-02569B)
-![Tests 224](https://img.shields.io/badge/Dart_tests-224-4A9579)
+![Tests 240](https://img.shields.io/badge/Dart_tests-240-4A9579)
 
 > Saving Jar was ported from an Expo/React Native codebase to Flutter (October–November 2026). The transfer/backup wire format (`lib/transfer/transfer.dart`) is a faithful port of the original `shared/transfer.ts`, so QR codes and `.jarly` backups stay interchangeable across both generations of the app.
 
@@ -84,7 +84,7 @@ The primary loop is intentionally short:
 | Notifications   | `flutter_local_notifications` + `timezone` + `flutter_timezone` (schedule rebuild is cancel-all-then-schedule)                     |
 | Backup I/O      | `share_plus` (native share sheet), `file_picker`, `package:web` (browser download/upload)                                          |
 | QR transfer     | [qr](https://pub.dev/packages/qr) encoder rendered with a single-path `CustomPainter`                                              |
-| Testing         | `flutter_test` — 224 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
+| Testing         | `flutter_test` — 240 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
 | Tooling         | `flutter_lints` 6, `flutter_launcher_icons`, `flutter_native_splash`                                                               |
 
 ---
@@ -271,7 +271,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 
 | Token        | Light     | Dark      |
 | ------------ | --------- | --------- |
-| `primary`    | `#3B2D24` | `#9C6C53` |
+| `primary`    | `#3B2D24` | `#976950` |
 | `background` | `#F6F1E8` | `#201B18` |
 | `surface`    | `#FFFDF9` | `#2D2722` |
 | `foreground` | `#2C231D` | `#F6EDE2` |
@@ -288,7 +288,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 The domain layer is the most heavily tested part of the codebase.
 
 ```bash
-flutter test      # 224 tests
+flutter test      # 240 tests
 flutter analyze   # static analysis
 dart format .     # formatting
 ```
@@ -299,6 +299,7 @@ All three checks run on every push to `master` and on every pull request via Git
 
 - `money_test.dart`, `jar_test.dart` — money conversion, amount parsing, milestones, deposits/withdrawals, habit streaks.
 - `jar_detail_screen_test.dart` — exact large-amount previews, persisted deposits, and note-only corrections.
+- `accessibility_test.dart` — keyboard activation, focus restoration, contrast, and 200% text layout.
 - `schedule_test.dart` — recurring catch-up boundaries.
 - `insights_test.dart`, `badges_test.dart`, `presets_test.dart` — monthly charts, pace, badge thresholds, deposit presets.
 - `transactions_test.dart` — safe corrections/Undo and audit history.

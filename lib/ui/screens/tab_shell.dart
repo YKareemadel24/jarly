@@ -32,7 +32,6 @@ class TabShell extends ConsumerWidget {
           border: Border(top: BorderSide(color: palette.border, width: 1)),
         ),
         padding: EdgeInsets.only(bottom: bottomPadding),
-        height: 60 + bottomPadding,
         child: Row(
           children: [
             _tab(context, palette, 0, Icons.home_filled, 23, 'Home'),
@@ -54,26 +53,40 @@ class TabShell extends ConsumerWidget {
     String label,
   ) {
     final selected = shell.currentIndex == index;
-    final color = selected ? palette.primary : palette.muted;
+    final color = selected ? palette.foreground : palette.muted;
     return Expanded(
-      child: InkWell(
-        onTap: () =>
-            shell.goBranch(index, initialLocation: index == shell.currentIndex),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: size, color: color),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                fontFamily: null,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: InkWell(
+          onTap: () => shell.goBranch(
+            index,
+            initialLocation: index == shell.currentIndex,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 60),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: size, color: color),
+                  const SizedBox(height: 3),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: null,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

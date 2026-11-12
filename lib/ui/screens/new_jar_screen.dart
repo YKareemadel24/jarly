@@ -17,6 +17,7 @@ import '../../services/haptics.dart';
 import '../../state/providers.dart';
 import '../../state/savings_controller.dart';
 import '../widgets/jar_vessel.dart';
+import '../widgets/pressable.dart';
 import '../widgets/screen_container.dart';
 
 const List<String> _accents = [
@@ -138,7 +139,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
           children: [
             Row(
               children: [
-                _Pressable(
+                Pressable(
                   onTap: goBack,
                   semantics: _step == 1 ? 'Go back' : 'Previous step',
                   child: Container(
@@ -296,7 +297,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                 children: [
                   for (final candidate in _icons)
                     Expanded(
-                      child: _Pressable(
+                      child: Pressable(
                         onTap: () {
                           Haptics.tap();
                           setState(() => _icon = candidate);
@@ -337,7 +338,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                 runSpacing: 10,
                 children: [
                   for (final candidate in _accents)
-                    _Pressable(
+                    Pressable(
                       onTap: () {
                         Haptics.tap();
                         setState(() => _accent = candidate);
@@ -490,8 +491,9 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
               ),
             Opacity(
               opacity: stepValid && !_saving ? 1 : 0.45,
-              child: _Pressable(
-                onTap: stepValid ? next : () {},
+              child: Pressable(
+                onTap: next,
+                enabled: stepValid && !_saving,
                 semantics: _step == 3 ? 'Create my jar' : 'Continue',
                 child: Container(
                   margin: const EdgeInsets.only(top: 26),
@@ -541,7 +543,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     String note,
   ) {
     final active = _kind == value;
-    return _Pressable(
+    return Pressable(
       onTap: () {
         Haptics.tap();
         setState(() => _kind = value);
@@ -688,9 +690,18 @@ class _WizardAmountField extends StatefulWidget {
 }
 
 class _WizardAmountFieldState extends State<_WizardAmountField> {
+  final _focus = FocusNode();
   late final TextEditingController _controller = TextEditingController(
     text: widget.value,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
 
   @override
   void didUpdateWidget(_WizardAmountField oldWidget) {
@@ -704,6 +715,7 @@ class _WizardAmountFieldState extends State<_WizardAmountField> {
 
   @override
   void dispose() {
+    _focus.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -712,7 +724,7 @@ class _WizardAmountFieldState extends State<_WizardAmountField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
-      autofocus: true,
+      focusNode: _focus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       onChanged: widget.onChanged,
       decoration: InputDecoration(
@@ -725,45 +737,6 @@ class _WizardAmountFieldState extends State<_WizardAmountField> {
         color: widget.palette.foreground,
         fontSize: 26,
         fontFamily: 'Georgia',
-      ),
-    );
-  }
-}
-
-class _Pressable extends StatefulWidget {
-  const _Pressable({required this.child, required this.onTap, this.semantics});
-
-  final Widget child;
-  final VoidCallback onTap;
-  final String? semantics;
-
-  @override
-  State<_Pressable> createState() => _PressableState();
-}
-
-class _PressableState extends State<_Pressable> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: widget.semantics,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedScale(
-          scale: _pressed ? 0.98 : 1,
-          duration: const Duration(milliseconds: 100),
-          child: AnimatedOpacity(
-            opacity: _pressed ? 0.86 : 1,
-            duration: const Duration(milliseconds: 100),
-            child: widget.child,
-          ),
-        ),
       ),
     );
   }

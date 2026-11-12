@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (app lock privacy)
+**Last updated:** 2026-11-12 (keyboard and large text)
 
 ## Experience direction
 
@@ -85,6 +85,8 @@ The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile a
 Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Deposits show a live preview row (current balance → new balance, with the resulting percentage) while withdrawals preview the remaining balance, so both directions are unambiguous before committing. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
 
 A deposit or withdrawal confirmation can save one transaction. A failed save leaves the draft ready to retry. Cancelling clears the amount and note.
+
+Core controls support Tab traversal with a visible focus outline and activate with Enter or Space. Opening a deposit or withdrawal sheet moves focus to its amount field. Dismissing it restores the previous control. Tab labels, money actions, and Insights charts can grow or wrap as text size increases.
 
 Below the jar-detail hero sit two compact stat cards — **Remaining** (amount to goal) and **Deposits** (contribution count) — giving at-a-glance momentum without opening the activity log.
 
