@@ -170,16 +170,25 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     return operation;
   }
 
+  Future<void> _persist(KeyValueStorage storage, List<Jar> next) async {
+    try {
+      await _persister.persist(storage, next);
+    } catch (_) {
+      throw StoreException(
+        'save-failed',
+        'Your latest changes could not be saved. Please try again.',
+      );
+    }
+  }
+
   Future<void> _commit(List<Jar> next) async {
     try {
-      await _persister.persist(_storage!, next);
-    } catch (_) {
-      const message =
-          'Your latest changes could not be saved. Please try again.';
+      await _persist(_storage!, next);
+    } on StoreException catch (error) {
       if (ref.mounted) {
-        state = AsyncData(state.value!.copyWith(storageError: message));
+        state = AsyncData(state.value!.copyWith(storageError: error.message));
       }
-      throw StoreException('save-failed', message);
+      rethrow;
     }
     if (ref.mounted) {
       state = AsyncData(
@@ -207,18 +216,28 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     _storage = storage;
     try {
       final loaded = await loadPersistedJars(storage);
-      // Catch up due scheduled deposits before first paint of data.
-      final caughtUp = runDueRecurringSafely(loaded.jars, DateTime.now());
       if (!loaded.writable) {
         return SavingsState(
-          jars: caughtUp,
+          jars: loaded.jars,
           ready: true,
           writable: false,
           storageError:
               'Saved data could not be read. Changes will not be saved.',
         );
       }
-      return SavingsState(jars: caughtUp, ready: true, writable: true);
+      final initial = SavingsState(
+        jars: loaded.jars,
+        ready: true,
+        writable: true,
+      );
+      final caughtUp = runDueRecurringSafely(initial.jars, DateTime.now());
+      if (identical(caughtUp, initial.jars)) return initial;
+      try {
+        await _persist(storage, caughtUp);
+        return initial.copyWith(jars: caughtUp);
+      } on StoreException catch (error) {
+        return initial.copyWith(storageError: error.message);
+      }
     } catch (error) {
       return const SavingsState(
         jars: [],
@@ -230,6 +249,13 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     }
   }
 
+  /// Commits due entries and their cursor together when returning to the app.
+  Future<void> catchUpRecurring([DateTime? now]) => _mutate(() async {
+    final current = _jars;
+    final next = runDueRecurringSafely(current, now ?? DateTime.now());
+    if (!identical(current, next)) await _commit(next);
+  });
+
   Future<String> addJar(JarInput input) => _mutate(() async {
     if ((input.reminder != null && !isValidJarReminder(input.reminder)) ||
         input.name.trim().isEmpty ||
@@ -237,7 +263,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         input.target <= 0 ||
         (input.recurring != null &&
             (!isSafeInteger(input.recurring!.amount) ||
-                input.recurring!.amount <= 0))) {
+                input.recurring!.amount <= 0 ||
+                !hasValidRecurringSchedule(input.recurring!)))) {
       throw StoreException('invalid-amount', 'Enter a valid target amount.');
     }
     final id =
@@ -270,7 +297,8 @@ class SavingsController extends AsyncNotifier<SavingsState> {
             (!isSafeInteger(input.target!) || input.target! <= 0)) ||
         (input.recurring != null &&
             (!isSafeInteger(input.recurring!.amount) ||
-                input.recurring!.amount <= 0))) {
+                input.recurring!.amount <= 0 ||
+                !hasValidRecurringSchedule(input.recurring!)))) {
       throw StoreException('invalid-amount', 'Enter valid jar amounts.');
     }
     await _commit([
@@ -303,12 +331,26 @@ class SavingsController extends AsyncNotifier<SavingsState> {
   );
 
   /// Bring an archived jar back into the active list.
-  Future<void> restoreJar(String id) => _mutate(
-    () => _commit([
-      for (final jar in _jars)
-        if (jar.id == id) jar.copyWith(archived: false) else jar,
-    ]),
-  );
+  Future<void> restoreJar(String id) => _mutate(() async {
+    final jar = _jars
+        .where((candidate) => candidate.id == id && candidate.isArchived)
+        .firstOrNull;
+    if (jar == null) return;
+    final rule = jar.recurring;
+    final nextRule =
+        rule != null && !rule.paused && cadences.contains(rule.cadence)
+        ? rule.copyWith(
+            nextDate: toIso(addCadence(DateTime.now(), rule.cadence)),
+          )
+        : rule;
+    await _commit([
+      for (final candidate in _jars)
+        if (candidate.id == id)
+          jar.copyWith(archived: false, recurring: nextRule)
+        else
+          candidate,
+    ]);
+  });
 
   /// Permanently remove an archived jar and its history.
   Future<void> deleteJarPermanently(String id) => _mutate(

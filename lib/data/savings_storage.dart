@@ -30,13 +30,20 @@ List<Jar>? parseJars(String? raw, {bool legacy = false}) {
     if (parsed.any((item) => item is! Map || (item['id'] is! String))) {
       return null;
     }
-    final jars = parsed
-        .whereType<Map>()
-        .map(
-          (jar) =>
-              normaliseJar(jar.cast<String, dynamic>(), scaleToMinor: legacy),
-        )
-        .toList();
+    final jars = parsed.whereType<Map>().map((raw) {
+      final jar = normaliseJar(
+        raw.cast<String, dynamic>(),
+        scaleToMinor: legacy,
+      );
+      final rule = jar.recurring;
+      // Keep the ledger readable so an invalid rule can be repaired in the editor.
+      return rule != null &&
+              !rule.paused &&
+              (!hasValidRecurringSchedule(rule) ||
+                  DateTime.tryParse(jar.createdAt) == null)
+          ? jar.copyWith(recurring: rule.copyWith(paused: true))
+          : jar;
+    }).toList();
     if (jars.any((jar) => !validStoredJar(jar))) return null;
     final activeTotal = jars
         .where((jar) => !jar.isArchived)

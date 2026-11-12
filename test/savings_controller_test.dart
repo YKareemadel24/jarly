@@ -44,6 +44,98 @@ ProviderContainer _container(KeyValueStorage storage) {
 }
 
 void main() {
+  test(
+    'startup persists recurring entries and cursor before publishing',
+    () async {
+      final due = DateTime.now().subtract(const Duration(hours: 1));
+      final storage = MemoryStorage({
+        jarsKey: serializeJars([
+          jar(
+            recurring: RecurringRule(
+              amount: 25,
+              cadence: 'daily',
+              paused: false,
+              nextDate: toIso(due),
+            ),
+          ),
+        ]),
+      });
+      final first = (await _container(storage).read(savingsProvider.future))
+          .jars
+          .single;
+      expect(first.balance, 25);
+      final saved = (await loadPersistedJars(storage)).jars.single;
+      expect(saved.balance, 25);
+      expect(saved.entries.single.id, first.entries.single.id);
+      expect(saved.recurring!.nextDate, toIso(addCadence(due, 'daily')));
+      final reopened = (await _container(storage).read(savingsProvider.future))
+          .jars
+          .single;
+      expect(reopened.entries.single.id, first.entries.single.id);
+      expect(reopened.balance, 25);
+    },
+  );
+
+  test(
+    'failed startup catch-up keeps the last saved balance and cursor',
+    () async {
+      final due = toIso(DateTime.now().subtract(const Duration(hours: 1)));
+      final storage = _ControlledStorage({
+        jarsKey: serializeJars([
+          jar(
+            recurring: RecurringRule(
+              amount: 25,
+              cadence: 'daily',
+              paused: false,
+              nextDate: due,
+            ),
+          ),
+        ]),
+      })..fail = true;
+      final state = await _container(storage).read(savingsProvider.future);
+      expect(state.jars.single.entries, isEmpty);
+      expect(state.jars.single.balance, 0);
+      expect(state.jars.single.recurring!.nextDate, due);
+      expect(state.storageError, isNotNull);
+    },
+  );
+
+  test(
+    'restoring an archived rule resumes from now without backfill',
+    () async {
+      final due = toIso(DateTime.now().subtract(const Duration(days: 3)));
+      final storage = MemoryStorage({
+        jarsKey: serializeJars([
+          jar(
+            archived: true,
+            recurring: RecurringRule(
+              amount: 25,
+              cadence: 'daily',
+              paused: false,
+              nextDate: due,
+            ),
+          ),
+        ]),
+      });
+      final container = _container(storage);
+      final first = (await container.read(savingsProvider.future)).jars.single;
+      expect(first.balance, 0);
+      await container.read(savingsProvider.notifier).restoreJar('trip');
+      final restored = (await loadPersistedJars(storage)).jars.single;
+      expect(restored.isArchived, isFalse);
+      expect(restored.entries, isEmpty);
+      expect(
+        DateTime.parse(restored.recurring!.nextDate!).isAfter(DateTime.now()),
+        isTrue,
+      );
+      final reopened = (await _container(storage).read(savingsProvider.future))
+          .jars
+          .single;
+      expect(reopened.entries, isEmpty);
+      expect(reopened.recurring!.nextDate, restored.recurring!.nextDate);
+    },
+  );
+
   test('acknowledges a deposit only after storage commits', () async {
     final storage = _ControlledStorage({
       jarsKey: serializeJars([jar(balance: 100)]),

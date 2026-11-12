@@ -42,26 +42,39 @@ class RecurringRunResult {
   final int applied;
 }
 
+/// Whether a rule has a supported cadence and a readable optional cursor.
+bool hasValidRecurringSchedule(RecurringRule rule) =>
+    cadences.contains(rule.cadence) &&
+    (rule.nextDate == null || DateTime.tryParse(rule.nextDate!) != null);
+
 /// Bring a jar's schedule up to date: apply every due recurring deposit and
 /// advance nextDate past [now]. Bounded so a long-dormant schedule cannot loop
 /// forever; at most 366 occurrences are applied per call.
 RecurringRunResult runDueRecurring(Jar jar, [DateTime? now]) {
   final nowDate = now ?? DateTime.now();
   final rule = jar.recurring;
-  if (rule == null || rule.paused || !(rule.amount > 0)) {
+  if (jar.isArchived ||
+      rule == null ||
+      rule.paused ||
+      !isSafeInteger(rule.amount) ||
+      rule.amount <= 0 ||
+      !hasValidRecurringSchedule(rule)) {
     return RecurringRunResult(jar: jar, applied: 0);
   }
 
+  final created = DateTime.tryParse(jar.createdAt)?.toLocal();
+  final due = DateTime.tryParse(rule.nextDate ?? jar.createdAt)?.toLocal();
+  if (created == null || due == null) {
+    return RecurringRunResult(jar: jar, applied: 0);
+  }
   var current = jar;
-  var cursor = rule.nextDate != null
-      ? parseIso(rule.nextDate!)
-      : parseIso(current.createdAt);
   // Never look back further than the jar existed.
-  final created = parseIso(current.createdAt);
-  if (cursor.isBefore(created)) cursor = created;
+  var cursor = due.isBefore(created) ? created : due;
 
   var applied = 0;
   while (!cursor.isAfter(nowDate) && applied < 366) {
+    final next = addCadence(cursor, rule.cadence);
+    if (!next.isAfter(cursor)) break;
     final result = applyEntry(
       current,
       rule.amount,
@@ -73,7 +86,7 @@ RecurringRunResult runDueRecurring(Jar jar, [DateTime? now]) {
     if (result == null) break;
     current = result.jar;
     applied += 1;
-    cursor = addCadence(cursor, rule.cadence);
+    cursor = next;
   }
 
   if (applied == 0) return RecurringRunResult(jar: jar, applied: 0);
@@ -88,14 +101,17 @@ RecurringRunResult runDueRecurring(Jar jar, [DateTime? now]) {
 /// total beyond the JSON-safe range.
 List<Jar> runDueRecurringSafely(List<Jar> jars, DateTime now) {
   var total = 0;
-  return jars.map((jar) {
+  var changed = false;
+  final next = jars.map((jar) {
     final updated = runDueRecurring(jar, now).jar;
     if (jar.isArchived) return updated;
     final nextTotal = total + updated.balance;
     if (!isSafeInteger(nextTotal)) return jar;
     total = nextTotal;
+    if (!identical(jar, updated)) changed = true;
     return updated;
   }).toList();
+  return changed ? next : jars;
 }
 
 /// What a recurring rule's next due date should become after an edit.
@@ -113,7 +129,7 @@ String? nextRecurringDate({
       previous.amount == amount &&
       previous.cadence == cadence &&
       previous.nextDate != null &&
-      parseIso(previous.nextDate!).isAfter(nowDate)) {
+      DateTime.tryParse(previous.nextDate!)?.isAfter(nowDate) == true) {
     return previous.nextDate;
   }
   return toIso(addCadence(nowDate, cadence));

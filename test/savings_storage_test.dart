@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jarly/data/key_value_storage.dart';
 import 'package:jarly/data/savings_storage.dart';
+import 'package:jarly/domain/domain.dart';
 
 import 'helpers.dart';
 
@@ -16,6 +17,36 @@ void main() {
   );
 
   group('savings storage', () {
+    test('loads the ledger and pauses malformed recurring rules', () async {
+      final storage = MemoryStorage({
+        jarsKey: serializeJars([
+          jar(
+            id: 'bad-cadence',
+            balance: 100,
+            recurring: const RecurringRule(
+              amount: 25,
+              cadence: 'hourly',
+              paused: false,
+            ),
+          ),
+          jar(
+            id: 'bad-date',
+            balance: 200,
+            recurring: const RecurringRule(
+              amount: 25,
+              cadence: 'daily',
+              paused: false,
+              nextDate: 'invalid',
+            ),
+          ),
+        ]),
+      });
+      final loaded = await loadPersistedJars(storage);
+      expect(loaded.writable, isTrue);
+      expect(loaded.jars.map((jar) => jar.balance), [100, 200]);
+      expect(loaded.jars.every((jar) => jar.recurring!.paused), isTrue);
+    });
+
     test(
       'honors an intentionally empty current store over older data',
       () async {

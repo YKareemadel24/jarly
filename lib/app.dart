@@ -7,17 +7,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/palette.dart';
 import 'state/providers.dart';
+import 'state/savings_controller.dart' show StoreException;
 import 'ui/app_theme.dart';
 import 'ui/router.dart';
 import 'ui/screens/lock_gate.dart';
 import 'ui/widgets/notification_resync.dart';
 import 'ui/widgets/storage_warning.dart';
 
-class JarlyApp extends ConsumerWidget {
+class JarlyApp extends ConsumerStatefulWidget {
   const JarlyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<JarlyApp> createState() => _JarlyAppState();
+}
+
+class _JarlyAppState extends ConsumerState<JarlyApp> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _catchUpRecurring);
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  Future<void> _catchUpRecurring() async {
+    if (ref.read(savingsProvider).value?.writable != true) return;
+    try {
+      await ref.read(savingsProvider.notifier).catchUpRecurring();
+    } on StoreException {
+      // The controller exposes the failed save through StorageWarning.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final mode = ref.watch(themeProvider).value ?? AppearanceMode.system;
     final savings = ref.watch(savingsProvider);
     final settings = ref.watch(settingsProvider);

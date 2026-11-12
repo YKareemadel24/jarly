@@ -113,6 +113,34 @@ Future<void> _checkPastedAmounts(
 }
 
 void main() {
+  testWidgets('editing a recurring amount retains its saved cadence', (
+    tester,
+  ) async {
+    final storage = MemoryStorage({
+      jarsKey: serializeJars([
+        jar(
+          recurring: const RecurringRule(
+            amount: 2500,
+            cadence: 'monthly',
+            paused: true,
+          ),
+        ),
+      ]),
+    });
+    await _mount(tester, storage);
+    await _openTransaction(tester, 'Edit recurring deposit');
+    await tester.enterText(_draftFields.first, '30.00');
+    await tester.pump();
+    await tester.tap(
+      find.descendant(of: _sheet, matching: find.text('Save schedule')),
+    );
+    await tester.pumpAndSettle();
+    final rule = (await loadPersistedJars(storage)).jars.single.recurring!;
+    expect(rule.amount, 3000);
+    expect(rule.cadence, 'monthly');
+    expect(rule.paused, isTrue);
+  });
+
   for (final editor in [
     'deposit',
     'withdrawal',

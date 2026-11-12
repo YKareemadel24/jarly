@@ -80,6 +80,17 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     });
   }
 
+  void _openRecurring(RecurringRule? rule) {
+    setState(() {
+      recurringAmount = rule == null ? '' : minorToDecimal(rule.amount);
+      cadence = rule != null && cadences.contains(rule.cadence)
+          ? rule.cadence
+          : 'weekly';
+      error = '';
+      recurringVisible = true;
+    });
+  }
+
   Future<void> _save(Future<void> Function() action) async {
     if (_saving) return;
     setState(() {
@@ -271,7 +282,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 recurring: RecurringRule(
                   amount: value,
                   cadence: cadence,
-                  paused: false,
+                  paused: previous?.paused ?? false,
                   nextDate: nextRecurringDate(
                     previous: previous,
                     amount: value,
@@ -292,6 +303,10 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     Future<void> toggleRecurringPause() async {
       final rule = jar.recurring;
       if (rule == null) return;
+      if (rule.paused && !hasValidRecurringSchedule(rule)) {
+        setState(() => error = 'Save a valid schedule before resuming it.');
+        return;
+      }
       final resumeDate = rule.paused
           ? nextRecurringDate(
               previous: RecurringRule(
@@ -849,7 +864,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           _recurringCard(palette, jar, accent, nextOccurrence, format)
         else
           Pressable(
-            onTap: () => setState(() => recurringVisible = true),
+            onTap: () => _openRecurring(null),
             child: Container(
               margin: const EdgeInsets.only(top: 14),
               padding: const EdgeInsets.all(15),
@@ -965,10 +980,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             ),
           ),
           Pressable(
-            onTap: () => setState(() {
-              recurringAmount = '';
-              recurringVisible = true;
-            }),
+            onTap: () => _openRecurring(rule),
             semantics: 'Edit recurring deposit',
             child: Text(
               'Edit',

@@ -66,6 +66,38 @@ void main() {
       );
     });
 
+    test('archived jars and malformed schedules do not apply deposits', () {
+      final now = DateTime(2026, 1, 3);
+      for (final candidate in [
+        jar(
+          archived: true,
+          recurring: const RecurringRule(
+            amount: 25,
+            cadence: 'daily',
+            paused: false,
+          ),
+        ),
+        jar(
+          recurring: const RecurringRule(
+            amount: 25,
+            cadence: 'hourly',
+            paused: false,
+          ),
+        ),
+        jar(
+          recurring: const RecurringRule(
+            amount: 25,
+            cadence: 'daily',
+            paused: false,
+            nextDate: 'invalid',
+          ),
+        ),
+      ]) {
+        expect(runDueRecurring(candidate, now).applied, 0);
+        expect(runDueRecurringSafely([candidate], now).single, same(candidate));
+      }
+    });
+
     test('advances monthly schedules by calendar month', () {
       final monthly = jar(
         createdAt: '2026-01-31T00:00:00.000Z',
