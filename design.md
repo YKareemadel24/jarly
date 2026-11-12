@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (ledger save feedback)
+**Last updated:** 2026-11-12 (ledger save feedback and transaction confirmation)
 
 ## Experience direction
 
@@ -73,6 +73,8 @@ Profile holds theme, default currency (all amounts re-render in it), biometric l
 The home screen uses a 9:16 portrait hierarchy. A compact greeting and profile affordance sit above the total-saved callout. The total card places the currency code in its heading and gives the numeric balance its own line to keep ordinary amounts readable on narrow screens; its accessibility label includes the full currency amount. Compact, accent-tinted reminder cards sit immediately below the total, replacing the single-jar milestone nudge and featured goal. Jars appear as compact but touch-friendly rows or cards lower in the screen, each showing a prominent saved amount, a separate quieter target line, and a single readable percentage beside its progress bar. Jar names and amounts wrap instead of truncating. The jar-opening area and the accent-tinted `+ Add` button are separate controls. Buttons use foreground-colored text for contrast; the labeled `New jar` action and deposit buttons remain at least 44 points high. Reminder details and jar metadata use larger supporting text; section headers and balance notes wrap on narrow screens. Deposits use the selected jar's reminder or `+ Add` chip; there is no floating Add money button.
 
 Focused entry tasks use bottom sheets with clear cancellation and confirmation actions. Money fields use a large numeric treatment, adequate contrast, and clear currency labels. Deposits show a live preview row (current balance → new balance, with the resulting percentage) while withdrawals preview the remaining balance, so both directions are unambiguous before committing. Icons support labels rather than replacing them. Primary controls provide restrained press feedback; destructive actions remain visually distinct and must require confirmation.
+
+A deposit or withdrawal confirmation can save one transaction. A failed save leaves the draft ready to retry. Cancelling clears the amount and note.
 
 Below the jar-detail hero sit two compact stat cards — **Remaining** (amount to goal) and **Deposits** (contribution count) — giving at-a-glance momentum without opening the activity log.
 

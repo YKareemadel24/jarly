@@ -63,6 +63,23 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
   undo;
   bool _actionConsumed = false;
   bool _saving = false;
+  int _transactionSession = 0;
+
+  void _clearTransactionDraft() {
+    direction = null;
+    amount = '';
+    note = '';
+    error = '';
+  }
+
+  void _openTransaction(String chosen) {
+    if (_saving) return;
+    setState(() {
+      _clearTransactionDraft();
+      direction = chosen;
+      _transactionSession++;
+    });
+  }
 
   Future<void> _save(Future<void> Function() action) async {
     if (_saving) return;
@@ -94,7 +111,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_actionConsumed) {
           _actionConsumed = true;
-          setState(() => direction = directionDeposit);
+          _openTransaction(directionDeposit);
         }
       });
     }
@@ -149,10 +166,19 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             ?.symbol ??
         r'$';
 
+    final chosen = direction;
+    final session = _transactionSession;
+    final draftNote = note.trim();
+
     Future<void> record() async {
-      if (_saving) return;
+      if (!mounted ||
+          _saving ||
+          chosen == null ||
+          direction != chosen ||
+          session != _transactionSession) {
+        return;
+      }
       final value = amountMinor;
-      final chosen = direction ?? directionDeposit;
       if (value == null || value <= 0) {
         Haptics.error();
         setState(() => error = 'Enter an amount greater than zero.');
@@ -172,7 +198,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           jar.id,
           value,
           chosen,
-          note: note.trim().isEmpty ? null : note.trim(),
+          note: draftNote.isEmpty ? null : draftNote,
         );
         if (!mounted) return;
         if (result == null) {
@@ -191,9 +217,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
           Haptics.success();
         }
         setState(() {
-          amount = '';
-          note = '';
-          error = '';
+          _clearTransactionDraft();
           undo = (
             jarId: jar.id,
             name: jar.name,
@@ -202,7 +226,6 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             direction: chosen,
           );
           if (chosen == directionDeposit) coinKey += 1;
-          direction = null;
           // Snapshot the progress at celebration time so the overlay stays
           // truthful even if the jar changes underneath it.
           if (reached != null) {
@@ -439,10 +462,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               });
             },
             onRecord: record,
-            onDismiss: () => setState(() {
-              direction = null;
-              error = '';
-            }),
+            onDismiss: () {
+              if (!_saving) setState(_clearTransactionDraft);
+            },
           ),
 
           _RecurringSheet(
@@ -728,10 +750,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             children: [
               Expanded(
                 child: Pressable(
-                  onTap: () => setState(() {
-                    error = '';
-                    direction = directionDeposit;
-                  }),
+                  onTap: () => _openTransaction(directionDeposit),
                   semantics: 'Deposit into ${jar.name}',
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 53),
@@ -760,10 +779,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Pressable(
-                  onTap: () => setState(() {
-                    error = '';
-                    direction = directionWithdrawal;
-                  }),
+                  onTap: () => _openTransaction(directionWithdrawal),
                   semantics: 'Withdraw from ${jar.name}',
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 53),

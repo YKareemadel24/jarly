@@ -77,7 +77,95 @@ Finder get _sheet => find.byWidgetPredicate(
   (widget) => widget is SheetScaffold && widget.visible,
 );
 
+Finder get _draftFields =>
+    find.descendant(of: _sheet, matching: find.byType(TextField));
+
+Future<void> _openTransaction(WidgetTester tester, String label) async {
+  final button = find.byWidgetPredicate(
+    (widget) => widget is Pressable && widget.semantics == label,
+  );
+  await tester.ensureVisible(button);
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  for (final deposit in [true, false]) {
+    final direction = deposit ? directionDeposit : directionWithdrawal;
+    testWidgets('a rendered $direction confirmation can commit only once', (
+      tester,
+    ) async {
+      final storage = MemoryStorage({
+        jarsKey: serializeJars([jar(balance: 10000, target: 100000)]),
+      });
+      await _mount(tester, storage);
+      await _openTransaction(
+        tester,
+        deposit ? 'Deposit into Japan trip' : 'Withdraw from Japan trip',
+      );
+      await tester.enterText(_draftFields.first, '10');
+      await tester.pump();
+      final label = find.descendant(
+        of: _sheet,
+        matching: find.text(deposit ? 'Add to jar' : 'Confirm withdrawal'),
+      );
+      final confirm = tester
+          .widget<Pressable>(
+            find.ancestor(of: label, matching: find.byType(Pressable)),
+          )
+          .onTap;
+      confirm();
+      confirm();
+      await tester.pumpAndSettle();
+      expect(
+        (await loadPersistedJars(storage)).jars.single.entries.single.direction,
+        direction,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AppToast && widget.visible,
+        ),
+        findsOneWidget,
+      );
+
+      confirm();
+      await tester.pumpAndSettle();
+      final saved = (await loadPersistedJars(storage)).jars.single;
+      expect(saved.entries, hasLength(1));
+      expect(saved.balance, deposit ? 11000 : 9000);
+      expect(saved.entries.single.amount, 1000);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 9));
+    });
+  }
+
+  testWidgets('cancelled deposit does not prefill a later withdrawal', (
+    tester,
+  ) async {
+    final storage = MemoryStorage({
+      jarsKey: serializeJars([jar(balance: 10000)]),
+    });
+    await _mount(tester, storage);
+    await _openTransaction(tester, 'Deposit into Japan trip');
+    await tester.enterText(_draftFields.first, '10');
+    await tester.enterText(_draftFields.at(1), 'Cancelled note');
+    await tester.pump();
+    await tester.tap(
+      find.descendant(of: _sheet, matching: find.text('Cancel')),
+    );
+    await tester.pumpAndSettle();
+    await _openTransaction(tester, 'Withdraw from Japan trip');
+    expect(
+      tester.widget<TextField>(_draftFields.first).controller!.text,
+      isEmpty,
+    );
+    expect(
+      tester.widget<TextField>(_draftFields.at(1)).controller!.text,
+      isEmpty,
+    );
+    expect((await loadPersistedJars(storage)).jars.single.entries, isEmpty);
+  });
+
   testWidgets('jar creation keeps the draft until a successful retry', (
     tester,
   ) async {

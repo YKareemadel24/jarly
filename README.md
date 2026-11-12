@@ -8,7 +8,7 @@ A warm, tactile savings companion for Android, iOS, web, and Windows. Saving Jar
 ![Dart 3.13](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart)
 ![Riverpod 3.5](https://img.shields.io/badge/Riverpod-3.5-2A5C8F)
 ![go_router 18](https://img.shields.io/badge/go__router-18-02569B)
-![Tests 195](https://img.shields.io/badge/Dart_tests-195-4A9579)
+![Tests 198](https://img.shields.io/badge/Dart_tests-198-4A9579)
 
 > Saving Jar was ported from an Expo/React Native codebase to Flutter (October–November 2026). The transfer/backup wire format (`lib/transfer/transfer.dart`) is a faithful port of the original `shared/transfer.ts`, so QR codes and `.jarly` backups stay interchangeable across both generations of the app.
 
@@ -84,7 +84,7 @@ The primary loop is intentionally short:
 | Notifications   | `flutter_local_notifications` + `timezone` + `flutter_timezone` (schedule rebuild is cancel-all-then-schedule)                     |
 | Backup I/O      | `share_plus` (native share sheet), `file_picker`, `package:web` (browser download/upload)                                          |
 | QR transfer     | [qr](https://pub.dev/packages/qr) encoder rendered with a single-path `CustomPainter`                                              |
-| Testing         | `flutter_test` — 195 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
+| Testing         | `flutter_test` — 198 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
 | Tooling         | `flutter_lints` 6, `flutter_launcher_icons`, `flutter_native_splash`                                                               |
 
 ---
@@ -279,7 +279,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 The domain layer is the most heavily tested part of the codebase.
 
 ```bash
-flutter test      # 195 tests
+flutter test      # 198 tests
 flutter analyze   # static analysis
 dart format .     # formatting
 ```
