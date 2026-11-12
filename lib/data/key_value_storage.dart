@@ -5,6 +5,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/ledger_storage.dart';
+
 abstract class KeyValueStorage {
   Future<String?> getItem(String key);
   Future<void> setItem(String key, String value);
@@ -27,8 +29,8 @@ class MemoryStorage implements KeyValueStorage {
   Future<void> removeItem(String key) async => values.remove(key);
 }
 
-/// SharedPreferences-backed store used on every platform; on native devices
-/// the PIN credential is kept in secure storage instead (see pin_repository).
+/// Preferences and legacy snapshots; new ledger writes use the durable adapter.
+/// Native PIN credentials remain in secure storage (see settings_repository).
 class SharedPrefsStorage implements KeyValueStorage {
   SharedPrefsStorage(this._prefs);
 
@@ -41,23 +43,32 @@ class SharedPrefsStorage implements KeyValueStorage {
   Future<String?> getItem(String key) async => _prefs.getString(key);
 
   @override
-  Future<void> setItem(String key, String value) async {
-    await _prefs.setString(key, value);
-  }
+  Future<void> setItem(String key, String value) =>
+      _write(_prefs.setString(key, value));
 
   @override
-  Future<void> removeItem(String key) async {
-    await _prefs.remove(key);
+  Future<void> removeItem(String key) => _write(_prefs.remove(key));
+
+  Future<void> _write(Future<bool> operation) async {
+    try {
+      if (!await operation) throw StateError('Preferences could not be saved.');
+    } catch (_) {
+      // The plugin updates its cache before the platform write succeeds.
+      await _prefs.reload();
+      rethrow;
+    }
   }
 }
 
 /// Picks the right store per platform at startup. Web has no secure storage,
 /// matching the original app's AsyncStorage-everywhere behavior there.
 Future<KeyValueStorage> createStorage() async {
-  if (kIsWeb) return SharedPrefsStorage.load();
+  if (kIsWeb) return createLedgerStorage(await SharedPrefsStorage.load());
+  final SharedPrefsStorage preferences;
   try {
-    return await SharedPrefsStorage.load();
+    preferences = await SharedPrefsStorage.load();
   } catch (_) {
     return MemoryStorage();
   }
+  return createLedgerStorage(preferences);
 }

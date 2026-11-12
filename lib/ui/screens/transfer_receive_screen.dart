@@ -22,7 +22,7 @@ import '../../core/theme/jar_accents.dart';
 import '../../core/theme/palette.dart';
 import '../../services/haptics.dart';
 import '../../state/providers.dart';
-import '../../state/savings_controller.dart' show ImportResult;
+import '../../state/savings_controller.dart' show ImportResult, StoreException;
 import '../../transfer/transfer.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/circle_button.dart';
@@ -40,6 +40,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
   final List<String> _frames = [];
   final TextEditingController _draft = TextEditingController();
   bool _done = false;
+  bool _saving = false;
   ImportResult? _result;
   String? _error;
   String? _toast;
@@ -96,21 +97,33 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
     });
   }
 
-  void _finish() {
-    final currency = ref.read(settingsProvider).value?.currency;
-    final outcome = ref
-        .read(savingsProvider.notifier)
-        .importTransfer(List.of(_frames), currency);
-    if (outcome.error != null) {
-      Haptics.error();
-      setState(() => _error = outcome.error);
-      return;
-    }
-    Haptics.success();
+  Future<void> _finish() async {
+    if (_saving) return;
     setState(() {
-      _result = outcome;
-      _done = true;
+      _saving = true;
+      _error = null;
     });
+    try {
+      final currency = ref.read(settingsProvider).value?.currency;
+      final outcome = await ref
+          .read(savingsProvider.notifier)
+          .importTransfer(List.of(_frames), currency);
+      if (!mounted) return;
+      if (outcome.error != null) {
+        Haptics.error();
+        setState(() => _error = outcome.error);
+        return;
+      }
+      Haptics.success();
+      setState(() {
+        _result = outcome;
+        _done = true;
+      });
+    } on StoreException catch (caught) {
+      if (mounted) setState(() => _error = caught.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _reset() {
@@ -133,7 +146,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
       return ScreenContainer(child: _doneBody(palette));
     }
 
-    return ScreenContainer(
+    final screen = ScreenContainer(
       scrollable: true,
       child: Stack(
         children: [
@@ -230,8 +243,9 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
                   ),
 
                 const SizedBox(height: 20),
+                if (_saving) const Text('Saving…'),
                 _FinishButton(
-                  enabled: complete,
+                  enabled: complete && !_saving,
                   jarCount: assembly?.snapshot?.jars.length ?? 0,
                   onTap: complete ? _finish : null,
                   palette: palette,
@@ -267,6 +281,7 @@ class TransferReceiveScreenState extends ConsumerState<TransferReceiveScreen> {
         ],
       ),
     );
+    return AbsorbPointer(absorbing: _saving, child: screen);
   }
 
   Widget _doneBody(Palette palette) {

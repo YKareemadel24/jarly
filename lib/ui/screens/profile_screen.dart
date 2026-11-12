@@ -17,6 +17,7 @@ import '../../domain/domain.dart';
 import '../../services/haptics.dart';
 import '../../services/notification_service.dart';
 import '../../state/providers.dart';
+import '../../state/savings_controller.dart' show StoreException;
 import '../widgets/action_sheet.dart';
 import '../widgets/backup_panel.dart';
 import '../widgets/screen_container.dart';
@@ -38,6 +39,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Jar? _pendingDelete;
   bool _currencyPickerOpen = false;
   bool _pinBusy = false;
+  bool _saving = false;
+  String? _savingsMessage;
+
+  Future<void> _save(Future<void> Function() action) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _savingsMessage = 'Saving…';
+    });
+    try {
+      await action();
+      if (!mounted) return;
+      Haptics.tap();
+      setState(() => _savingsMessage = null);
+    } on StoreException catch (caught) {
+      if (mounted) setState(() => _savingsMessage = caught.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   void _openPinPrompt(_PinPromptMode mode) => setState(() => _pinMode = mode);
 
@@ -442,6 +463,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const BackupPanel(),
 
                 _sectionLabel(palette, 'ARCHIVED'),
+                if (_savingsMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      _savingsMessage!,
+                      style: TextStyle(color: palette.muted),
+                    ),
+                  ),
                 _group(
                   palette,
                   archived.isEmpty
@@ -497,12 +526,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 detail: 'This cannot be undone.',
                 destructive: true,
                 icon: Icons.delete_outline,
-                onPress: () {
+                onPress: () async {
                   final jar = _pendingDelete;
                   if (jar != null) {
-                    ref
-                        .read(savingsProvider.notifier)
-                        .deleteJarPermanently(jar.id);
+                    await _save(
+                      () => ref
+                          .read(savingsProvider.notifier)
+                          .deleteJarPermanently(jar.id),
+                    );
                   }
                 },
               ),
@@ -721,10 +752,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              Haptics.tap();
-              ref.read(savingsProvider.notifier).restoreJar(jar.id);
-            },
+            onTap: () => _save(
+              () => ref.read(savingsProvider.notifier).restoreJar(jar.id),
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
               decoration: BoxDecoration(
@@ -743,7 +773,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => setState(() => _pendingDelete = jar),
+            onTap: () {
+              if (!_saving) setState(() => _pendingDelete = jar);
+            },
             child: Icon(Icons.delete_outline, size: 20, color: palette.muted),
           ),
         ],

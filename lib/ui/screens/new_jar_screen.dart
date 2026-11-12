@@ -61,6 +61,8 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
   String _icon = 'flight';
   String _kind = kindGoal;
   String _deadline = '';
+  bool _saving = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +83,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
         : _step < 3 || (targetValue != null && targetValue > 0);
 
     void goBack() {
+      if (_saving) return;
       if (_step == 1) {
         context.pop();
         return;
@@ -89,32 +92,44 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
       setState(() => _step -= 1);
     }
 
-    void next() {
-      if (!stepValid) return;
-      Haptics.tap();
+    Future<void> next() async {
+      if (!stepValid || _saving) return;
       if (_step < 3) {
+        Haptics.tap();
         setState(() => _step += 1);
         return;
       }
-      final id = ref
-          .read(savingsProvider.notifier)
-          .addJar(
-            JarInput(
-              name: _name.trim(),
-              target: targetValue!,
-              accent: _accent,
-              icon: _icon,
-              kind: _kind,
-              deadline: _deadline.trim().isEmpty ? null : _deadline.trim(),
-              streak: _kind == kindHabit ? 0 : null,
-            ),
-          );
-      context.replace('/jar/$id');
+      setState(() {
+        _saving = true;
+        _error = null;
+      });
+      try {
+        final id = await ref
+            .read(savingsProvider.notifier)
+            .addJar(
+              JarInput(
+                name: _name.trim(),
+                target: targetValue!,
+                accent: _accent,
+                icon: _icon,
+                kind: _kind,
+                deadline: _deadline.trim().isEmpty ? null : _deadline.trim(),
+                streak: _kind == kindHabit ? 0 : null,
+              ),
+            );
+        if (!context.mounted) return;
+        Haptics.tap();
+        context.replace('/jar/$id');
+      } on StoreException catch (caught) {
+        if (mounted) setState(() => _error = caught.message);
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
     }
 
     final previewName = _name.trim().isEmpty ? 'A goal to grow' : _name.trim();
 
-    return ScreenContainer(
+    final screen = ScreenContainer(
       child: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 38),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -460,8 +475,13 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
             ],
 
             // Continue / create
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!, style: TextStyle(color: palette.error)),
+              ),
             Opacity(
-              opacity: stepValid ? 1 : 0.45,
+              opacity: stepValid && !_saving ? 1 : 0.45,
               child: _Pressable(
                 onTap: stepValid ? next : () {},
                 semantics: _step == 3 ? 'Create my jar' : 'Continue',
@@ -476,7 +496,11 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _step == 3 ? 'Create my jar' : 'Continue',
+                        _saving
+                            ? 'Saving…'
+                            : _step == 3
+                            ? 'Create my jar'
+                            : 'Continue',
                         style: const TextStyle(
                           color: Color(0xFFFFFDF9),
                           fontSize: 15,
@@ -498,6 +522,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
         ),
       ),
     );
+    return AbsorbPointer(absorbing: _saving, child: screen);
   }
 
   Widget _kindCard(

@@ -8,7 +8,7 @@ A warm, tactile savings companion for Android, iOS, web, and Windows. Saving Jar
 ![Dart 3.13](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart)
 ![Riverpod 3.5](https://img.shields.io/badge/Riverpod-3.5-2A5C8F)
 ![go_router 18](https://img.shields.io/badge/go__router-18-02569B)
-![Tests 172](https://img.shields.io/badge/Dart_tests-172-4A9579)
+![Tests 195](https://img.shields.io/badge/Dart_tests-195-4A9579)
 
 > Saving Jar was ported from an Expo/React Native codebase to Flutter (October–November 2026). The transfer/backup wire format (`lib/transfer/transfer.dart`) is a faithful port of the original `shared/transfer.ts`, so QR codes and `.jarly` backups stay interchangeable across both generations of the app.
 
@@ -65,7 +65,7 @@ The primary loop is intentionally short:
 - **App lock** — optional biometric or PIN lock. The PIN is stored as a salted SHA-256 in secure storage, with an escalating lockout after five failed attempts, and re-locks on every foreground return.
 - **Reminders** — a daily 9 AM local savings check-in showing the active-jar total, plus local notifications for due recurring deposits and deadlines. Notifications resync when the app opens or savings change, and survive reboots on Android.
 - **Multi-currency display** — balances stay integer minor units; only the displayed symbol changes (USD, EUR, GBP, EGP, SAR, AED, JPY, INR, CAD, AUD).
-- **Local-first persistence** — data is stored on-device with `shared_preferences` (secure storage for the PIN), one-generation backup, and automatic migration from legacy formats.
+- **Local-first persistence** — the ledger uses a native file or browser IndexedDB, with a one-generation backup and automatic migration from legacy formats.
 - **Light / dark / system theming** — a white-first modern palette with warm, complete dark-mode tokens, persisted per user.
 - **Tactile feedback** — haptics on success/error and confirmation for destructive actions.
 - **Accessibility** — descriptive labels, explicit numeric progress, and large touch targets.
@@ -79,19 +79,19 @@ The primary loop is intentionally short:
 | App framework   | [Flutter](https://flutter.dev) 3.47 / Dart 3.13 — Material 3, no custom platform channels                                          |
 | Routing         | [go_router](https://pub.dev/packages/go_router) 18 (`StatefulShellRoute` for the tab shell; the deep-link `?action=deposit` convention is preserved) |
 | State           | [flutter_riverpod](https://pub.dev/packages/flutter_riverpod) 3 (`AsyncNotifier` controllers over the pure domain)                 |
-| Persistence     | `shared_preferences` (jars, settings), `flutter_secure_storage` (PIN record)                                                       |
+| Persistence     | Native ledger file or IndexedDB, `shared_preferences` (settings), `flutter_secure_storage` (native PIN record)                  |
 | App lock        | [local_auth](https://pub.dev/packages/local_auth) (biometrics) + the fail-closed policy in `lib/lock/lock_policy.dart`              |
 | Notifications   | `flutter_local_notifications` + `timezone` + `flutter_timezone` (schedule rebuild is cancel-all-then-schedule)                     |
 | Backup I/O      | `share_plus` (native share sheet), `file_picker`, `package:web` (browser download/upload)                                          |
 | QR transfer     | [qr](https://pub.dev/packages/qr) encoder rendered with a single-path `CustomPainter`                                              |
-| Testing         | `flutter_test` — 172 tests over the pure domain, codecs, persistence, and widgets                                                  |
+| Testing         | `flutter_test` — 195 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
 | Tooling         | `flutter_lints` 6, `flutter_launcher_icons`, `flutter_native_splash`                                                               |
 
 ---
 
 ## Architecture
 
-The project is a **local-first Flutter app**: a go_router client with all data stored on-device in `shared_preferences`.
+The project is a **local-first Flutter app** with a go_router client and device-local ledger and settings storage.
 
 ```
 ┌────────────────────────────────────┐
@@ -99,7 +99,7 @@ The project is a **local-first Flutter app**: a go_router client with all data s
 │  lib/ui/  lib/state/  lib/domain/  │
 │  - Screens & navigation            │
 │  - Savings domain + controllers    │
-│  - shared_preferences persistence  │
+│  - Device-local persistence        │
 └────────────────────────────────────┘
 ```
 
@@ -134,7 +134,7 @@ jarly/
 │   ├── lock/                       # Fail-closed app-lock policy
 │   ├── notifications/              # Pure due-notification derivation
 │   ├── transfer/                   # QR frame codec (transfer.dart), safe merge, .jarly backups
-│   ├── services/                   # Platform plumbing: notification_service, haptics, backup I/O
+│   ├── services/                   # Platform plumbing: ledger_storage, notifications, haptics, backup I/O
 │   └── ui/
 │       ├── app_theme.dart          # ThemeData built from the token palette
 │       ├── router.dart             # go_router tree mirroring the old Expo Router structure
@@ -230,7 +230,9 @@ A `Jar` has a `target`, `balance`, `accent` color, `icon`, `kind`, and optional 
 
 ### Persistence
 
-`lib/state/savings_controller.dart` persists the jar list to on-device key/value storage under `saving-jar:v3`, keeps a one-generation backup (`saving-jar:v3:backup`), and migrates legacy `v1`/`v2` stores (converting float dollars → minor units). The storage selection and ordered-write logic live in `lib/data/savings_storage.dart`.
+`lib/state/savings_controller.dart` serializes mutations and publishes savings changes after the ledger write completes. `lib/data/savings_storage.dart` keeps `saving-jar:v3` and its one-generation backup (`saving-jar:v3:backup`) and reads legacy `v1`/`v2` stores (converting whole-currency values to minor units).
+
+The ledger adapter copies existing v3 and backup values from preferences into a versioned record and preserves the original preferences. Native saves flush a sibling file before replacing `saving-jar-ledger.json` in application support storage. Browser saves await completion of an IndexedDB transaction using strict durability. Native interruption before replacement leaves the previous record readable. Physical power-loss behavior has not been verified.
 
 An intentionally empty v3 list is preserved. If the current list is corrupt, the store tries its valid backup before older migrations and does not overwrite the corrupt source when recovery fails. Writes run in order; storage read/write failures show a persistent warning in the app.
 
@@ -277,7 +279,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 The domain layer is the most heavily tested part of the codebase.
 
 ```bash
-flutter test      # 172 tests
+flutter test      # 195 tests
 flutter analyze   # static analysis
 dart format .     # formatting
 ```
@@ -313,7 +315,7 @@ All three checks run on every push to `master` and on every pull request via Git
 - **Pure domain code stays pure.** `lib/domain/*` and `lib/transfer/*` take data and return data: no Flutter, no storage, no network. Import from `domain.dart`, not individual files, so the split stays internal.
 - **Styles live in `lib/ui/`**, not in route widgets. Screens under `lib/ui/screens/` are routes to go_router; reusable pieces belong in `lib/ui/widgets/`.
 - **Colors:** ported call sites build tints with the `hexAlpha`/`parseHex` helpers in `lib/core/hex_color.dart` (RN-style `#RRGGBBAA` suffixes). New code should prefer `Color(0xAARRGGBB)` or the palette directly.
-- **All data is device-local.** Jars and settings persist in `shared_preferences` (secure storage for the PIN) — there is no server, no account system, and no network dependency. Keep it that way.
+- **All data is device-local.** Jars use the native ledger file or IndexedDB. Settings use `shared_preferences`, with secure storage for the native PIN. There is no server, account system, or network dependency.
 - **Notifications** go through `lib/services/notification_service.dart`. Web is a no-op there by design (`notificationsSupported`); never touch the plugin from a code path that also runs on web without that guard.
 - **Platform folders are tracked.** `android/` and `ios/` are normal Flutter hosts now — commit changes to them; their inner `.gitignore` files exclude generated artifacts (`local.properties`, Pods, ephemeral).
 - **Regenerate icons/splash** with the commands above after changing `assets/images/`; do not hand-edit generated launcher resources.

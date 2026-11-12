@@ -1,9 +1,8 @@
 /// Savings store: the single source of truth for jars on this device.
 ///
 /// Port of `lib/savings-store.tsx` onto Riverpod. Mutations always compute
-/// against the freshest state (double-tap safe), reject when a change would
-/// push the active total beyond the JSON-safe range, and persist write-behind
-/// through the single-flight queue.
+/// against the latest committed state, reject unavailable storage, and publish
+/// success only after persistence through a single mutation queue.
 library;
 
 import 'dart:math';
@@ -142,47 +141,52 @@ class SavingsState {
 class SavingsController extends AsyncNotifier<SavingsState> {
   KeyValueStorage? _storage;
   final JarsPersister _persister = JarsPersister();
+  Future<void> _mutationQueue = Future.value();
 
   List<Jar> get _jars => state.value?.jars ?? const [];
 
-  void _commit(List<Jar> next) {
-    final current = state.value ?? SavingsState.initial;
-    state = AsyncData(current.copyWith(jars: next));
-    _schedulePersist(next);
-  }
-
-  void _schedulePersist(List<Jar> jars) {
+  void _requireWritable() {
     final current = state.value;
-    final storage = _storage;
     if (current == null ||
         !current.ready ||
         !current.writable ||
-        storage == null) {
-      return;
+        _storage == null) {
+      throw StoreException(
+        'storage-unavailable',
+        'Savings storage is not available. Try again after it has loaded.',
+      );
     }
-    _persister
-        .persist(storage, jars)
-        .then(
-          (_) {
-            final latest = state.value;
-            if (latest != null) {
-              state = AsyncData(latest.copyWith(clearStorageError: true));
-            }
-          },
-          onError: (Object error) {
-            final latest = state.value;
-            if (latest != null) {
-              state = AsyncData(
-                latest.copyWith(
-                  storageError: 'Your latest changes could not be saved.',
-                ),
-              );
-            }
-          },
-        );
   }
 
-  bool _saveJar(Jar updated) {
+  Future<T> _mutate<T>(Future<T> Function() action) async {
+    _requireWritable();
+    final operation = _mutationQueue.then((_) {
+      _requireWritable();
+      return action();
+    });
+    _mutationQueue = operation.then<void>((_) {}, onError: (Object _) {});
+    return operation;
+  }
+
+  Future<void> _commit(List<Jar> next) async {
+    try {
+      await _persister.persist(_storage!, next);
+    } catch (_) {
+      const message =
+          'Your latest changes could not be saved. Please try again.';
+      if (ref.mounted) {
+        state = AsyncData(state.value!.copyWith(storageError: message));
+      }
+      throw StoreException('save-failed', message);
+    }
+    if (ref.mounted) {
+      state = AsyncData(
+        state.value!.copyWith(jars: next, clearStorageError: true),
+      );
+    }
+  }
+
+  Future<bool> _saveJar(Jar updated) async {
     final next = [
       for (final item in _jars)
         if (item.id == updated.id) updated else item,
@@ -191,7 +195,7 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         .where((item) => !item.isArchived)
         .fold<int>(0, (sum, item) => sum + item.balance);
     if (!isSafeInteger(total)) return false;
-    _commit(next);
+    await _commit(next);
     return true;
   }
 
@@ -224,7 +228,7 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     }
   }
 
-  String addJar(JarInput input) {
+  Future<String> addJar(JarInput input) => _mutate(() async {
     if ((input.reminder != null && !isValidJarReminder(input.reminder)) ||
         input.name.trim().isEmpty ||
         !isSafeInteger(input.target) ||
@@ -236,7 +240,7 @@ class SavingsController extends AsyncNotifier<SavingsState> {
     }
     final id =
         'jar-${DateTime.now().millisecondsSinceEpoch}-${_randomIdSuffix()}';
-    _commit([
+    await _commit([
       ..._jars,
       Jar(
         id: id,
@@ -256,9 +260,9 @@ class SavingsController extends AsyncNotifier<SavingsState> {
       ),
     ]);
     return id;
-  }
+  });
 
-  void editJar(String id, JarEdit input) {
+  Future<void> editJar(String id, JarEdit input) => _mutate(() async {
     if ((input.reminder != null && !isValidJarReminder(input.reminder)) ||
         (input.target != null &&
             (!isSafeInteger(input.target!) || input.target! <= 0)) ||
@@ -267,7 +271,7 @@ class SavingsController extends AsyncNotifier<SavingsState> {
                 input.recurring!.amount <= 0))) {
       throw StoreException('invalid-amount', 'Enter valid jar amounts.');
     }
-    _commit([
+    await _commit([
       for (final jar in _jars)
         if (jar.id == id)
           jar.copyWith(
@@ -287,46 +291,55 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         else
           jar,
     ]);
-  }
+  });
 
-  void archiveJar(String id) => _commit([
-    for (final jar in _jars)
-      if (jar.id == id) jar.copyWith(archived: true) else jar,
-  ]);
+  Future<void> archiveJar(String id) => _mutate(
+    () => _commit([
+      for (final jar in _jars)
+        if (jar.id == id) jar.copyWith(archived: true) else jar,
+    ]),
+  );
 
   /// Bring an archived jar back into the active list.
-  void restoreJar(String id) => _commit([
-    for (final jar in _jars)
-      if (jar.id == id) jar.copyWith(archived: false) else jar,
-  ]);
+  Future<void> restoreJar(String id) => _mutate(
+    () => _commit([
+      for (final jar in _jars)
+        if (jar.id == id) jar.copyWith(archived: false) else jar,
+    ]),
+  );
 
   /// Permanently remove an archived jar and its history.
-  void deleteJarPermanently(String id) => _commit([
-    for (final jar in _jars)
-      if (jar.id != id) jar,
-  ]);
+  Future<void> deleteJarPermanently(String id) => _mutate(
+    () => _commit([
+      for (final jar in _jars)
+        if (jar.id != id) jar,
+    ]),
+  );
 
-  bool correctEntry(String id, String entryId, EntryCorrection input) {
-    final jar = _jars.where((item) => item.id == id).firstOrNull;
-    final updated = jar == null ? null : tx.correctEntry(jar, entryId, input);
-    return updated != null && _saveJar(updated);
-  }
+  Future<bool> correctEntry(String id, String entryId, EntryCorrection input) =>
+      _mutate(() async {
+        final jar = _jars.where((item) => item.id == id).firstOrNull;
+        final updated = jar == null
+            ? null
+            : tx.correctEntry(jar, entryId, input);
+        return updated != null && await _saveJar(updated);
+      });
 
-  bool undoEntry(String id, String entryId) {
+  Future<bool> undoEntry(String id, String entryId) => _mutate(() async {
     final jar = _jars.where((item) => item.id == id).firstOrNull;
     final updated = jar == null ? null : tx.undoEntry(jar, entryId);
-    return updated != null && _saveJar(updated);
-  }
+    return updated != null && await _saveJar(updated);
+  });
 
   /// Apply a deposit or withdrawal. Returns the created entry ID and the
   /// highest milestone reached, or null when rejected.
-  AddEntryResult? addEntry(
+  Future<AddEntryResult?> addEntry(
     String id,
     int amountMinor,
     String direction, {
     String? note,
     String source = sourceManual,
-  }) {
+  }) => _mutate(() async {
     final jar = _jars.where((candidate) => candidate.id == id).firstOrNull;
     if (jar == null || !isSafeInteger(amountMinor) || amountMinor <= 0) {
       return null;
@@ -341,14 +354,14 @@ class SavingsController extends AsyncNotifier<SavingsState> {
       note: note,
       source: source,
     );
-    if (applied == null || !_saveJar(applied.jar)) return null;
+    if (applied == null || !await _saveJar(applied.jar)) return null;
     return AddEntryResult(
       id: applied.jar.entries[0].id,
       reached: applied.reached.isNotEmpty
           ? applied.reached.reduce((a, b) => a > b ? a : b)
           : null,
     );
-  }
+  });
 
   /// Everything on this device, ready to be handed to another device as QR
   /// frames.
@@ -364,7 +377,10 @@ class SavingsController extends AsyncNotifier<SavingsState> {
 
   /// Fold a scanned transfer into this device. Returns the number of jars
   /// added or updated, so the receiving screen can report something true.
-  ImportResult importTransfer(List<String> frames, String? currentCurrency) {
+  Future<ImportResult> importTransfer(
+    List<String> frames,
+    String? currentCurrency,
+  ) => _mutate(() async {
     final assembly = decodeTransferFrames(frames);
     if (assembly == null) {
       return const ImportResult(
@@ -406,13 +422,13 @@ class SavingsController extends AsyncNotifier<SavingsState> {
         error: merged.error,
       );
     }
-    if (merged.added > 0 || merged.updated > 0) _commit(merged.jars);
+    if (merged.added > 0 || merged.updated > 0) await _commit(merged.jars);
     return ImportResult(
       added: merged.added,
       updated: merged.updated,
       skipped: merged.skipped,
     );
-  }
+  });
 }
 
 String _randomIdSuffix() {

@@ -62,6 +62,29 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
   ({String jarId, String name, int amount, String entryId, String direction})?
   undo;
   bool _actionConsumed = false;
+  bool _saving = false;
+
+  Future<void> _save(Future<void> Function() action) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      error = '';
+      notice = null;
+    });
+    try {
+      await action();
+    } on StoreException catch (caught) {
+      if (!mounted) return;
+      setState(() {
+        error = caught.message;
+        if (direction == null && !recurringVisible && !editVisible) {
+          notice = caught.message;
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   void initState() {
@@ -126,7 +149,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             ?.symbol ??
         r'$';
 
-    void record() {
+    Future<void> record() async {
+      if (_saving) return;
       final value = amountMinor;
       final chosen = direction ?? directionDeposit;
       if (value == null || value <= 0) {
@@ -142,98 +166,108 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         );
         return;
       }
-      final controller = ref.read(savingsProvider.notifier);
-      final result = controller.addEntry(
-        jar.id,
-        value,
-        chosen,
-        note: note.trim().isEmpty ? null : note.trim(),
-      );
-      if (result == null) {
-        Haptics.error();
-        setState(
-          () => error = 'The transaction could not be saved. Check the amount and available balance.',
+      await _save(() async {
+        final controller = ref.read(savingsProvider.notifier);
+        final result = await controller.addEntry(
+          jar.id,
+          value,
+          chosen,
+          note: note.trim().isEmpty ? null : note.trim(),
         );
-        return;
-      }
-      final reached = result.reached;
-      if (reached != null) {
-        Haptics.milestone();
-      } else if (chosen == directionWithdrawal) {
-        Haptics.medium();
-      } else {
-        Haptics.success();
-      }
-      setState(() {
-        amount = '';
-        note = '';
-        error = '';
-        undo = (
-          jarId: jar.id,
-          name: jar.name,
-          amount: value,
-          entryId: result.id,
-          direction: chosen,
-        );
-        if (chosen == directionDeposit) coinKey += 1;
-        direction = null;
-        // Snapshot the progress at celebration time so the overlay stays
-        // truthful even if the jar changes underneath it.
-        if (reached != null) {
-          celebration = (
-            level: reached,
-            progress: percent(jar.copyWith(balance: jar.balance + value)),
+        if (!mounted) return;
+        if (result == null) {
+          Haptics.error();
+          setState(
+            () => error = 'The transaction could not be saved. Check the amount and available balance.',
           );
+          return;
         }
+        final reached = result.reached;
+        if (reached != null) {
+          Haptics.milestone();
+        } else if (chosen == directionWithdrawal) {
+          Haptics.medium();
+        } else {
+          Haptics.success();
+        }
+        setState(() {
+          amount = '';
+          note = '';
+          error = '';
+          undo = (
+            jarId: jar.id,
+            name: jar.name,
+            amount: value,
+            entryId: result.id,
+            direction: chosen,
+          );
+          if (chosen == directionDeposit) coinKey += 1;
+          direction = null;
+          // Snapshot the progress at celebration time so the overlay stays
+          // truthful even if the jar changes underneath it.
+          if (reached != null) {
+            celebration = (
+              level: reached,
+              progress: percent(jar.copyWith(balance: jar.balance + value)),
+            );
+          }
+        });
       });
     }
 
-    void performUndo() {
+    Future<void> performUndo() async {
       final current = undo;
       if (current == null) return;
-      final ok = ref
-          .read(savingsProvider.notifier)
-          .undoEntry(current.jarId, current.entryId);
-      setState(() {
-        notice = ok
-            ? 'Transaction undone. The original and reversal remain in your history.'
-            : 'Undo is unavailable because the balance changed or this transaction was already undone.';
-        undo = null;
+      await _save(() async {
+        final ok = await ref
+            .read(savingsProvider.notifier)
+            .undoEntry(current.jarId, current.entryId);
+        if (!mounted) return;
+        setState(() {
+          notice = ok
+              ? 'Transaction undone. The original and reversal remain in your history.'
+              : 'Undo is unavailable because the balance changed or this transaction was already undone.';
+          undo = null;
+        });
       });
     }
 
-    void saveRecurring() {
+    Future<void> saveRecurring() async {
+      if (_saving) return;
       final value = toMinor(sanitizeAmountInput(recurringAmount));
       if (value == null || value <= 0) {
         setState(() => error = 'Enter a recurring amount.');
         return;
       }
       final previous = jar.recurring;
-      ref
-          .read(savingsProvider.notifier)
-          .editJar(
-            jar.id,
-            JarEdit(
-              recurring: RecurringRule(
-                amount: value,
-                cadence: cadence,
-                paused: false,
-                nextDate: nextRecurringDate(
-                  previous: previous,
+      await _save(() async {
+        await ref
+            .read(savingsProvider.notifier)
+            .editJar(
+              jar.id,
+              JarEdit(
+                recurring: RecurringRule(
                   amount: value,
                   cadence: cadence,
+                  paused: false,
+                  nextDate: nextRecurringDate(
+                    previous: previous,
+                    amount: value,
+                    cadence: cadence,
+                  ),
                 ),
               ),
-            ),
-          );
-      setState(() {
-        recurringAmount = '';
-        error = '';
-        recurringVisible = false;
+            );
+        if (!mounted) return;
+        setState(() {
+          recurringAmount = '';
+          error = '';
+          recurringVisible = false;
+        });
       });
     }
 
-    void toggleRecurringPause() {
+    Future<void> toggleRecurringPause() async {
       final rule = jar.recurring;
       if (rule == null) return;
       final resumeDate = rule.paused
@@ -247,20 +281,23 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               cadence: rule.cadence,
             )
           : rule.nextDate;
-      ref
-          .read(savingsProvider.notifier)
-          .editJar(
-            jar.id,
-            JarEdit(
-              recurring: RecurringRule(
-                amount: rule.amount,
-                cadence: rule.cadence,
-                paused: !rule.paused,
-                nextDate: resumeDate,
+      await _save(() async {
+        await ref
+            .read(savingsProvider.notifier)
+            .editJar(
+              jar.id,
+              JarEdit(
+                recurring: RecurringRule(
+                  amount: rule.amount,
+                  cadence: rule.cadence,
+                  paused: !rule.paused,
+                  nextDate: resumeDate,
+                ),
               ),
-            ),
-          );
-      setState(() => recurringVisible = false);
+            );
+        if (!mounted) return;
+        setState(() => recurringVisible = false);
+      });
     }
 
     void openEdit() {
@@ -272,7 +309,8 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
       });
     }
 
-    void saveEdit() {
+    Future<void> saveEdit() async {
+      if (_saving) return;
       final name = editName.trim();
       final target = toMinor(sanitizeAmountInput(editTarget));
       if (name.isEmpty || target == null || target <= 0) {
@@ -284,22 +322,25 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         setState(() => error = 'Enter a valid date or month and year.');
         return;
       }
-      ref
-          .read(savingsProvider.notifier)
-          .editJar(
-            jar.id,
-            JarEdit(
-              name: name,
-              target: target,
-              deadline: editDeadline.trim().isEmpty
-                  ? null
-                  : editDeadline.trim(),
-              clearDeadline: editDeadline.trim().isEmpty,
-            ),
-          );
-      setState(() {
-        error = '';
-        editVisible = false;
+      await _save(() async {
+        await ref
+            .read(savingsProvider.notifier)
+            .editJar(
+              jar.id,
+              JarEdit(
+                name: name,
+                target: target,
+                deadline: editDeadline.trim().isEmpty
+                    ? null
+                    : editDeadline.trim(),
+                clearDeadline: editDeadline.trim().isEmpty,
+              ),
+            );
+        if (!mounted) return;
+        setState(() {
+          error = '';
+          editVisible = false;
+        });
       });
     }
 
@@ -308,7 +349,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         ? formatDayMonth(parseIso(jar.recurring!.nextDate!))
         : null;
 
-    return ScreenContainer(
+    final screen = ScreenContainer(
       horizontal: false,
       child: Stack(
         children: [
@@ -342,11 +383,11 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                   editingEntry.undoOf == null &&
                   !jar.entries.any((entry) => entry.undoOf == editingEntry.id),
               format: format,
-              onSave: (input) {
-                final ok = ref
+              onSave: (input) async {
+                final ok = await ref
                     .read(savingsProvider.notifier)
                     .correctEntry(jar.id, editingEntry.id, input);
-                if (!ok) return false;
+                if (!mounted || !ok) return false;
                 setState(() {
                   editingEntryId = null;
                   undo = null;
@@ -354,11 +395,11 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 });
                 return true;
               },
-              onUndo: () {
-                final ok = ref
+              onUndo: () async {
+                final ok = await ref
                     .read(savingsProvider.notifier)
                     .undoEntry(jar.id, editingEntry.id);
-                if (!ok) return false;
+                if (!mounted || !ok) return false;
                 setState(() {
                   editingEntryId = null;
                   undo = null;
@@ -441,9 +482,11 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
               error = '';
             }),
             onDeadlineChange: (value) => setState(() => editDeadline = value),
-            onKindChange: (kind) => ref
-                .read(savingsProvider.notifier)
-                .editJar(jar.id, JarEdit(kind: kind)),
+            onKindChange: (kind) => _save(
+              () => ref
+                  .read(savingsProvider.notifier)
+                  .editJar(jar.id, JarEdit(kind: kind)),
+            ),
             onSave: saveEdit,
             onDismiss: () => setState(() {
               editVisible = false;
@@ -467,10 +510,10 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 label: 'Archive jar',
                 detail: 'Hide it from your active goals, keeping its history.',
                 icon: Icons.archive,
-                onPress: () {
-                  ref.read(savingsProvider.notifier).archiveJar(jar.id);
-                  context.go('/');
-                },
+                onPress: () => _save(() async {
+                  await ref.read(savingsProvider.notifier).archiveJar(jar.id);
+                  if (context.mounted) context.go('/');
+                }),
               ),
               const SheetAction(label: 'Cancel', onPress: _noop),
             ],
@@ -493,7 +536,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
                 '${format(undo?.amount ?? 0)} ${undo?.direction == directionDeposit ? 'added to' : 'withdrawn from'} ${undo?.name ?? 'your jar'}',
             actionLabel: 'Undo',
             onAction: performUndo,
-            onDismiss: () => setState(() => undo = null),
+            onDismiss: () {
+              if (!_saving) setState(() => undo = null);
+            },
           ),
           AppToast(
             visible: notice != null,
@@ -501,9 +546,30 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             onDismiss: () => setState(() => notice = null),
             durationMs: 8000,
           ),
+          if (_saving)
+            Positioned(
+              top: 12,
+              left: 20,
+              right: 20,
+              child: Semantics(
+                liveRegion: true,
+                child: Material(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'Saving…',
+                      style: TextStyle(color: palette.foreground),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
+    return AbsorbPointer(absorbing: _saving, child: screen);
   }
 
   static void _noop() {}
@@ -1911,8 +1977,8 @@ class _EditEntrySheet extends StatefulWidget {
   final Entry entry;
   final bool canEdit;
   final String Function(int) format;
-  final bool Function(EntryCorrection input) onSave;
-  final bool Function() onUndo;
+  final Future<bool> Function(EntryCorrection input) onSave;
+  final Future<bool> Function() onUndo;
   final VoidCallback onDismiss;
 
   @override
@@ -1930,6 +1996,23 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
     text: widget.entry.note ?? '',
   );
   String _error = '';
+  bool _saving = false;
+
+  Future<void> _save(Future<bool> Function() action, String invalid) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = '';
+    });
+    try {
+      final ok = await action();
+      if (mounted && !ok) setState(() => _error = invalid);
+    } on StoreException catch (caught) {
+      if (mounted) setState(() => _error = caught.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -1939,7 +2022,8 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
     super.dispose();
   }
 
-  void save() {
+  Future<void> save() async {
+    if (_saving) return;
     final minor = toMinor(_amount.text);
     final dateOk = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(_date.text);
     final chosenDate = dateOk ? parseDeadline(_date.text) : null;
@@ -1952,18 +2036,16 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
     final at = _date.text == localDateIso(parseIso(widget.entry.at))
         ? widget.entry.at
         : toIso(chosenDate);
-    final ok = widget.onSave(
-      EntryCorrection(
-        amount: minor,
-        at: at,
-        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+    await _save(
+      () => widget.onSave(
+        EntryCorrection(
+          amount: minor,
+          at: at,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+        ),
       ),
+      'This change cannot be saved. Check the date and balance; earlier withdrawals must remain funded.',
     );
-    if (!ok) {
-      setState(
-        () => _error = 'This change cannot be saved. Check the date and balance; earlier withdrawals must remain funded.',
-      );
-    }
   }
 
   @override
@@ -1972,118 +2054,185 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
     final format = widget.format;
     return SheetScaffold(
       visible: true,
-      onDismiss: widget.onDismiss,
+      onDismiss: () {
+        if (!_saving) widget.onDismiss();
+      },
       palette: palette,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Transaction details',
-            style: TextStyle(color: palette.foreground, fontSize: 20),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.entry.undoOf != null
-                ? 'This is an Undo record.'
-                : widget.canEdit
-                ? 'Correct the amount, date, or note. Previous values stay in the history.'
-                : 'This transaction has been undone. Its original record is kept below.',
-            style: TextStyle(
-              color: palette.muted,
-              fontSize: 13,
-              height: 19 / 13,
+      child: AbsorbPointer(
+        absorbing: _saving,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Transaction details',
+              style: TextStyle(color: palette.foreground, fontSize: 20),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Amount',
-            style: TextStyle(
-              color: palette.muted,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-            ),
-          ),
-          _NoteField(
-            palette: palette,
-            controller: _amount,
-            enabled: widget.canEdit,
-            hint: '',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            formatters: [_AmountFormatter()],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Date (YYYY-MM-DD)',
-            style: TextStyle(
-              color: palette.muted,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-            ),
-          ),
-          _NoteField(
-            palette: palette,
-            controller: _date,
-            enabled: widget.canEdit,
-            hint: '',
-            maxLength: 10,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Note',
-            style: TextStyle(
-              color: palette.muted,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-            ),
-          ),
-          _NoteField(
-            palette: palette,
-            controller: _note,
-            enabled: widget.canEdit,
-            hint: '',
-            maxLength: 500,
-            maxLines: 3,
-          ),
-          if (_error.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                _error,
-                style: TextStyle(color: palette.error, fontSize: 11),
+            const SizedBox(height: 8),
+            Text(
+              widget.entry.undoOf != null
+                  ? 'This is an Undo record.'
+                  : widget.canEdit
+                  ? 'Correct the amount, date, or note. Previous values stay in the history.'
+                  : 'This transaction has been undone. Its original record is kept below.',
+              style: TextStyle(
+                color: palette.muted,
+                fontSize: 13,
+                height: 19 / 13,
               ),
             ),
-          if (widget.canEdit) ...[
-            const SizedBox(height: 8),
-            Pressable(
-              onTap: save,
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 53),
-                decoration: BoxDecoration(
-                  color: palette.primary,
-                  borderRadius: BorderRadius.circular(17),
+            const SizedBox(height: 12),
+            Text(
+              'Amount',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+            _NoteField(
+              palette: palette,
+              controller: _amount,
+              enabled: widget.canEdit,
+              hint: '',
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              formatters: [_AmountFormatter()],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Date (YYYY-MM-DD)',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+            _NoteField(
+              palette: palette,
+              controller: _date,
+              enabled: widget.canEdit,
+              hint: '',
+              maxLength: 10,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Note',
+              style: TextStyle(
+                color: palette.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+            _NoteField(
+              palette: palette,
+              controller: _note,
+              enabled: widget.canEdit,
+              hint: '',
+              maxLength: 500,
+              maxLines: 3,
+            ),
+            if (_error.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  _error,
+                  style: TextStyle(color: palette.error, fontSize: 11),
                 ),
-                child: const Center(
-                  child: Text(
-                    'Save correction',
-                    style: TextStyle(
-                      color: Color(0xFFFFFDF9),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
+              ),
+            if (_saving) const Text('Saving…'),
+            if (widget.canEdit) ...[
+              const SizedBox(height: 8),
+              Pressable(
+                onTap: save,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 53),
+                  decoration: BoxDecoration(
+                    color: palette.primary,
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Save correction',
+                      style: TextStyle(
+                        color: Color(0xFFFFFDF9),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+              Pressable(
+                onTap: () => _save(
+                  widget.onUndo,
+                  'Undo is unavailable because this balance has changed or the transaction was already undone.',
+                ),
+                child: Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  constraints: const BoxConstraints(minHeight: 53),
+                  decoration: BoxDecoration(
+                    color: palette.surface,
+                    borderRadius: BorderRadius.circular(17),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Undo this ${widget.entry.direction == directionDeposit ? 'deposit' : 'withdrawal'}',
+                      style: TextStyle(
+                        color: palette.foreground,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if ((widget.entry.revisions?.length ?? 0) > 0) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Previous values',
+                style: TextStyle(
+                  color: palette.muted,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 6),
+              for (final revision in widget.entry.revisions!.reversed)
+                Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: palette.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: palette.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${format(revision.amount)} · ${formatDateIso(revision.at)}',
+                        style: TextStyle(color: palette.muted, fontSize: 12),
+                      ),
+                      if (revision.note != null)
+                        Text(
+                          revision.note!,
+                          style: TextStyle(color: palette.muted, fontSize: 12),
+                        ),
+                      Text(
+                        'Corrected ${formatDateTime(parseIso(revision.changedAt))}',
+                        style: TextStyle(color: palette.muted, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            const SizedBox(height: 10),
             Pressable(
-              onTap: () {
-                if (!widget.onUndo()) {
-                  setState(
-                    () => _error = 'Undo is unavailable because this balance has changed or the transaction was already undone.',
-                  );
-                }
-              },
+              onTap: widget.onDismiss,
               child: Container(
-                margin: const EdgeInsets.only(top: 8),
                 constraints: const BoxConstraints(minHeight: 53),
                 decoration: BoxDecoration(
                   color: palette.surface,
@@ -2092,7 +2241,7 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
                 ),
                 child: Center(
                   child: Text(
-                    'Undo this ${widget.entry.direction == directionDeposit ? 'deposit' : 'withdrawal'}',
+                    'Close',
                     style: TextStyle(
                       color: palette.foreground,
                       fontWeight: FontWeight.w800,
@@ -2103,69 +2252,7 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
               ),
             ),
           ],
-          if ((widget.entry.revisions?.length ?? 0) > 0) ...[
-            const SizedBox(height: 14),
-            Text(
-              'Previous values',
-              style: TextStyle(
-                color: palette.muted,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 6),
-            for (final revision in widget.entry.revisions!.reversed)
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: palette.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: palette.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${format(revision.amount)} · ${formatDateIso(revision.at)}',
-                      style: TextStyle(color: palette.muted, fontSize: 12),
-                    ),
-                    if (revision.note != null)
-                      Text(
-                        revision.note!,
-                        style: TextStyle(color: palette.muted, fontSize: 12),
-                      ),
-                    Text(
-                      'Corrected ${formatDateTime(parseIso(revision.changedAt))}',
-                      style: TextStyle(color: palette.muted, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-          const SizedBox(height: 10),
-          Pressable(
-            onTap: widget.onDismiss,
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 53),
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(17),
-                border: Border.all(color: palette.border),
-              ),
-              child: Center(
-                child: Text(
-                  'Close',
-                  style: TextStyle(
-                    color: palette.foreground,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

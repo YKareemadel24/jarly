@@ -39,6 +39,7 @@ class _JarReminderSettingsCardState
   late List<int> _weekdays;
   String _message = '';
   bool _expanded = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -63,7 +64,8 @@ class _JarReminderSettingsCardState
     _weekdays = [...reminder.weekdays];
   }
 
-  void save({String action = 'save'}) {
+  Future<void> save({String action = 'save'}) async {
+    if (_saving) return;
     final reminder = widget.jar.reminder ?? _defaultReminder;
     final hour = RegExp(r'^\d{1,2}$').hasMatch(_hour) ? int.parse(_hour) : -1;
     final minute = RegExp(r'^\d{1,2}$').hasMatch(_minute)
@@ -83,8 +85,12 @@ class _JarReminderSettingsCardState
       );
       return;
     }
+    setState(() {
+      _saving = true;
+      _message = 'Saving…';
+    });
     try {
-      ref
+      await ref
           .read(savingsProvider.notifier)
           .editJar(
             widget.jar.id,
@@ -92,12 +98,17 @@ class _JarReminderSettingsCardState
               reminder: action == 'snooze' ? snoozeReminderOneDay(next) : next,
             ),
           );
+      if (!mounted) return;
       setState(() {
         _message = 'Reminder settings saved.';
         _expanded = false;
       });
     } catch (caught) {
-      setState(() => _message = 'Could not save your reminder.');
+      if (mounted) {
+        setState(() => _message = 'Could not save your reminder. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -123,7 +134,7 @@ class _JarReminderSettingsCardState
         ? 'Next reminder: ${formatDateTime(next)}.'
         : 'No personal reminders scheduled.';
 
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -341,6 +352,7 @@ class _JarReminderSettingsCardState
         ],
       ),
     );
+    return AbsorbPointer(absorbing: _saving, child: card);
   }
 
   Widget _timeField(

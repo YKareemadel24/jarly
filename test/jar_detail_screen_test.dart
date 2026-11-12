@@ -1,16 +1,22 @@
 /// Regression coverage for amount previews and transaction corrections.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jarly/data/key_value_storage.dart';
 import 'package:jarly/data/savings_storage.dart';
 import 'package:jarly/domain/domain.dart';
 import 'package:jarly/state/providers.dart';
 import 'package:jarly/state/settings_controller.dart';
 import 'package:jarly/ui/screens/jar_detail_screen.dart';
+import 'package:jarly/ui/screens/new_jar_screen.dart';
 import 'package:jarly/ui/widgets/pressable.dart';
+import 'package:jarly/ui/widgets/app_toast.dart';
 import 'package:jarly/ui/widgets/sheet_scaffold.dart';
 
 import 'helpers.dart';
@@ -21,7 +27,23 @@ class _Settings extends SettingsController {
       SettingsState.initial.copyWith(ready: true);
 }
 
-Future<void> _mount(WidgetTester tester, MemoryStorage storage) async {
+class _BlockedStorage extends MemoryStorage {
+  _BlockedStorage(super.initial);
+
+  Completer<void>? write;
+
+  @override
+  Future<void> setItem(String key, String value) async {
+    if (key == jarsKey && write != null) await write!.future;
+    await super.setItem(key, value);
+  }
+}
+
+Future<void> _mount(
+  WidgetTester tester,
+  KeyValueStorage storage, {
+  GoRouter? router,
+}) async {
   tester.view.physicalSize = const Size(1000, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -39,11 +61,13 @@ Future<void> _mount(WidgetTester tester, MemoryStorage storage) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
-        home: Scaffold(
-          body: SizedBox.expand(child: JarDetailScreen(jarId: 'trip')),
-        ),
-      ),
+      child: router != null
+          ? MaterialApp.router(routerConfig: router)
+          : const MaterialApp(
+              home: Scaffold(
+                body: SizedBox.expand(child: JarDetailScreen(jarId: 'trip')),
+              ),
+            ),
     ),
   );
   await tester.pumpAndSettle();
@@ -54,6 +78,133 @@ Finder get _sheet => find.byWidgetPredicate(
 );
 
 void main() {
+  testWidgets('jar creation keeps the draft until a successful retry', (
+    tester,
+  ) async {
+    final storage = _BlockedStorage({
+      jarsKey: serializeJars([jar()]),
+    });
+    final router = GoRouter(
+      initialLocation: '/new',
+      routes: [
+        GoRoute(
+          path: '/new',
+          builder: (context, state) =>
+              const Scaffold(body: SizedBox.expand(child: NewJarScreen())),
+        ),
+        GoRoute(
+          path: '/jar/:id',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Created jar')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await _mount(tester, storage, router: router);
+    await tester.enterText(find.byType(TextField).first, 'New trip');
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '100');
+    await tester.pump();
+
+    storage.write = Completer<void>();
+    await tester.tap(find.text('Create my jar'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.path, '/new');
+    expect((await loadPersistedJars(storage)).jars, hasLength(1));
+    storage.write!.completeError(StateError('Storage unavailable'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('could not be saved'), findsOneWidget);
+    expect(find.text('New trip'), findsOneWidget);
+    expect(find.text('100'), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.path, '/new');
+
+    storage.write = null;
+    await tester.tap(find.text('Create my jar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Created jar'), findsOneWidget);
+    final jars = (await loadPersistedJars(storage)).jars;
+    expect(jars, hasLength(2));
+    expect(jars.where((jar) => jar.name == 'New trip').single.target, 10000);
+  });
+
+  testWidgets('failed deposit keeps its draft and retries one saved entry', (
+    tester,
+  ) async {
+    final storage = _BlockedStorage({
+      jarsKey: serializeJars([jar(balance: 10000, target: 100000)]),
+    });
+    await _mount(tester, storage);
+    final haptics = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') {
+          haptics.add(call.arguments);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final deposit = find.byWidgetPredicate(
+      (widget) =>
+          widget is Pressable && widget.semantics == 'Deposit into Japan trip',
+    );
+    await tester.ensureVisible(deposit);
+    await tester.tap(deposit);
+    await tester.pumpAndSettle();
+    final fields = find.descendant(
+      of: _sheet,
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.first, '25');
+    await tester.enterText(fields.at(1), 'Keep this draft');
+    await tester.pump();
+    haptics.clear();
+    storage.write = Completer<void>();
+    await tester.tap(find.text('Add to jar'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    expect(
+      find.descendant(of: _sheet, matching: find.text('Add to jar')),
+      findsOneWidget,
+    );
+    expect(haptics, isEmpty);
+    expect(
+      find.byWidgetPredicate((widget) => widget is AppToast && widget.visible),
+      findsNothing,
+    );
+    expect((await loadPersistedJars(storage)).jars.single.balance, 10000);
+
+    storage.write!.completeError(StateError('Storage unavailable'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saving…'), findsNothing);
+    expect(find.text('Keep this draft'), findsOneWidget);
+    expect(haptics, isEmpty);
+    expect((await loadPersistedJars(storage)).jars.single.balance, 10000);
+    expect(find.textContaining('could not be saved'), findsWidgets);
+
+    storage.write = null;
+    await tester.tap(find.text('Add to jar'));
+    await tester.pumpAndSettle();
+    final saved = (await loadPersistedJars(storage)).jars.single;
+    expect(saved.balance, 12500);
+    expect(saved.entries.single.amount, 2500);
+    expect(saved.entries.single.note, 'Keep this draft');
+    expect(haptics, ['HapticFeedbackType.mediumImpact']);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 9));
+  });
+
   testWidgets('deposit preview and reload preserve cents near the limit', (
     tester,
   ) async {

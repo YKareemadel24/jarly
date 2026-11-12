@@ -15,12 +15,12 @@ class StorageWarning extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final storageError = ref.watch(savingsProvider).value?.storageError;
     if (storageError == null) return const SizedBox.shrink();
-    return Semantics(
-      liveRegion: true,
-      child: Positioned(
-        top: 54,
-        left: 16,
-        right: 16,
+    return Positioned(
+      top: 54,
+      left: 16,
+      right: 16,
+      child: Semantics(
+        liveRegion: true,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(

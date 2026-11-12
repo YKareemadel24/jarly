@@ -11,6 +11,7 @@ import '../../core/theme/palette.dart';
 import '../../domain/domain.dart' show Jar;
 import '../../services/backup_io.dart';
 import '../../state/providers.dart';
+import '../../state/savings_controller.dart' show StoreException;
 import '../../transfer/backup.dart';
 import '../../transfer/merge.dart' show MergeResult;
 import '../widgets/pressable.dart';
@@ -43,8 +44,12 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
     try {
       await action();
     } catch (error) {
+      if (!mounted) return;
       setState(() {
-        _error = error is BackupParseException || error is BackupIoException
+        _error =
+            error is BackupParseException ||
+                error is BackupIoException ||
+                error is StoreException
             ? error.toString()
             : 'Could not complete the backup action. Try again.';
       });
@@ -64,9 +69,10 @@ class _BackupPanelState extends ConsumerState<BackupPanel> {
     _run(() async {
       // The store validates again against fresh jars, including changes
       // since the preview was shown.
-      final result = ref
+      final result = await ref
           .read(savingsProvider.notifier)
           .importTransfer(backup.frames, _currency);
+      if (!mounted) return;
       if (result.error != null) throw BackupIoException(result.error!);
       setState(() {
         _notice =

@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-11 (exact amount entry and display)
+**Last updated:** 2026-11-12 (ledger save feedback)
 
 ## Experience direction
 
@@ -24,7 +24,7 @@ The interface follows an iOS-native hierarchy: a quiet, content-led home screen,
 
 ### Add money to a goal
 
-The user opens the home screen, taps a reminder or a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The jar fill and numeric amount update together, accompanied by a short success acknowledgement. A milestone is shown only when one is reached.
+The user opens the home screen, taps a reminder or a jar card's `+ Add` chip, or opens a jar card directly, then enters an amount and confirms the deposit. The deposit sheet previews the transition from the current balance to the new balance alongside the resulting percentage before confirmation. The app shows a saving state while the write is pending. After the write completes, the jar fill and numeric amount update together with a short success acknowledgement and any milestone reached.
 
 ### Correct or undo a recorded transaction
 
@@ -48,7 +48,7 @@ Accepted decimal amounts, currency displays, and amount prefills preserve exact 
 
 Date-only deadlines (`YYYY-MM-DD`) and month-year deadlines (for example, `December 2026`) resolve to local calendar days. Countdown and pace calculations compare calendar dates so midnight and daylight-saving changes do not shift a deadline by a day.
 
-If local jar storage cannot be read or a save fails, a persistent warning explains that changes may not be saved. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
+If local jar storage cannot be read or a save fails, a persistent warning explains the problem. A failed mutation preserves the previously saved balance and leaves the transaction draft available to retry. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
 
 The app lock stays visible while security settings load or when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
 
@@ -90,6 +90,6 @@ The reusable visual system contains a `Jar` component with a glass silhouette, t
 
 ## Implementation decisions
 
-Savings data is device-local: jars persist to key/value storage via shared_preferences (`saving-jar:v3`, one-generation backup, migrates legacy v1/v2 float stores to integer minor units); the PIN record uses secure storage on native. Money is always integer minor units. Withdrawals never roll back milestones or streaks. Recurring rules (daily/weekly/biweekly/monthly, pausable) catch up deterministically, capped at 366 occurrences per call. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. Insights derives entirely from local entries (6-month `monthlyDeposits`, streaks, closest goal). There is no server — the app is purely local/device-only.
+Savings data is device-local. The native ledger file or browser IndexedDB holds `saving-jar:v3` and its one-generation backup, with migration from older preference stores. The PIN record uses secure storage on native. Money is always integer minor units. Withdrawals never roll back milestones or streaks. Recurring rules (daily/weekly/biweekly/monthly, pausable) catch up deterministically, capped at 366 occurrences per call. The main navigation consists of Home, Activity, Insights, and Profile tabs, with jar detail and creation/deposit experiences presented as routes or bottom sheets. Insights derives entirely from local entries (6-month `monthlyDeposits`, streaks, closest goal). There is no server.
 
 The app is implemented in Flutter 3.47 (Material 3) with go_router navigation, Riverpod controllers over a pure Dart domain layer, and flutter_local_notifications for reminders. The visual system above is reproduced 1:1: the same tokens, sheet behaviour, press feedback (opacity + 0.98 scale), and jar vessel animation as the original React Native build. Launcher icons and the native splash are generated from the same brand assets.
