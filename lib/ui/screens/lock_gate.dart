@@ -18,7 +18,9 @@ import '../../services/haptics.dart';
 import '../../state/providers.dart';
 
 class LockGate extends ConsumerStatefulWidget {
-  const LockGate({super.key});
+  const LockGate({super.key, required this.child});
+
+  final Widget child;
 
   @override
   ConsumerState<LockGate> createState() => _LockGateState();
@@ -34,6 +36,9 @@ class _LockGateState extends ConsumerState<LockGate>
   bool _unlocking = false;
   String? _bioError;
   Timer? _clock;
+  final _routeScope = FocusScopeNode(debugLabel: 'Savings routes');
+  FocusNode? _focusBeforeLock;
+  bool _routeBlocked = false;
 
   @override
   void initState() {
@@ -44,8 +49,51 @@ class _LockGateState extends ConsumerState<LockGate>
   @override
   void dispose() {
     _clock?.cancel();
+    _routeScope.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Widget _withRoute([Widget? gate]) {
+    final blocked = gate != null;
+    if (blocked != _routeBlocked) {
+      _routeBlocked = blocked;
+      if (blocked) {
+        final current = FocusManager.instance.primaryFocus;
+        _focusBeforeLock =
+            current != null && current.ancestors.contains(_routeScope)
+            ? current
+            : null;
+      } else {
+        final previous = _focusBeforeLock;
+        _focusBeforeLock = null;
+        if (previous != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted &&
+                !_routeBlocked &&
+                previous.context?.mounted == true &&
+                previous.canRequestFocus) {
+              previous.requestFocus();
+            }
+          });
+        }
+      }
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        FocusScope(
+          node: _routeScope,
+          canRequestFocus: !blocked,
+          descendantsAreFocusable: !blocked,
+          child: ExcludeSemantics(
+            excluding: blocked,
+            child: IgnorePointer(ignoring: blocked, child: widget.child),
+          ),
+        ),
+        ?gate,
+      ],
+    );
   }
 
   @override
@@ -198,9 +246,9 @@ class _LockGateState extends ConsumerState<LockGate>
           }
         });
       }
-      return const SizedBox.shrink();
+      return _withRoute();
     }
-    if (!_shown) return const SizedBox.shrink();
+    if (!_shown && ready) return _withRoute();
 
     // Keep the pin panel selection in sync with the policy.
     if (!_pinShown && _canPin && !_canBio) {
@@ -238,18 +286,20 @@ class _LockGateState extends ConsumerState<LockGate>
               .clamp(1, 3600)
         : 0;
 
-    return Positioned.fill(
-      child: Material(
-        color: palette.background,
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: !ready
-                  ? _notReady(palette)
-                  : _pinShown || (_canPin && !_canBio)
-                  ? _pinPanel(palette, lockedOut, lockoutSeconds)
-                  : _bioPanel(palette),
+    return _withRoute(
+      Positioned.fill(
+        child: Material(
+          color: palette.background,
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: !ready
+                    ? _notReady(palette)
+                    : _pinShown || (_canPin && !_canBio)
+                    ? _pinPanel(palette, lockedOut, lockoutSeconds)
+                    : _bioPanel(palette),
+              ),
             ),
           ),
         ),

@@ -91,7 +91,15 @@ class _JarlyAppState extends ConsumerState<JarlyApp> {
         return Stack(
           children: [
             if (ready)
-              child ?? const SizedBox.shrink()
+              LockGate(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    child ?? const SizedBox.shrink(),
+                    const StorageWarning(),
+                  ],
+                ),
+              )
             else
               Material(
                 child: SafeArea(
@@ -122,8 +130,6 @@ class _JarlyAppState extends ConsumerState<JarlyApp> {
                 ),
               ),
             const NotificationResync(),
-            if (ready) const StorageWarning(),
-            if (ready) const LockGate(),
           ],
         );
       },
