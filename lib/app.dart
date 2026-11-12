@@ -19,6 +19,22 @@ class JarlyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeProvider).value ?? AppearanceMode.system;
+    final savings = ref.watch(savingsProvider);
+    final settings = ref.watch(settingsProvider);
+    final savingsReady =
+        savings.value?.ready == true && savings.value?.writable == true;
+    final settingsReady = settings.value?.ready == true;
+    final unavailable =
+        savings.hasError ||
+        settings.hasError ||
+        (savings.hasValue && !savingsReady) ||
+        (settings.hasValue && !settingsReady);
+    final ready =
+        savingsReady &&
+        settingsReady &&
+        !unavailable &&
+        !savings.isLoading &&
+        !settings.isLoading;
 
     return MaterialApp.router(
       title: 'jarly',
@@ -45,10 +61,40 @@ class JarlyApp extends ConsumerWidget {
         // are headless/banner layers from the original root layout.
         return Stack(
           children: [
-            child ?? const SizedBox.shrink(),
+            if (ready)
+              child ?? const SizedBox.shrink()
+            else
+              Material(
+                child: SafeArea(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: unavailable
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Savings storage is unavailable.',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton(
+                                  onPressed: () =>
+                                      ref.invalidate(storageProvider),
+                                  child: const Text('Try again'),
+                                ),
+                              ],
+                            )
+                          : const CircularProgressIndicator(
+                              semanticsLabel: 'Loading savings',
+                            ),
+                    ),
+                  ),
+                ),
+              ),
             const NotificationResync(),
-            const StorageWarning(),
-            const LockGate(),
+            if (ready) const StorageWarning(),
+            if (ready) const LockGate(),
           ],
         );
       },

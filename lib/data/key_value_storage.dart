@@ -2,7 +2,6 @@
 /// an in-memory fake, mirroring the original app's `KeyValueStorage`.
 library;
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/ledger_storage.dart';
@@ -13,7 +12,7 @@ abstract class KeyValueStorage {
   Future<void> removeItem(String key);
 }
 
-/// In-memory implementation for tests and as a web-friendly fallback.
+/// In-memory implementation for tests.
 class MemoryStorage implements KeyValueStorage {
   MemoryStorage([Map<String, String>? initial]) : values = {...?initial};
 
@@ -60,15 +59,6 @@ class SharedPrefsStorage implements KeyValueStorage {
   }
 }
 
-/// Picks the right store per platform at startup. Web has no secure storage,
-/// matching the original app's AsyncStorage-everywhere behavior there.
-Future<KeyValueStorage> createStorage() async {
-  if (kIsWeb) return createLedgerStorage(await SharedPrefsStorage.load());
-  final SharedPrefsStorage preferences;
-  try {
-    preferences = await SharedPrefsStorage.load();
-  } catch (_) {
-    return MemoryStorage();
-  }
-  return createLedgerStorage(preferences);
-}
+/// Opens the local stores, propagating initialization failure to the app root.
+Future<KeyValueStorage> createStorage() async =>
+    createLedgerStorage(await SharedPrefsStorage.load());

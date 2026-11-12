@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (amount entry and transaction confirmation)
+**Last updated:** 2026-11-12 (storage startup and recovery)
 
 ## Experience direction
 
@@ -52,7 +52,7 @@ Date-only deadlines (`YYYY-MM-DD`) and month-year deadlines (for example, `Decem
 
 If local jar storage cannot be read or a save fails, a persistent warning explains the problem. A failed mutation preserves the previously saved balance and leaves the transaction draft available to retry. Valid empty stores stay empty, and corrupt current data is not copied over a valid recovery backup.
 
-The app lock stays visible while security settings load or when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
+The app shows a loading state while the ledger and security settings open. If either is unavailable, a retry screen keeps the savings routes closed. After loading, the app lock applies the saved policy and stays closed when the configured credential is unavailable. PIN reset requires biometric verification when available. Transfers reject invalid money and mixed code sessions; imports require matching currency and preserve local jars when histories conflict.
 
 ### Saving plans and activity filters
 

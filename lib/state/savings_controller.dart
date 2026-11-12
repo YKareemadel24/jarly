@@ -147,7 +147,9 @@ class SavingsController extends AsyncNotifier<SavingsState> {
 
   void _requireWritable() {
     final current = state.value;
-    if (current == null ||
+    if (state.isLoading ||
+        state.hasError ||
+        current == null ||
         !current.ready ||
         !current.writable ||
         _storage == null) {

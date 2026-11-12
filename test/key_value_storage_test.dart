@@ -12,6 +12,21 @@ void main() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
+  test(
+    'native storage initialization failure is reported to the caller',
+    () async {
+      SharedPreferences.resetStatic();
+      messenger.setMockMethodCallHandler(channel, (_) async {
+        throw PlatformException(code: 'unavailable');
+      });
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(channel, null);
+        SharedPreferences.resetStatic();
+      });
+      await expectLater(createStorage(), throwsA(isA<PlatformException>()));
+    },
+  );
+
   for (final remove in [false, true]) {
     test(
       'reports a false ${remove ? 'remove' : 'set'} result and retains the saved value',
