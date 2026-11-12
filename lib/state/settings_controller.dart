@@ -1,9 +1,8 @@
 /// Settings store: gentle-support toggles, app lock (biometrics + PIN with
 /// escalating lockout), and the active currency.
 ///
-/// Port of `lib/settings-store.tsx`. Every setter writes through to storage
-/// immediately (best effort), and lock preferences failing to read keep the
-/// app gate closed rather than open.
+/// Settings changes publish after their writes complete. Failed lock preference
+/// reads keep the app gate closed.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -25,6 +24,7 @@ class SettingsState {
     required this.pinLength,
     required this.pinLockedUntil,
     required this.currency,
+    this.storageError,
   });
 
   static const initial = SettingsState(
@@ -64,6 +64,7 @@ class SettingsState {
 
   /// Active currency code (ISO 4217).
   final String currency;
+  final String? storageError;
 
   SettingsState copyWith({
     bool? ready,
@@ -77,6 +78,8 @@ class SettingsState {
     int? pinLockedUntil,
     bool clearPinLockedUntil = false,
     String? currency,
+    String? storageError,
+    bool clearStorageError = false,
   }) => SettingsState(
     ready: ready ?? this.ready,
     remindersEnabled: remindersEnabled ?? this.remindersEnabled,
@@ -89,12 +92,14 @@ class SettingsState {
         ? null
         : (pinLockedUntil ?? this.pinLockedUntil),
     currency: currency ?? this.currency,
+    storageError: clearStorageError ? null : storageError ?? this.storageError,
   );
 }
 
 class SettingsController extends AsyncNotifier<SettingsState> {
   KeyValueStorage? _storage;
   final PinRepository _pinRepository = PinRepository();
+  Future<void> _writes = Future.value();
 
   SettingsState get _current => state.value ?? SettingsState.initial;
 
@@ -122,6 +127,7 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       final biometricRaw = await storage.getItem(biometricKey);
       final pinLockRaw = await storage.getItem(pinLockKey);
       final pinRecord = await _pinRepository.readPinRecord();
+      final pinLength = pinLengthOf(pinRecord);
       final attempts = await readAttempts(storage);
       final currencyRaw = await storage.getItem(currencyKey);
 
@@ -139,8 +145,8 @@ class SettingsController extends AsyncNotifier<SettingsState> {
         // Keep the lock policy active even if its credential is missing; the
         // gate will fail closed and explain that authentication is unavailable.
         pinLockEnabled: pinLockRaw == 'true',
-        hasPin: pinRecord != null,
-        pinLength: pinLengthOf(pinRecord),
+        hasPin: pinLength != null,
+        pinLength: pinLength,
         pinLockedUntil:
             attempts.lockedUntil > DateTime.now().millisecondsSinceEpoch
             ? attempts.lockedUntil
@@ -155,62 +161,116 @@ class SettingsController extends AsyncNotifier<SettingsState> {
     }
   }
 
-  void _write(String key, String value) {
-    final storage = _storage;
-    if (storage == null) return;
-    storage.setItem(key, value).catchError((_) {});
+  Future<bool> _saveSettings(
+    String failure,
+    Future<SettingsState> Function(KeyValueStorage storage) save,
+  ) {
+    final operation = _writes.then((_) async {
+      final storage = _storage;
+      if (!ref.mounted ||
+          storage == null ||
+          state.isLoading ||
+          state.hasError ||
+          !_current.ready) {
+        return false;
+      }
+      try {
+        final next = await save(storage);
+        if (ref.mounted) state = AsyncData(next);
+        return true;
+      } catch (_) {
+        if (ref.mounted) {
+          state = AsyncData(_current.copyWith(storageError: failure));
+        }
+        return false;
+      }
+    });
+    _writes = operation.then<void>((_) {});
+    return operation;
   }
 
-  void _remove(String key) {
-    final storage = _storage;
-    if (storage == null) return;
-    storage.removeItem(key).catchError((_) {});
-  }
+  Future<bool> setRemindersEnabled(bool next) => _saveSettings(
+    'Saving reminders could not be updated. Try again.',
+    (storage) async {
+      await storage.setItem(remindersKey, next.toString());
+      return _current.copyWith(remindersEnabled: next, clearStorageError: true);
+    },
+  );
 
-  void setRemindersEnabled(bool next) {
-    state = AsyncData(_current.copyWith(remindersEnabled: next));
-    _write(remindersKey, next ? 'true' : 'false');
-  }
+  Future<bool> setBiometricLockEnabled(bool next) => _saveSettings(
+    'Fingerprint unlock could not be updated. Verify your device and try again.',
+    (storage) async {
+      if (next &&
+          (!_current.biometricAvailable ||
+              !await authenticateWithBiometrics())) {
+        throw StateError('Device verification did not succeed.');
+      }
+      await storage.setItem(biometricKey, next.toString());
+      return _current.copyWith(
+        biometricLockEnabled: next,
+        clearStorageError: true,
+      );
+    },
+  );
 
-  void setBiometricLockEnabled(bool next) {
-    state = AsyncData(_current.copyWith(biometricLockEnabled: next));
-    _write(biometricKey, next ? 'true' : 'false');
-  }
-
-  /// Save or change the PIN used to unlock. Returns false on invalid input.
+  /// Save or change the PIN used to unlock. Returns false if it cannot be saved.
   Future<bool> setPin(String pin) async {
     if (!RegExp(r'^\d{4,12}$').hasMatch(pin)) return false;
-    try {
+    return _saveSettings('Could not save that PIN. Try again.', (_) async {
       await _pinRepository.writePinRecord(makePinRecord(pin));
-      state = AsyncData(_current.copyWith(hasPin: true, pinLength: pin.length));
-      return true;
-    } catch (_) {
-      return false;
-    }
+      return _current.copyWith(
+        hasPin: true,
+        pinLength: pin.length,
+        clearStorageError: true,
+      );
+    });
   }
 
   /// Enable PIN lock; assumes [setPin] was called first.
-  Future<bool> enablePinLock() async {
-    try {
-      final pin = await _pinRepository.readPinRecord();
-      if (pin == null) return false;
-      _write(pinLockKey, 'true');
-      state = AsyncData(_current.copyWith(pinLockEnabled: true));
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
+  Future<bool> enablePinLock() => _saveSettings(
+    'Could not enable the PIN lock. Save a valid PIN and try again.',
+    (storage) async {
+      final length = pinLengthOf(await _pinRepository.readPinRecord());
+      if (length == null) throw StateError('No usable saved PIN.');
+      await storage.setItem(pinLockKey, 'true');
+      return _current.copyWith(
+        pinLockEnabled: true,
+        hasPin: true,
+        pinLength: length,
+        clearStorageError: true,
+      );
+    },
+  );
 
   /// Disable PIN lock and clear the stored PIN.
-  Future<void> disablePinLock() async {
-    state = AsyncData(_current.copyWith(pinLockEnabled: false));
-    await _pinRepository.deletePinRecord();
-    state = AsyncData(_current.copyWith(hasPin: false, clearPinLength: true));
-    _remove(pinAttemptsKey);
-    state = AsyncData(_current.copyWith(clearPinLockedUntil: true));
-    _write(pinLockKey, 'false');
-  }
+  Future<bool> disablePinLock() => _saveSettings(
+    'Could not turn off the PIN lock. Try again.',
+    (storage) async {
+      await storage.setItem(pinLockKey, 'false');
+      var removedPin = false;
+      var removedAttempts = false;
+      try {
+        await _pinRepository.deletePinRecord();
+        removedPin = true;
+        await storage.removeItem(pinAttemptsKey);
+        removedAttempts = true;
+      } catch (_) {
+        // The disabled policy is already saved. Reflect what was removed.
+      }
+      return _current.copyWith(
+        pinLockEnabled: false,
+        hasPin: removedPin ? false : _current.hasPin,
+        clearPinLength: removedPin,
+        clearPinLockedUntil: removedAttempts,
+        clearStorageError: removedAttempts,
+        storageError: removedAttempts
+            ? null
+            : removedPin
+            ? 'PIN lock is off. Saved attempt history could not be cleared.'
+            : 'PIN lock is off. The saved PIN could not be removed.',
+      );
+    },
+  );
 
   /// Verify a PIN attempt. "locked" means too many recent failures — the
   /// caller should back off (see [state]'s pinLockedUntil) rather than prompt
@@ -255,15 +315,25 @@ class SettingsController extends AsyncNotifier<SettingsState> {
         await _pinRepository.writePinRecord(makePinRecord(pin));
       } catch (_) {}
     }
-    _remove(pinAttemptsKey);
-    state = AsyncData(_current.copyWith(clearPinLockedUntil: true));
+    try {
+      await storage.removeItem(pinAttemptsKey);
+      if (ref.mounted) {
+        state = AsyncData(_current.copyWith(clearPinLockedUntil: true));
+      }
+    } catch (_) {
+      // Authentication succeeded even if its attempt history could not be cleared.
+    }
     return 'ok';
   }
 
-  void setCurrency(String next) {
-    state = AsyncData(_current.copyWith(currency: next));
-    _write(currencyKey, next);
-  }
+  Future<bool> setCurrency(String next) =>
+      _saveSettings('Currency could not be saved. Try again.', (storage) async {
+        if (!supportedCurrencies.any((currency) => currency.code == next)) {
+          throw StateError('Unsupported currency.');
+        }
+        await storage.setItem(currencyKey, next);
+        return _current.copyWith(currency: next, clearStorageError: true);
+      });
 
   /// Prompt the platform biometric scanner. Resolves true on a successful match.
   Future<bool> authenticateWithBiometrics() async {

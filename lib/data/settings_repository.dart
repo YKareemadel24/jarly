@@ -82,22 +82,28 @@ String makePinRecord(String pin, {Random? random}) {
 }
 
 bool verifyPinRecord(String record, String pin) {
+  if (pinLengthOf(record) != pin.length) return false;
   if (!record.startsWith('v1:')) return record == pin; // legacy plaintext
   final parts = record.split(':');
-  final salt = parts.length > 2 ? parts[2] : '';
-  final hash = parts.length > 3 ? parts[3] : '';
-  if (salt.isEmpty || hash.isEmpty) return false;
-  return hashPin(pin, salt) == hash;
+  return hashPin(pin, parts[2]) == parts[3];
 }
 
 /// Number of digits in the stored PIN, or null when there is none.
 int? pinLengthOf(String? record) {
   if (record == null) return null;
   if (record.startsWith('v1:')) {
-    final length = int.tryParse(record.split(':')[1]);
-    return length != null && length > 0 ? length : null;
+    final fields = record.split(':');
+    if (fields.length != 4 ||
+        fields[2].isEmpty ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(fields[3])) {
+      return null;
+    }
+    final length = int.tryParse(fields[1]);
+    return length != null && length >= minPinLength && length <= maxPinLength
+        ? length
+        : null;
   }
-  return record.length; // legacy plaintext record
+  return RegExp(r'^\d{4,12}$').hasMatch(record) ? record.length : null;
 }
 
 class PinAttemptState {
@@ -126,8 +132,7 @@ class PinRepository {
 
   Future<void> writePinRecord(String record) async {
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(securePinKey, record);
+      await (await SharedPrefsStorage.load()).setItem(securePinKey, record);
     } else {
       await _secure.write(key: securePinKey, value: record);
     }
@@ -147,12 +152,9 @@ class PinRepository {
 
   Future<void> deletePinRecord() async {
     if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(securePinKey);
+      await (await SharedPrefsStorage.load()).removeItem(securePinKey);
     } else {
-      try {
-        await _secure.delete(key: securePinKey);
-      } catch (_) {}
+      await _secure.delete(key: securePinKey);
     }
   }
 }

@@ -192,9 +192,9 @@ class _LockGateState extends ConsumerState<LockGate>
     final ok = await ref
         .read(settingsProvider.notifier)
         .authenticateWithBiometrics();
-    if (!ok) return;
-    await ref.read(settingsProvider.notifier).disablePinLock();
-    if (!mounted) return;
+    if (!ok || !mounted) return;
+    final disabled = await ref.read(settingsProvider.notifier).disablePinLock();
+    if (!mounted || !disabled) return;
     setState(() {
       _shown = false;
       _pinShown = false;
@@ -230,6 +230,7 @@ class _LockGateState extends ConsumerState<LockGate>
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider).value;
     final ready = settings?.ready ?? false;
+    final settingsError = settings?.storageError;
     final palette = ref.watch(paletteProvider);
 
     // React to settings changes: closing the gate when no lock is configured,
@@ -294,11 +295,29 @@ class _LockGateState extends ConsumerState<LockGate>
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: !ready
-                    ? _notReady(palette)
-                    : _pinShown || (_canPin && !_canBio)
-                    ? _pinPanel(palette, lockedOut, lockoutSeconds)
-                    : _bioPanel(palette),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!ready)
+                      _notReady(palette)
+                    else if (_pinShown || (_canPin && !_canBio))
+                      _pinPanel(palette, lockedOut, lockoutSeconds)
+                    else
+                      _bioPanel(palette),
+                    if (settingsError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            settingsError,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: palette.error),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

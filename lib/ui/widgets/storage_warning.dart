@@ -1,4 +1,4 @@
-/// Persistent alert banner shown when local storage cannot be read safely.
+/// Persistent alert banner for local storage errors.
 ///
 /// Port of `components/storage-warning.tsx`.
 library;
@@ -13,8 +13,10 @@ class StorageWarning extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final storageError = ref.watch(savingsProvider).value?.storageError;
-    if (storageError == null) return const SizedBox.shrink();
+    final savingsError = ref.watch(savingsProvider).value?.storageError;
+    final settingsError = ref.watch(settingsProvider).value?.storageError;
+    final errors = [?savingsError, ?settingsError];
+    if (errors.isEmpty) return const SizedBox.shrink();
     return Positioned(
       top: 54,
       left: 16,
@@ -35,7 +37,7 @@ class StorageWarning extends ConsumerWidget {
             ],
           ),
           child: Text(
-            storageError,
+            errors.join('\n'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 13,

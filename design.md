@@ -1,6 +1,6 @@
 # Saving Jar — Mobile Interface Design Plan
 
-**Last updated:** 2026-11-12 (keyboard and large text)
+**Last updated:** 2026-11-12 (lock settings persistence)
 
 ## Experience direction
 
@@ -73,6 +73,8 @@ Personal reminder settings start collapsed in jar detail. A labeled Set/Edit act
 ### Lock, currency, and archiving
 
 Profile holds theme, default currency (all amounts re-render in it), biometric lock, and PIN lock (secure storage on native, shared_preferences on web). Archiving removes a jar from active goals while keeping history; archived jars can be restored or permanently deleted with confirmation.
+
+Lock settings reflect the saved policy. Enabling biometrics asks the user to verify on the device. If a change fails, the app shows an alert and keeps displaying the saved policy.
 
 While locked, only the lock screen is available to assistive technology, pointer input, and keyboard focus. Unlock restores the previous route focus when that control is still available.
 
