@@ -89,7 +89,120 @@ Future<void> _openTransaction(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _checkPastedAmounts(
+  WidgetTester tester,
+  Finder field,
+  Finder submit, {
+  Finder? scope,
+}) async {
+  for (final raw in ['1,234', '-12', '1.2345']) {
+    await tester.enterText(field, raw);
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, raw);
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).controller!.text, raw);
+    final message = find.textContaining('Use a positive amount');
+    expect(
+      scope == null ? message : find.descendant(of: scope, matching: message),
+      findsOneWidget,
+    );
+  }
+  await tester.enterText(field, '1,234.56');
+  await tester.pump();
+}
+
 void main() {
+  for (final editor in [
+    'deposit',
+    'withdrawal',
+    'target',
+    'schedule',
+    'correction',
+  ]) {
+    testWidgets(
+      '$editor validates pasted amounts without changing their value',
+      (tester) async {
+        final storage = MemoryStorage({
+          jarsKey: serializeJars([
+            jar(
+              balance: 200000,
+              target: 1000000,
+              openingBalance: 190000,
+              entries: [dep(10000, '2025-01-01T12:00:00.000Z')],
+              recurring: editor == 'schedule'
+                  ? const RecurringRule(
+                      amount: 100,
+                      cadence: 'weekly',
+                      paused: true,
+                    )
+                  : null,
+            ),
+          ]),
+        });
+        await _mount(tester, storage);
+        final submit = switch (editor) {
+          'deposit' => 'Add to jar',
+          'withdrawal' => 'Confirm withdrawal',
+          'target' => 'Save changes',
+          'schedule' => 'Save schedule',
+          _ => 'Save correction',
+        };
+        switch (editor) {
+          case 'deposit':
+            await _openTransaction(tester, 'Deposit into Japan trip');
+          case 'withdrawal':
+            await _openTransaction(tester, 'Withdraw from Japan trip');
+          case 'target':
+            await _openTransaction(tester, 'Jar options');
+            await tester.tap(find.text('Edit jar'));
+            await tester.pumpAndSettle();
+          case 'schedule':
+            await _openTransaction(tester, 'Edit recurring deposit');
+          case 'correction':
+            await tester.scrollUntilVisible(
+              find.text('Money added'),
+              400,
+              scrollable: find
+                  .descendant(
+                    of: find.byType(ListView),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            );
+            await tester.tap(find.text('Money added'));
+            await tester.pumpAndSettle();
+        }
+        final field = _draftFields.at(editor == 'target' ? 1 : 0);
+        final button = find.descendant(of: _sheet, matching: find.text(submit));
+        await _checkPastedAmounts(tester, field, button, scope: _sheet);
+        if (editor == 'deposit' || editor == 'withdrawal') {
+          await tester.enterText(field, '1234,56');
+          await tester.pump();
+          expect(
+            find.descendant(
+              of: _sheet,
+              matching: find.textContaining(
+                editor == 'deposit' ? r'$3,234.56' : r'$765.44',
+              ),
+            ),
+            findsOneWidget,
+          );
+        }
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        final saved = (await loadPersistedJars(storage)).jars.single;
+        expect(switch (editor) {
+          'target' => saved.target,
+          'schedule' => saved.recurring!.amount,
+          _ => saved.entries.first.amount,
+        }, 123456);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 9));
+      },
+    );
+  }
+
   for (final deposit in [true, false]) {
     final direction = deposit ? directionDeposit : directionWithdrawal;
     testWidgets('a rendered $direction confirmation can commit only once', (
@@ -195,8 +308,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '100');
-    await tester.pump();
+    await _checkPastedAmounts(
+      tester,
+      find.byType(TextField).first,
+      find.text('Create my jar'),
+    );
 
     storage.write = Completer<void>();
     await tester.tap(find.text('Create my jar'));
@@ -208,7 +324,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('could not be saved'), findsOneWidget);
     expect(find.text('New trip'), findsOneWidget);
-    expect(find.text('100'), findsOneWidget);
+    expect(find.text('1,234.56'), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.path, '/new');
 
     storage.write = null;
@@ -217,7 +333,7 @@ void main() {
     expect(find.text('Created jar'), findsOneWidget);
     final jars = (await loadPersistedJars(storage)).jars;
     expect(jars, hasLength(2));
-    expect(jars.where((jar) => jar.name == 'New trip').single.target, 10000);
+    expect(jars.where((jar) => jar.name == 'New trip').single.target, 123456);
   });
 
   testWidgets('failed deposit keeps its draft and retries one saved entry', (

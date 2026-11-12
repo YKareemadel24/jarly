@@ -94,24 +94,24 @@ String money(int minor, [String currency = 'USD']) {
   }
 }
 
-/// Keep only digits and a single decimal separator, max two fraction digits.
-/// A comma is accepted as a decimal separator and normalised to a period.
-String sanitizeAmountInput(String raw) {
-  final cleaned = StringBuffer();
-  var seenDot = false;
-  var fraction = 0;
-  for (final char in raw.replaceAll(',', '.').runes) {
-    final ch = String.fromCharCode(char);
-    if (ch.codeUnitAt(0) >= 0x30 && ch.codeUnitAt(0) <= 0x39) {
-      if (seenDot) {
-        if (fraction >= 2) continue;
-        fraction += 1;
-      }
-      cleaned.write(ch);
-    } else if (ch == '.' && !seenDot) {
-      seenDot = true;
-      cleaned.write(ch);
-    }
-  }
-  return cleaned.toString();
+const amountInputHelp =
+    'Use a positive amount like 1234.56, 1234,56, or 1,234.56, with up to two decimal places.';
+
+final _plainAmount = RegExp(r'^(?:\d+(?:[.,]\d{0,2})?|[.,]\d{1,2})$');
+final _commaGroupedAmount = RegExp(r'^\d{1,3}(?:,\d{3})+\.\d{1,2}$');
+final _dotGroupedAmount = RegExp(r'^\d{1,3}(?:\.\d{3})+,\d{1,2}$');
+
+/// Parse an unsigned editor amount. Grouped amounts require an explicit
+/// fraction so a single separator followed by three digits stays ambiguous.
+int? parseAmountInput(String raw) {
+  final text = raw.trim();
+  final normalized = switch (text) {
+    _ when _plainAmount.hasMatch(text) => text.replaceAll(',', '.'),
+    _ when _commaGroupedAmount.hasMatch(text) => text.replaceAll(',', ''),
+    _ when _dotGroupedAmount.hasMatch(text) =>
+      text.replaceAll('.', '').replaceAll(',', '.'),
+    _ => null,
+  };
+  final minor = toMinor(normalized);
+  return minor != null && minor > 0 ? minor : null;
 }

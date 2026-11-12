@@ -8,7 +8,7 @@ A warm, tactile savings companion for Android, iOS, web, and Windows. Saving Jar
 ![Dart 3.13](https://img.shields.io/badge/Dart-3.13-0175C2?logo=dart)
 ![Riverpod 3.5](https://img.shields.io/badge/Riverpod-3.5-2A5C8F)
 ![go_router 18](https://img.shields.io/badge/go__router-18-02569B)
-![Tests 198](https://img.shields.io/badge/Dart_tests-198-4A9579)
+![Tests 204](https://img.shields.io/badge/Dart_tests-204-4A9579)
 
 > Saving Jar was ported from an Expo/React Native codebase to Flutter (October–November 2026). The transfer/backup wire format (`lib/transfer/transfer.dart`) is a faithful port of the original `shared/transfer.ts`, so QR codes and `.jarly` backups stay interchangeable across both generations of the app.
 
@@ -84,7 +84,7 @@ The primary loop is intentionally short:
 | Notifications   | `flutter_local_notifications` + `timezone` + `flutter_timezone` (schedule rebuild is cancel-all-then-schedule)                     |
 | Backup I/O      | `share_plus` (native share sheet), `file_picker`, `package:web` (browser download/upload)                                          |
 | QR transfer     | [qr](https://pub.dev/packages/qr) encoder rendered with a single-path `CustomPainter`                                              |
-| Testing         | `flutter_test` — 198 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
+| Testing         | `flutter_test` — 204 tests over the pure domain, codecs, persistence, and widgets, plus targeted browser tests                      |
 | Tooling         | `flutter_lints` 6, `flutter_launcher_icons`, `flutter_native_splash`                                                               |
 
 ---
@@ -194,7 +194,7 @@ The savings domain lives in `lib/domain/` behind the `domain.dart` barrel, and i
 
 | Module                     | Responsibility                                                      |
 | -------------------------- | -------------------------------------------------------------------- |
-| `domain/money.dart`        | Minor-unit conversion, `intl` formatting, deposit-input sanitising.  |
+| `domain/money.dart`        | Minor-unit conversion, `intl` formatting, and amount input parsing.  |
 | `domain/jar.dart`          | Jar/entry types, milestones, habit streaks, `applyEntry`.            |
 | `domain/schedule.dart`     | Recurring-deposit catch-up and cadence maths.                        |
 | `domain/insights.dart`     | Monthly charts, deadline countdowns, pace, nudges.                   |
@@ -207,6 +207,7 @@ The savings domain lives in `lib/domain/` behind the `domain.dart` barrel, and i
 
 - All monetary values are **integer minor units** (cents). Changing the display currency never rescales a balance.
 - `toMinor('25.50')` → `2550`; decimal text is parsed exactly through the safe minor-unit limit. `minorToDecimal(2550)` → `'25.50'` is the exact formatter for amount inputs.
+- `parseAmountInput` validates amounts from the editors. It accepts decimal points and commas and grouped amounts with explicit cents, such as `1,234.56`. Signed, ambiguous, and over-precise values are rejected.
 - Numeric `toMinor(25.5)` and `fromMinor(2550)` retain legacy floating-point conversion behavior; legacy v1/v2 numeric storage migration is unchanged. Use decimal text for user-entered amounts.
 - `money(minor, currency)` formats integer whole units and cents separately via `intl`; the currency comes from settings and defaults to **USD**.
 
@@ -279,7 +280,7 @@ Design tokens (`lib/core/theme/palette.dart`):
 The domain layer is the most heavily tested part of the codebase.
 
 ```bash
-flutter test      # 198 tests
+flutter test      # 204 tests
 flutter analyze   # static analysis
 dart format .     # formatting
 ```
@@ -288,7 +289,7 @@ All three checks run on every push to `master` and on every pull request via Git
 
 **Coverage (`test/`):**
 
-- `money_test.dart`, `jar_test.dart` — money conversion, amount sanitization, milestones, deposits/withdrawals, habit streaks.
+- `money_test.dart`, `jar_test.dart` — money conversion, amount parsing, milestones, deposits/withdrawals, habit streaks.
 - `jar_detail_screen_test.dart` — exact large-amount previews, persisted deposits, and note-only corrections.
 - `schedule_test.dart` — recurring catch-up boundaries.
 - `insights_test.dart`, `badges_test.dart`, `presets_test.dart` — monthly charts, pace, badge thresholds, deposit presets.

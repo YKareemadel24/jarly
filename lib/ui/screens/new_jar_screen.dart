@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -70,7 +69,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     final settings = ref.watch(settingsProvider).value;
     final currency = settings?.currency ?? 'USD';
     final format = ref.watch(moneyFormatterProvider);
-    final targetValue = toMinor(_target);
+    final targetValue = parseAmountInput(_target);
     final currencySymbol =
         supportedCurrencies
             .where((item) => item.code == currency)
@@ -80,7 +79,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
     final accentHex = parseHex(accentFor(_accent, palette));
     final stepValid = _step == 1
         ? _name.trim().isNotEmpty
-        : _step < 3 || (targetValue != null && targetValue > 0);
+        : _step < 3 || targetValue != null;
 
     void goBack() {
       if (_saving) return;
@@ -228,7 +227,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          targetValue != null && targetValue > 0
+                          targetValue != null
                               ? 'Target ${format(targetValue)}'
                               : _kind == kindGoal
                               ? 'Give it somewhere to grow.'
@@ -416,7 +415,7 @@ class _NewJarScreenState extends ConsumerState<NewJarScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Enter a target greater than zero.',
+                    amountInputHelp,
                     style: TextStyle(color: palette.error, fontSize: 12),
                   ),
                 ),
@@ -706,7 +705,6 @@ class _WizardAmountFieldState extends State<_WizardAmountField> {
       controller: _controller,
       autofocus: true,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [_SanitizingFormatter()],
       onChanged: widget.onChanged,
       decoration: InputDecoration(
         hintText: '0',
@@ -758,20 +756,6 @@ class _PressableState extends State<_Pressable> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SanitizingFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final sanitized = sanitizeAmountInput(newValue.text);
-    return TextEditingValue(
-      text: sanitized,
-      selection: TextSelection.collapsed(offset: sanitized.length),
     );
   }
 }

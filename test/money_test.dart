@@ -62,11 +62,34 @@ void main() {
     });
   });
 
-  group('sanitizeAmountInput', () {
-    test('strips non-numeric characters and extra separators', () {
-      expect(sanitizeAmountInput('-12a3.4.5.6'), '123.45');
-      expect(sanitizeAmountInput('abc'), '');
-      expect(sanitizeAmountInput('1,2'), '1.2');
+  group('parseAmountInput', () {
+    test('accepts exact grouped and comma-decimal amounts', () {
+      const amounts = {
+        '1,234.56': 123456,
+        '1.234,56': 123456,
+        '1234,56': 123456,
+        ' .50 ': 50,
+        '90071992547409.91': maxSafeInteger,
+      };
+      for (final entry in amounts.entries) {
+        expect(parseAmountInput(entry.key), entry.value, reason: entry.key);
+      }
+    });
+
+    test('rejects signed, ambiguous, and unsupported amount strings', () {
+      for (final raw in [
+        '-12',
+        '+12',
+        '1,234',
+        '1.234',
+        '12.3456',
+        '1,23.45',
+        r'$123.45',
+        '1e2',
+        '90071992547409.92',
+      ]) {
+        expect(parseAmountInput(raw), isNull, reason: raw);
+      }
     });
   });
 

@@ -6,7 +6,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -147,7 +146,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     final editingEntry = jar.entries
         .where((entry) => entry.id == editingEntryId)
         .firstOrNull;
-    final amountMinor = toMinor(sanitizeAmountInput(amount));
+    final amountMinor = parseAmountInput(amount);
     final withdrawPreview =
         direction == directionWithdrawal && amountMinor != null
         ? max64(jar.balance - amountMinor)
@@ -179,9 +178,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
         return;
       }
       final value = amountMinor;
-      if (value == null || value <= 0) {
+      if (value == null) {
         Haptics.error();
-        setState(() => error = 'Enter an amount greater than zero.');
+        setState(() => error = amountInputHelp);
         return;
       }
       if (chosen == directionWithdrawal && value > jar.balance) {
@@ -257,9 +256,9 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
 
     Future<void> saveRecurring() async {
       if (_saving) return;
-      final value = toMinor(sanitizeAmountInput(recurringAmount));
-      if (value == null || value <= 0) {
-        setState(() => error = 'Enter a recurring amount.');
+      final value = parseAmountInput(recurringAmount);
+      if (value == null) {
+        setState(() => error = amountInputHelp);
         return;
       }
       final previous = jar.recurring;
@@ -335,9 +334,13 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
     Future<void> saveEdit() async {
       if (_saving) return;
       final name = editName.trim();
-      final target = toMinor(sanitizeAmountInput(editTarget));
-      if (name.isEmpty || target == null || target <= 0) {
-        setState(() => error = 'Add a name and a target greater than zero.');
+      final target = parseAmountInput(editTarget);
+      if (name.isEmpty || target == null) {
+        setState(
+          () => error = target == null
+              ? amountInputHelp
+              : 'Add a name for this jar.',
+        );
         return;
       }
       if (editDeadline.trim().isNotEmpty &&
@@ -450,7 +453,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             depositPreviewPct: depositPreviewPct,
             format: format,
             onAmountChange: (raw) => setState(() {
-              amount = sanitizeAmountInput(raw);
+              amount = raw;
               error = '';
             }),
             onNoteChange: (value) => setState(() => note = value),
@@ -477,7 +480,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             currencySymbol: currencySymbol,
             accent: accent,
             onAmountChange: (raw) => setState(() {
-              recurringAmount = sanitizeAmountInput(raw);
+              recurringAmount = raw;
               error = '';
             }),
             onCadenceChange: (value) => setState(() => cadence = value),
@@ -500,7 +503,7 @@ class _JarDetailScreenState extends ConsumerState<JarDetailScreen> {
             accent: accent,
             onNameChange: (value) => setState(() => editName = value),
             onTargetChange: (raw) => setState(() {
-              editTarget = sanitizeAmountInput(raw);
+              editTarget = raw;
               error = '';
             }),
             onDeadlineChange: (value) => setState(() => editDeadline = value),
@@ -1127,20 +1130,6 @@ int max64(int value) => value < 0 ? 0 : value;
 /* Shared sheet building blocks                                                */
 /* -------------------------------------------------------------------------- */
 
-class _AmountFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final sanitized = sanitizeAmountInput(newValue.text);
-    return TextEditingValue(
-      text: sanitized,
-      selection: TextSelection.collapsed(offset: sanitized.length),
-    );
-  }
-}
-
 class _NoteField extends StatefulWidget {
   const _NoteField({
     required this.palette,
@@ -1152,7 +1141,6 @@ class _NoteField extends StatefulWidget {
     this.maxLines = 1,
     this.enabled = true,
     this.keyboardType,
-    this.formatters,
   });
 
   final Palette palette;
@@ -1164,7 +1152,6 @@ class _NoteField extends StatefulWidget {
   final int maxLines;
   final bool enabled;
   final TextInputType? keyboardType;
-  final List<TextInputFormatter>? formatters;
 
   @override
   State<_NoteField> createState() => _NoteFieldState();
@@ -1217,7 +1204,6 @@ class _NoteFieldState extends State<_NoteField> {
           maxLength: widget.maxLength,
           maxLines: widget.maxLines,
           keyboardType: widget.keyboardType,
-          inputFormatters: widget.formatters,
           decoration: InputDecoration(
             hintText: widget.hint,
             hintStyle: TextStyle(color: widget.palette.muted, fontSize: 13),
@@ -1295,6 +1281,7 @@ class _DepositSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = Palette.of(Theme.brightnessOf(context));
     final isDeposit = direction == directionDeposit;
+    final enteredAmount = parseAmountInput(amount);
     final withdrawPreview = this.withdrawPreview;
     final depositPreview = this.depositPreview;
     final depositPreviewPct = this.depositPreviewPct;
@@ -1351,16 +1338,14 @@ class _DepositSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color:
                               amount.isNotEmpty &&
-                                  toMinor(sanitizeAmountInput(amount)) ==
-                                      preset.amount
+                                  enteredAmount == preset.amount
                               ? hexAlpha(accent, '22')
                               : palette.surface,
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
                             color:
                                 amount.isNotEmpty &&
-                                    toMinor(sanitizeAmountInput(amount)) ==
-                                        preset.amount
+                                    enteredAmount == preset.amount
                                 ? parseHex(accent)
                                 : palette.border,
                           ),
@@ -1374,8 +1359,7 @@ class _DepositSheet extends StatelessWidget {
                               style: TextStyle(
                                 color:
                                     amount.isNotEmpty &&
-                                        toMinor(sanitizeAmountInput(amount)) ==
-                                            preset.amount
+                                        enteredAmount == preset.amount
                                     ? parseHex(accent)
                                     : palette.foreground,
                                 fontSize: 12,
@@ -1387,8 +1371,7 @@ class _DepositSheet extends StatelessWidget {
                               style: TextStyle(
                                 color:
                                     amount.isNotEmpty &&
-                                        toMinor(sanitizeAmountInput(amount)) ==
-                                            preset.amount
+                                        enteredAmount == preset.amount
                                     ? parseHex(accent)
                                     : palette.muted,
                                 fontSize: 10,
@@ -1567,7 +1550,6 @@ class _ControlledAmountFieldState extends State<_ControlledAmountField> {
       controller: _controller,
       autofocus: true,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [_AmountFormatter()],
       onChanged: widget.onChanged,
       decoration: InputDecoration(
         hintText: widget.hint,
@@ -2040,12 +2022,14 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
 
   Future<void> save() async {
     if (_saving) return;
-    final minor = toMinor(_amount.text);
+    final minor = parseAmountInput(_amount.text);
     final dateOk = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(_date.text);
     final chosenDate = dateOk ? parseDeadline(_date.text) : null;
-    if (minor == null || minor <= 0 || chosenDate == null) {
+    if (minor == null || chosenDate == null) {
       setState(
-        () => _error = 'Enter a positive amount and a valid date (YYYY-MM-DD).',
+        () => _error = minor == null
+            ? amountInputHelp
+            : 'Enter a valid date (YYYY-MM-DD).',
       );
       return;
     }
@@ -2113,7 +2097,6 @@ class _EditEntrySheetState extends State<_EditEntrySheet> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              formatters: [_AmountFormatter()],
             ),
             const SizedBox(height: 6),
             Text(
